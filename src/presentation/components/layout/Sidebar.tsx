@@ -14,8 +14,6 @@ import {
   CreditCardOutlined,
   PayCircleOutlined,
   TeamOutlined,
-  SafetyCertificateOutlined,
-  KeyOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
@@ -96,8 +94,6 @@ const menuItems: MenuItem[] = [
     type: "group",
     children: [
       { key: "/usuarios", icon: <TeamOutlined />, label: "Usuarios" },
-      { key: "/roles", icon: <SafetyCertificateOutlined />, label: "Roles" },
-      { key: "/permisos", icon: <KeyOutlined />, label: "Permisos" },
     ],
   },
   {

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message } from "antd";
+import { Table, Card, Button, Space, Input, Typography, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
@@ -31,16 +31,13 @@ export function ProyectosPage() {
   const filteredData = useMemo(() => {
     if (!proyectos) return [];
     return proyectos.filter((p) =>
-      p.nombre.toLowerCase().includes(searchText.toLowerCase()) ||
-      (p.estado ?? "").toLowerCase().includes(searchText.toLowerCase())
+    p.nombre.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [proyectos, searchText]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Proyecto) => {
     setModal({ type, visible: true, record });
-    if (type === "edit") {
-      editForm.setFieldsValue({ nombre: record.nombre, estado: record.estado });
-    }
+    if (type === "edit") editForm.setFieldsValue({ nombre: record.nombre });
   };
 
   const closeModal = () => {
@@ -112,19 +109,6 @@ export function ProyectosPage() {
       onFilter: (value, record) => record.nombre.toLowerCase().includes(String(value).toLowerCase()),
     },
     {
-      title: "Estado",
-      dataIndex: "estado",
-      key: "estado",
-      filters: [
-        { text: "Activo", value: "activo" },
-        { text: "Inactivo", value: "inactivo" },
-      ],
-      onFilter: (value, record) => record.estado === value,
-      render: (estado: string) => (
-        <Tag color={estado === "activo" ? "green" : "red"}>{(estado ?? "sin estado").toUpperCase()}</Tag>
-      ),
-    },
-    {
       title: "Empresa",
       dataIndex: "id_empresa",
       key: "id_empresa",
@@ -184,11 +168,6 @@ export function ProyectosPage() {
         {modal.record && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Nombre">{modal.record.nombre}</Descriptions.Item>
-            <Descriptions.Item label="Estado">
-              <Tag color={modal.record.estado === "activo" ? "green" : "red"}>
-                {(modal.record.estado ?? "sin estado").toUpperCase()}
-              </Tag>
-            </Descriptions.Item>
             <Descriptions.Item label="Empresa">ID {modal.record.id_empresa}</Descriptions.Item>
           </Descriptions>
         )}
@@ -211,18 +190,6 @@ export function ProyectosPage() {
           >
             <Input />
           </Form.Item>
-          <Form.Item
-            name="estado"
-            label="Estado"
-            rules={[{ required: true, message: "Seleccione el estado" }]}
-          >
-            <Select
-              options={[
-                { value: "activo", label: "Activo" },
-                { value: "inactivo", label: "Inactivo" },
-              ]}
-            />
-          </Form.Item>
         </Form>
       </Modal>
 
@@ -242,18 +209,6 @@ export function ProyectosPage() {
             rules={[{ required: true, message: "Ingrese el nombre del proyecto" }]}
           >
             <Input />
-          </Form.Item>
-          <Form.Item
-            name="estado"
-            label="Estado"
-            rules={[{ required: true, message: "Seleccione el estado" }]}
-          >
-            <Select
-              options={[
-                { value: "activo", label: "Activo" },
-                { value: "inactivo", label: "Inactivo" },
-              ]}
-            />
           </Form.Item>
         </Form>
       </Modal>

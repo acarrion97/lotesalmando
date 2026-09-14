@@ -80,7 +80,7 @@ export function ClientesPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createCliente.execute({ ...values, id_empresa: 1 });
+      await container.createCliente.execute(values);
       await refreshClientes();
       messageApi.success("Cliente creado correctamente");
       setCreateModalOpen(false);

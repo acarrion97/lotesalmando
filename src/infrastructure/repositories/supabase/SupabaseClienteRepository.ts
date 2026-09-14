@@ -10,7 +10,7 @@ export class SupabaseClienteRepository implements ClienteRepository {
   }
 
   async getByEmpresaId(_empresaId: number): Promise<Cliente[]> {
-    const { data, error } = await supabase.from("cliente").select("*").eq("id_empresa", _empresaId);
+    const { data, error } = await supabase.from("cliente").select("*");
     if (error) throw error;
     return (data ?? []) as Cliente[];
   }

@@ -14,18 +14,47 @@
 
 ## 2. Fundación — Supabase Setup
 
+- [x] 2.1 Instalar @supabase/supabase-js
+- [x] 2.2 Crear .env con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
+- [x] 2.3 Crear infrastructure/supabase/client.ts (singleton client)
+- [ ] 2.4 Crear infrastructure/supabase/database.types.ts (generated types)
+- [ ] 2.5 Diseñar esquema PostgreSQL: empresas, usuarios, roles, usuario_roles
+- [ ] 2.6 Diseñar esquema PostgreSQL: proyectos, etapas, manzanas, lotes
+- [ ] 2.7 Diseñar esquema PostgreSQL: clientes, prospectos, asesores, oportunidades
+- [ ] 2.8 Diseñar esquema PostgreSQL: cotizaciones, ventas, contratos, cuotas, pagos
+- [ ] 2.9 Diseñar esquema PostgreSQL: inventario, configuracion, mapa
+- [x] 2.10 Crear migraciones SQL con tablas, foreign keys, índices
 - [x] 2.11 Crear políticas RLS por empresa_id en todas las tablas principales
- [x] 4.4 Crear UsuariosPage con CRUD real (create, edit, delete)
+- [ ] 2.12 Crear seed data con empresas y usuarios de prueba
 - [ ] 2.13 Verificar RLS aislamiento de datos entre empresas
 - [x] 2.14 Actualizar .env.example con VITE_DATA_PROVIDER=supabase y documentar mock como opt-in explicito
 - [x] 2.15 Configurar Supabase como proveedor predeterminado cuando VITE_DATA_PROVIDER no este definido o este vacio
+- [x] 2.16 Rechazar valores de VITE_DATA_PROVIDER distintos de supabase o mock con un error de configuracion claro
+- [x] 2.17 Verificar que el acceso de datos en tiempo de ejecucion pase por el contenedor y no use mocks desde presentacion
+
+## 3. Fundación — Auth y Multi-Empresa
+
+- [x] 3.1 Crear src/modules/auth/ (domain, application, infrastructure, presentation)
+- [x] 3.2 Implementar SupabaseAuthProvider (reemplazar mock auth)
+- [x] 3.3 Implementar login con email/password usando Supabase Auth
+- [x] 3.4 Implementar logout y limpieza de sesión
 - [x] 3.5 Implementar ProtectedRoute con redirect a /login
- [x] 6.4 Crear ProyectosPage con CRUD real
+- [ ] 3.6 Crear src/modules/empresas/ con EmpresaProvider
 - [ ] 3.7 Implementar selección de empresa (localStorage persistence)
 - [ ] 3.8 Crear EmpresaRepository Supabase
 - [ ] 3.9 Crear LoginPage con formulario real (Zod validation)
+- [ ] 3.10 Verificar auth flow completo: login → sesión → protected routes
+
+## 4. Fundación — Usuarios y Roles
+
+- [ ] 4.1 Crear src/modules/usuarios/ (domain, application, infrastructure, presentation)
+- [ ] 4.2 Crear UsuarioRepository interface + Supabase implementation
+- [ ] 4.3 Crear useUsuarios hook (TanStack Query)
+- [x] 4.4 Crear UsuariosPage con CRUD real (create, edit, delete)
+- [ ] 4.5 Agregar Zod validation en formulario de usuario
+- [ ] 4.6 Crear src/modules/roles/ básico (domain + repository)
+- [ ] 4.7 Conectar roles con usuarios (asignación)
 - [ ] 4.8 Verificar CRUD de usuarios persiste en Supabase
- [x] 7.4 Crear LotesPage con tabla + vista grid + estadísticas
 ## 5. Reestructura Modular
 
 - [ ] 5.1 Crear estructura src/modules/ con subcarpetas por módulo
@@ -43,7 +72,7 @@
 - [ ] 6.1 Crear src/modules/proyectos/ (domain, application, infrastructure, presentation)
 - [ ] 6.2 Implementar ProyectoRepository Supabase
 - [ ] 6.3 Implementar useProyectos hook (TanStack Query)
-- [ ] 6.4 Crear ProyectosPage con CRUD real
+- [x] 6.4 Crear ProyectosPage con CRUD real
 - [ ] 6.5 Crear src/modules/etapas/ con EtapaRepository Supabase
 - [ ] 6.6 Implementar EtapasPage (gestión de etapas por proyecto)
 - [ ] 6.7 Crear src/modules/manzanas/ con ManzanaRepository Supabase
@@ -55,7 +84,7 @@
 - [ ] 7.1 Crear src/modules/lotes/ (domain, application, infrastructure, presentation)
 - [ ] 7.2 Implementar LoteRepository Supabase con estados
 - [ ] 7.3 Implementar useLotes hook (TanStack Query)
-- [ ] 7.4 Crear LotesPage con tabla + vista grid + estadísticas
+- [x] 7.4 Crear LotesPage con tabla + vista grid + estadísticas
 - [ ] 7.5 Implementar estados de lote: disponible, reservado, en negociación, vendido, bloqueado, no disponible
 - [ ] 7.6 Agregar Zod validation en formulario de lote
 - [ ] 7.7 Crear src/modules/lotes/ con mapa SVG interactivo

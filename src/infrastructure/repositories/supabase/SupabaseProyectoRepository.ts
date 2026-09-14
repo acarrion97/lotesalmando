@@ -22,13 +22,17 @@ export class SupabaseProyectoRepository implements ProyectoRepository {
   }
 
   async create(data: Omit<Proyecto, "id_proyecto">): Promise<Proyecto> {
-    const { data: created, error } = await supabase.from("proyectos").insert(data).select().single();
+    const persistedData = { ...data };
+    delete persistedData.estado;
+    const { data: created, error } = await supabase.from("proyectos").insert(persistedData).select().single();
     if (error) throw error;
     return created as Proyecto;
   }
 
   async update(id: number, data: Partial<Proyecto>): Promise<Proyecto> {
-    const { data: updated, error } = await supabase.from("proyectos").update(data).eq("id_proyecto", id).select().single();
+    const persistedData = { ...data };
+    delete persistedData.estado;
+    const { data: updated, error } = await supabase.from("proyectos").update(persistedData).eq("id_proyecto", id).select().single();
     if (error) throw error;
     return updated as Proyecto;
   }

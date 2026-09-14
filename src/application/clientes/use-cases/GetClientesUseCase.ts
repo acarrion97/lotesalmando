@@ -16,7 +16,6 @@ export class GetClientesUseCase {
   private toDto(cliente: Cliente): ClienteDto {
     return {
       id_cliente: cliente.id_cliente,
-      id_empresa: cliente.id_empresa,
       nombres: cliente.nombres,
       cedula_ruc: cliente.cedula_ruc,
       email: cliente.email,
