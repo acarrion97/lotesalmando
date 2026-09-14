@@ -1,0 +1,25 @@
+import type { Cotizacion } from "@/domain/cotizacion/entities";
+import type { CotizacionRepository } from "@/domain/cotizacion/repositories";
+import type { CotizacionDto } from "../dto/CotizacionDto";
+
+export class GetCotizacionesUseCase {
+  private cotizacionRepo: CotizacionRepository;
+  constructor(cotizacionRepo: CotizacionRepository) {
+    this.cotizacionRepo = cotizacionRepo;
+  }
+
+  async execute(): Promise<CotizacionDto[]> {
+    const cotizaciones: Cotizacion[] = await this.cotizacionRepo.getAll();
+    return cotizaciones.map((c) => this.toDto(c));
+  }
+
+  private toDto(cotizacion: Cotizacion): CotizacionDto {
+    return {
+      id_cotizacion: cotizacion.id_cotizacion,
+      id_cliente: cotizacion.id_cliente,
+      id_lote: cotizacion.id_lote,
+      precio_ofertado: cotizacion.precio_ofertado,
+      estado: cotizacion.estado,
+    };
+  }
+}

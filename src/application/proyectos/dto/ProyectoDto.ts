@@ -1,0 +1,6 @@
+export interface ProyectoDto {
+  id_proyecto: number;
+  id_empresa: number;
+  nombre: string;
+  estado?: string;
+}

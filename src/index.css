@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Brand colors - Light theme */
+  --lam-primary: #082B33;
+  --lam-primary-hover: #164E5A;
+  --lam-primary-bg: #E8F0F2;
+  --lam-success: #10B981;
+  --lam-success-hover: #059669;
+  --lam-warning: #C7A35A;
+  --lam-warning-hover: #D8BA78;
+  --lam-error: #DC2626;
+  --lam-error-hover: #B91C1C;
+  --lam-bg: #F7F8F5;
+  --lam-bg-secondary: #F1F5F4;
+  --lam-bg-container: #FFFFFF;
+  --lam-text: #102A2E;
+  --lam-text-secondary: #52666A;
+  --lam-text-tertiary: #789095;
+  --lam-border: #D9E2E1;
+  --lam-border-secondary: #E8EDEC;
+  --lam-sider-bg: #082B33;
+  --lam-header-bg: #FFFFFF;
+}
+
+[data-theme="dark"] {
+  /* Brand colors - Dark theme */
+  --lam-primary: #10B981;
+  --lam-primary-hover: #34D399;
+  --lam-primary-bg: #0D3740;
+  --lam-success: #10B981;
+  --lam-success-hover: #34D399;
+  --lam-warning: #C7A35A;
+  --lam-warning-hover: #D8BA78;
+  --lam-error: #F87171;
+  --lam-error-hover: #FCA5A5;
+  --lam-bg: #061D23;
+  --lam-bg-secondary: #082B33;
+  --lam-bg-container: #0D3740;
+  --lam-text: #F7F8F5;
+  --lam-text-secondary: #B7C7C9;
+  --lam-text-tertiary: #789095;
+  --lam-border: #1C4A53;
+  --lam-border-secondary: #153D45;
+  --lam-sider-bg: #061D23;
+  --lam-header-bg: #082B33;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--lam-bg);
+  color: var(--lam-text);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--lam-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--lam-text-tertiary);
+}

@@ -1,0 +1,78 @@
+export const brand = {
+  // Primary brand colors
+  azulPetroleo: "#082B33",
+  azulPetroleoClaro: "#164E5A",
+  azulPetroleoOscuro: "#061D23",
+
+  verdeEsmeralda: "#10B981",
+  verdeOscuro: "#059669",
+  verdeClaro: "#34D399",
+
+  doradoMineral: "#C7A35A",
+  doradoClaro: "#D8BA78",
+
+  rojo: "#DC2626",
+  rojoClaro: "#F87171",
+
+  // Light theme
+  light: {
+    bg: "#F7F8F5",
+    bgSecondary: "#F1F5F4",
+    bgContainer: "#FFFFFF",
+    bgElevated: "#FFFFFF",
+    text: "#102A2E",
+    textSecondary: "#52666A",
+    textTertiary: "#789095",
+    border: "#D9E2E1",
+    borderSecondary: "#E8EDEC",
+    primary: "#082B33",
+    primaryHover: "#164E5A",
+    primaryBg: "#E8F0F2",
+    success: "#10B981",
+    successHover: "#059669",
+    warning: "#C7A35A",
+    warningHover: "#D8BA78",
+    error: "#DC2626",
+    errorHover: "#B91C1C",
+    link: "#082B33",
+    linkHover: "#164E5A",
+    siderBg: "#082B33",
+    siderItemSelectedBg: "#10B981",
+    headerBg: "#FFFFFF",
+    bodyBg: "#F1F5F4",
+    tableHeaderBg: "#F7F8F5",
+    tableRowHoverBg: "#F1F5F4",
+  },
+
+  // Dark theme
+  dark: {
+    bg: "#061D23",
+    bgSecondary: "#082B33",
+    bgContainer: "#0D3740",
+    bgElevated: "#124550",
+    text: "#F7F8F5",
+    textSecondary: "#B7C7C9",
+    textTertiary: "#789095",
+    border: "#1C4A53",
+    borderSecondary: "#153D45",
+    primary: "#10B981",
+    primaryHover: "#34D399",
+    primaryBg: "#0D3740",
+    success: "#10B981",
+    successHover: "#34D399",
+    warning: "#C7A35A",
+    warningHover: "#D8BA78",
+    error: "#F87171",
+    errorHover: "#FCA5A5",
+    link: "#10B981",
+    linkHover: "#34D399",
+    siderBg: "#061D23",
+    siderItemSelectedBg: "#10B981",
+    headerBg: "#082B33",
+    bodyBg: "#061D23",
+    tableHeaderBg: "#0D3740",
+    tableRowHoverBg: "#124550",
+  },
+} as const;
+
+export type BrandTheme = typeof brand.light;

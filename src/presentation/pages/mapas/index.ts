@@ -1,0 +1,1 @@
+export { MapasPage } from "./MapasPage";

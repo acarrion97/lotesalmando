@@ -1,0 +1,1 @@
+export { CobranzasPage } from "./CobranzasPage";

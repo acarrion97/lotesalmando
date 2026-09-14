@@ -1,0 +1,25 @@
+import type { Pago } from "@/domain/pago/entities";
+import type { PagoRepository } from "@/domain/pago/repositories";
+import type { PagoDto } from "../dto/PagoDto";
+
+export class GetPagosUseCase {
+  private pagoRepo: PagoRepository;
+  constructor(pagoRepo: PagoRepository) {
+    this.pagoRepo = pagoRepo;
+  }
+
+  async execute(): Promise<PagoDto[]> {
+    const pagos: Pago[] = await this.pagoRepo.getAll();
+    return pagos.map((p) => this.toDto(p));
+  }
+
+  private toDto(pago: Pago): PagoDto {
+    return {
+      id_pago: pago.id_pago,
+      id_cobranza: pago.id_cobranza,
+      id_usuario: pago.id_usuario,
+      monto_pagado: pago.monto_pagado,
+      fecha_pago: pago.fecha_pago,
+    };
+  }
+}
