@@ -11,6 +11,10 @@ import type { UsuarioRepository } from "@/domain/usuario/repositories";
 import type { InventarioRepository } from "@/domain/inventario/repositories";
 import type { EtapaRepository } from "@/domain/etapa/repositories";
 import type { ManzanaRepository } from "@/domain/manzana/repositories";
+import type { ProspectoRepository } from "@/domain/prospecto/repositories";
+import type { OportunidadRepository } from "@/domain/oportunidad/repositories";
+import type { ActividadRepository } from "@/domain/actividad/repositories";
+import type { AsesorRepository } from "@/domain/asesor/repositories";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
 import { MockProyectoRepository } from "@/infrastructure/repositories/mock/MockProyectoRepository";
@@ -39,6 +43,10 @@ import { SupabaseUsuarioRepository } from "@/infrastructure/repositories/supabas
 import { SupabaseInventarioRepository } from "@/infrastructure/repositories/supabase/SupabaseInventarioRepository";
 import { SupabaseEtapaRepository } from "@/infrastructure/repositories/supabase/SupabaseEtapaRepository";
 import { SupabaseManzanaRepository } from "@/infrastructure/repositories/supabase/SupabaseManzanaRepository";
+import { SupabaseProspectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProspectoRepository";
+import { SupabaseOportunidadRepository } from "@/infrastructure/repositories/supabase/SupabaseOportunidadRepository";
+import { SupabaseActividadRepository } from "@/infrastructure/repositories/supabase/SupabaseActividadRepository";
+import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase/SupabaseAsesorRepository";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
@@ -54,6 +62,10 @@ export interface Repositories {
   inventarioRepo: InventarioRepository;
   etapaRepo: EtapaRepository;
   manzanaRepo: ManzanaRepository;
+  prospectoRepo: ProspectoRepository;
+  oportunidadRepo: OportunidadRepository;
+  actividadRepo: ActividadRepository;
+  asesorRepo: AsesorRepository;
 }
 
 function createMockRepositories(): Repositories {
@@ -71,6 +83,10 @@ function createMockRepositories(): Repositories {
     inventarioRepo: new MockInventarioRepository(),
     etapaRepo: new MockEtapaRepository(),
     manzanaRepo: new MockManzanaRepository(),
+    prospectoRepo: { getAll: async () => [], getByEmpresaId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_prospecto: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_prospecto: 1, created_at: "" }), delete: async () => {} } as any,
+    oportunidadRepo: { getAll: async () => [], getByProspectoId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_oportunidad: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_oportunidad: 1, created_at: "" }), delete: async () => {} } as any,
+    actividadRepo: { getByProspectoId: async () => [], create: async (d: any) => ({ ...d, id_actividad: 1, created_at: "" }) } as any,
+    asesorRepo: { getAll: async () => [], getByEmpresaId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_asesor: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_asesor: 1, created_at: "" }), delete: async () => {} } as any,
   };
 }
 
@@ -98,6 +114,10 @@ function createSupabaseRepositories(): Repositories {
     inventarioRepo: new SupabaseInventarioRepository(),
     etapaRepo: new SupabaseEtapaRepository(),
     manzanaRepo: new SupabaseManzanaRepository(),
+    prospectoRepo: new SupabaseProspectoRepository(),
+    oportunidadRepo: new SupabaseOportunidadRepository(),
+    actividadRepo: new SupabaseActividadRepository(),
+    asesorRepo: new SupabaseAsesorRepository(),
   };
 }
 

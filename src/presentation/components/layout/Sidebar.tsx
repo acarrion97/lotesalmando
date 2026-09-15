@@ -52,6 +52,7 @@ const menuItems: MenuItem[] = [
       { key: "/clientes", icon: <UserOutlined />, label: "Clientes" },
       { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
       { key: "/ventas", icon: <DollarOutlined />, label: "Ventas" },
+      { key: "/prospectos", icon: <UserOutlined />, label: "Prospectos" },
     ],
   },
   {

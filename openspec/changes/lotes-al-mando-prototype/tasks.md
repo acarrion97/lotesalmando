@@ -69,41 +69,41 @@
 
 ## 6. Inventario — Proyectos, Etapas, Manzanas
 
-- [ ] 6.1 Crear src/modules/proyectos/ (domain, application, infrastructure, presentation)
-- [ ] 6.2 Implementar ProyectoRepository Supabase
-- [ ] 6.3 Implementar useProyectos hook (TanStack Query)
+- [x] 6.1 Crear src/modules/proyectos/ (domain, application, infrastructure, presentation)
+- [x] 6.2 Implementar ProyectoRepository Supabase
+- [x] 6.3 Implementar useProyectos hook (TanStack Query)
 - [x] 6.4 Crear ProyectosPage con CRUD real
-- [ ] 6.5 Crear src/modules/etapas/ con EtapaRepository Supabase
-- [ ] 6.6 Implementar EtapasPage (gestión de etapas por proyecto)
-- [ ] 6.7 Crear src/modules/manzanas/ con ManzanaRepository Supabase
-- [ ] 6.8 Implementar ManzanasPage (gestión de manzanas por etapa)
+- [x] 6.5 Crear src/modules/etapas/ con EtapaRepository Supabase
+- [x] 6.6 Implementar EtapasPage (gestión de etapas por proyecto)
+- [x] 6.7 Crear src/modules/manzanas/ con ManzanaRepository Supabase
+- [x] 6.8 Implementar ManzanasPage (gestión de manzanas por etapa)
 - [ ] 6.9 Verificar navegación jerárquica: proyecto → etapa → manzana
 
 ## 7. Inventario — Lotes y Mapa
 
-- [ ] 7.1 Crear src/modules/lotes/ (domain, application, infrastructure, presentation)
-- [ ] 7.2 Implementar LoteRepository Supabase con estados
-- [ ] 7.3 Implementar useLotes hook (TanStack Query)
+- [x] 7.1 Crear src/modules/lotes/ (domain, application, infrastructure, presentation)
+- [x] 7.2 Implementar LoteRepository Supabase con estados
+- [x] 7.3 Implementar useLotes hook (TanStack Query)
 - [x] 7.4 Crear LotesPage con tabla + vista grid + estadísticas
-- [ ] 7.5 Implementar estados de lote: disponible, reservado, en negociación, vendido, bloqueado, no disponible
+- [x] 7.5 Implementar estados de lote: disponible, reservado, en negociación, vendido, bloqueado, no disponible
 - [ ] 7.6 Agregar Zod validation en formulario de lote
-- [ ] 7.7 Crear src/modules/lotes/ con mapa SVG interactivo
-- [ ] 7.8 Implementar colores por estado en mapa (regla visual)
-- [ ] 7.9 Implementar leyenda con color + texto + icono
-- [ ] 7.10 Implementar filtros por estado y manzana
+- [x] 7.7 Crear src/modules/lotes/ con mapa SVG interactivo
+- [x] 7.8 Implementar colores por estado en mapa (regla visual)
+- [x] 7.9 Implementar leyenda con color + texto + icono
+- [x] 7.10 Implementar filtros por estado y manzana
 - [ ] 7.11 Verificar mapa renderiza correctamente con datos reales
 
 ## 8. CRM — Prospectos y Pipeline
 
-- [ ] 8.1 Crear src/modules/prospectos/ (domain, application, infrastructure, presentation)
-- [ ] 8.2 Crear ProspectoRepository Supabase
-- [ ] 8.3 Crear src/modules/prospectos/ con pipeline de oportunidades
-- [ ] 8.4 Implementar etapas del pipeline: contactado, interesado, negociación, reserva, perdido
-- [ ] 8.5 Crear OportunidadRepository Supabase
-- [ ] 8.6 Implementar actividades de seguimiento (fecha, tipo, notas)
-- [ ] 8.7 Crear ProspectosPage con CRUD + pipeline visual
-- [ ] 8.8 Implementar alerta de prospectos sin seguimiento >48h
-- [ ] 8.9 Implementar métricas de conversión del pipeline
+- [x] 8.1 Crear src/modules/prospectos/ (domain, application, infrastructure, presentation)
+- [x] 8.2 Crear ProspectoRepository Supabase
+- [x] 8.3 Crear src/modules/prospectos/ con pipeline de oportunidades
+- [x] 8.4 Implementar etapas del pipeline: contactado, interesado, negociación, reserva, perdido
+- [x] 8.5 Crear OportunidadRepository Supabase
+- [x] 8.6 Implementar actividades de seguimiento (fecha, tipo, notas)
+- [x] 8.7 Crear ProspectosPage con CRUD + pipeline visual
+- [x] 8.8 Implementar alerta de prospectos sin seguimiento >48h
+- [x] 8.9 Implementar métricas de conversión del pipeline
 - [ ] 8.10 Verificar pipeline funciona con datos reales
 
 ## 9. CRM — Asesores

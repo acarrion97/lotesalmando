@@ -36,7 +36,7 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useLotes } from "@/presentation/hooks";
+import { useLotes, useManzanas } from "@/presentation/hooks";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
 
@@ -176,6 +176,7 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
 
 export function LotesPage() {
   const { data: lotes, isLoading } = useLotes();
+  const { data: manzanas } = useManzanas();
   const [searchText, setSearchText] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
@@ -293,6 +294,10 @@ export function LotesPage() {
       dataIndex: "id_manzana",
       key: "id_manzana",
       sorter: (a, b) => a.id_manzana - b.id_manzana,
+      filters: manzanas
+        ? Array.from(new Set(manzanas.map((m) => m.id_manzana))).map((id) => ({ text: `Mz. ${id}`, value: id }))
+        : [],
+      onFilter: (value, record) => record.id_manzana === value,
       render: (id: number) => (
         <Tag style={{ borderRadius: 6, fontWeight: 500 }}>Mz. {id}</Tag>
       ),
@@ -313,7 +318,10 @@ export function LotesPage() {
       filters: [
         { text: "Disponible", value: "disponible" },
         { text: "Reservado", value: "reservado" },
+        { text: "En Negociacion", value: "en_negociacion" },
         { text: "Vendido", value: "vendido" },
+        { text: "Bloqueado", value: "bloqueado" },
+        { text: "No Disponible", value: "no_disponible" },
       ],
       onFilter: (value, record) => record.estado === value,
       render: (estado: LoteEstado) => {
@@ -618,7 +626,10 @@ export function LotesPage() {
               options={[
                 { value: "disponible", label: "Disponible" },
                 { value: "reservado", label: "Reservado" },
+                { value: "en_negociacion", label: "En Negociacion" },
                 { value: "vendido", label: "Vendido" },
+                { value: "bloqueado", label: "Bloqueado" },
+                { value: "no_disponible", label: "No Disponible" },
               ]}
             />
           </Form.Item>
@@ -671,7 +682,10 @@ export function LotesPage() {
               options={[
                 { value: "disponible", label: "Disponible" },
                 { value: "reservado", label: "Reservado" },
+                { value: "en_negociacion", label: "En Negociacion" },
                 { value: "vendido", label: "Vendido" },
+                { value: "bloqueado", label: "Bloqueado" },
+                { value: "no_disponible", label: "No Disponible" },
               ]}
             />
           </Form.Item>

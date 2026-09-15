@@ -31,7 +31,24 @@ import { CreateUsuarioUseCase } from "@/application/usuarios/use-cases/CreateUsu
 import { UpdateUsuarioUseCase } from "@/application/usuarios/use-cases/UpdateUsuarioUseCase";
 import { DeleteUsuarioUseCase } from "@/application/usuarios/use-cases/DeleteUsuarioUseCase";
 import { GetEtapasByProyectoUseCase } from "@/application/etapas/use-cases/GetEtapasByProyectoUseCase";
+import { GetAllEtapasUseCase } from "@/application/etapas/use-cases/GetAllEtapasUseCase";
+import { CreateEtapaUseCase } from "@/application/etapas/use-cases/CreateEtapaUseCase";
+import { UpdateEtapaUseCase } from "@/application/etapas/use-cases/UpdateEtapaUseCase";
+import { DeleteEtapaUseCase } from "@/application/etapas/use-cases/DeleteEtapaUseCase";
 import { GetManzanasByEtapaUseCase } from "@/application/manzanas/use-cases/GetManzanasByEtapaUseCase";
+import { GetAllManzanasUseCase } from "@/application/manzanas/use-cases/GetAllManzanasUseCase";
+import { CreateManzanaUseCase } from "@/application/manzanas/use-cases/CreateManzanaUseCase";
+import { UpdateManzanaUseCase } from "@/application/manzanas/use-cases/UpdateManzanaUseCase";
+import { DeleteManzanaUseCase } from "@/application/manzanas/use-cases/DeleteManzanaUseCase";
+import { GetProspectosUseCase } from "@/application/prospectos/use-cases/GetProspectosUseCase";
+import { CreateProspectoUseCase } from "@/application/prospectos/use-cases/CreateProspectoUseCase";
+import { UpdateProspectoUseCase } from "@/application/prospectos/use-cases/UpdateProspectoUseCase";
+import { DeleteProspectoUseCase } from "@/application/prospectos/use-cases/DeleteProspectoUseCase";
+import { GetOportunidadesUseCase } from "@/application/oportunidades/use-cases/GetOportunidadesUseCase";
+import { CreateOportunidadUseCase } from "@/application/oportunidades/use-cases/CreateOportunidadUseCase";
+import { UpdateOportunidadUseCase } from "@/application/oportunidades/use-cases/UpdateOportunidadUseCase";
+import { GetActividadesUseCase } from "@/application/actividades/use-cases/GetActividadesUseCase";
+import { CreateActividadUseCase } from "@/application/actividades/use-cases/CreateActividadUseCase";
 import { MockCreateSaleTransaction } from "@/infrastructure/transactions/MockCreateSaleTransaction";
 
 export interface UseCases {
@@ -65,8 +82,25 @@ export interface UseCases {
   createUsuario: CreateUsuarioUseCase;
   updateUsuario: UpdateUsuarioUseCase;
   deleteUsuario: DeleteUsuarioUseCase;
+  getAllEtapas: GetAllEtapasUseCase;
   getEtapasByProyecto: GetEtapasByProyectoUseCase;
+  createEtapa: CreateEtapaUseCase;
+  updateEtapa: UpdateEtapaUseCase;
+  deleteEtapa: DeleteEtapaUseCase;
+  getAllManzanas: GetAllManzanasUseCase;
   getManzanasByEtapa: GetManzanasByEtapaUseCase;
+  createManzana: CreateManzanaUseCase;
+  updateManzana: UpdateManzanaUseCase;
+  deleteManzana: DeleteManzanaUseCase;
+  getProspectos: GetProspectosUseCase;
+  createProspecto: CreateProspectoUseCase;
+  updateProspecto: UpdateProspectoUseCase;
+  deleteProspecto: DeleteProspectoUseCase;
+  getOportunidades: GetOportunidadesUseCase;
+  createOportunidad: CreateOportunidadUseCase;
+  updateOportunidad: UpdateOportunidadUseCase;
+  getActividades: GetActividadesUseCase;
+  createActividad: CreateActividadUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
@@ -109,7 +143,24 @@ export function createUseCases(repos: Repositories): UseCases {
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
     deleteUsuario: new DeleteUsuarioUseCase(repos.usuarioRepo),
+    getAllEtapas: new GetAllEtapasUseCase(repos.etapaRepo),
     getEtapasByProyecto: new GetEtapasByProyectoUseCase(repos.etapaRepo),
+    createEtapa: new CreateEtapaUseCase(repos.etapaRepo),
+    updateEtapa: new UpdateEtapaUseCase(repos.etapaRepo),
+    deleteEtapa: new DeleteEtapaUseCase(repos.etapaRepo),
+    getAllManzanas: new GetAllManzanasUseCase(repos.manzanaRepo),
     getManzanasByEtapa: new GetManzanasByEtapaUseCase(repos.manzanaRepo),
+    createManzana: new CreateManzanaUseCase(repos.manzanaRepo),
+    updateManzana: new UpdateManzanaUseCase(repos.manzanaRepo),
+    deleteManzana: new DeleteManzanaUseCase(repos.manzanaRepo),
+    getProspectos: new GetProspectosUseCase(repos.prospectoRepo),
+    createProspecto: new CreateProspectoUseCase(repos.prospectoRepo),
+    updateProspecto: new UpdateProspectoUseCase(repos.prospectoRepo),
+    deleteProspecto: new DeleteProspectoUseCase(repos.prospectoRepo),
+    getOportunidades: new GetOportunidadesUseCase(repos.oportunidadRepo),
+    createOportunidad: new CreateOportunidadUseCase(repos.oportunidadRepo),
+    updateOportunidad: new UpdateOportunidadUseCase(repos.oportunidadRepo),
+    getActividades: new GetActividadesUseCase(repos.actividadRepo),
+    createActividad: new CreateActividadUseCase(repos.actividadRepo),
   };
 }
