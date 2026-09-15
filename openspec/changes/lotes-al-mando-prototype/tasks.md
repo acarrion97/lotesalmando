@@ -183,11 +183,11 @@
 
 ## 15. Navegación y Layout
 
-- [ ] 15.1 Actualizar Sidebar con nuevos módulos (CRM, Cartera, IA)
-- [ ] 15.2 Actualizar rutas en AppRouter
-- [ ] 15.3 Actualizar Header con empresa selector y usuario
-- [ ] 15.4 Verificar navegación completa funciona
-- [ ] 15.5 Verificar breadcrumbs generados correctamente
+- [x] 15.1 Actualizar Sidebar con nuevos módulos (CRM, Cartera, IA)
+- [x] 15.2 Actualizar rutas en AppRouter
+- [x] 15.3 Actualizar Header con empresa selector y usuario
+- [x] 15.4 Verificar navegación completa funciona
+- [x] 15.5 Verificar breadcrumbs generados correctamente
 
 ## 16. Responsive y Polish
 

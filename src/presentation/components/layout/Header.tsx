@@ -15,6 +15,7 @@ import type { MenuProps } from "antd";
 import { useEmpresa } from "@/presentation/providers";
 import { useTheme } from "@/presentation/theme";
 import { useAuth } from "@/presentation/providers/AuthProvider";
+import { useAlertas } from "@/presentation/hooks";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -26,6 +27,8 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
   const { empresaActual, empresas, setEmpresaActual } = useEmpresa();
   const { setMode, isDark } = useTheme();
   const { user, logout } = useAuth();
+  const { data: alertas } = useAlertas();
+  const alertCount = alertas?.filter((a) => a.prioridad === "alta").length ?? 0;
 
   const userMenuItems: MenuProps["items"] = useMemo(
     () => [
@@ -164,8 +167,9 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
           }}
         />
 
-        <Badge count={3} size="small" offset={[-2, 2]}>
+        <Badge count={alertCount} size="small" offset={[-2, 2]}>
           <div
+            onClick={() => navigate("/alertas")}
             style={{
               width: 36,
               height: 36,
