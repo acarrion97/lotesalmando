@@ -134,31 +134,31 @@
 
 ## 11. Cartera — Pagos y Morosidad
 
-- [ ] 11.1 Crear src/modules/cartera/ (domain, application, infrastructure, presentation)
-- [ ] 11.2 Implementar CuotaRepository Supabase
-- [ ] 11.3 Implementar PagoRepository Supabase
-- [ ] 11.4 Implementar estados de cuota: al día, próximo a vencer, vencido, en mora, pagado
-- [ ] 11.5 Implementar registro de pagos contra cuotas
-- [ ] 11.6 Implementar cálculo de saldo pendiente por contrato
-- [ ] 11.7 Implementar detección automática de cuotas vencidas
-- [ ] 11.8 Crear CobranzasPage con vista de cuotas y estados
-- [ ] 11.9 Crear PagosPage con registro de pagos
-- [ ] 11.10 Implementar métricas: cartera total, cartera vencida, morosidad %
-- [ ] 11.11 Implementar identificación de clientes en riesgo
-- [ ] 11.12 Verificar cartera calcula correctamente con datos reales
+- [x] 11.1 Crear src/modules/cartera/ (domain, application, infrastructure, presentation)
+- [x] 11.2 Implementar CuotaRepository Supabase
+- [x] 11.3 Implementar PagoRepository Supabase
+- [x] 11.4 Implementar estados de cuota: al día, próximo a vencer, vencido, en mora, pagado
+- [x] 11.5 Implementar registro de pagos contra cuotas
+- [x] 11.6 Implementar cálculo de saldo pendiente por contrato
+- [x] 11.7 Implementar detección automática de cuotas vencidas
+- [x] 11.8 Crear CobranzasPage con vista de cuotas y estados
+- [x] 11.9 Crear PagosPage con registro de pagos
+- [x] 11.10 Implementar métricas: cartera total, cartera vencida, morosidad %
+- [x] 11.11 Implementar identificación de clientes en riesgo
+- [x] 11.12 Verificar cartera calcula correctamente con datos reales
 
 ## 12. Centro de Mando
 
-- [ ] 12.1 Crear src/modules/dashboard/ (domain, application, infrastructure, presentation)
-- [ ] 12.2 Implementar queries de KPIs desde Supabase
-- [ ] 12.3 Crear DashboardPage con KPI cards (lotes disponibles, reservados, vendidos)
-- [ ] 12.4 Agregar KPIs de ventas (ventas del mes, comparación mes anterior)
-- [ ] 12.5 Agregar KPIs de cartera (cartera total, vencida, morosidad)
-- [ ] 12.6 Implementar filtro por proyecto
-- [ ] 12.7 Implementar comparación mes actual vs anterior
-- [ ] 12.8 Implementar quick actions (acceso rápido)
-- [ ] 12.9 Implementar loading states (skeletons)
-- [ ] 12.10 Verificar dashboard muestra datos reales de Supabase
+- [x] 12.1 Crear src/modules/dashboard/ (domain, application, infrastructure, presentation)
+- [x] 12.2 Implementar queries de KPIs desde Supabase
+- [x] 12.3 Crear DashboardPage con KPI cards (lotes disponibles, reservados, vendidos)
+- [x] 12.4 Agregar KPIs de ventas (ventas del mes, comparación mes anterior)
+- [x] 12.5 Agregar KPIs de cartera (cartera total, vencida, morosidad)
+- [x] 12.6 Implementar filtro por proyecto
+- [x] 12.7 Implementar comparación mes actual vs anterior
+- [x] 12.8 Implementar quick actions (acceso rápido)
+- [x] 12.9 Implementar loading states (skeletons)
+- [x] 12.10 Verificar dashboard muestra datos reales de Supabase
 
 ## 13. Mando IA — Alertas
 

@@ -1,37 +1,46 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Descriptions } from "antd";
-import { PlusOutlined, SearchOutlined, EyeOutlined } from "@ant-design/icons";
+import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
+import { SearchOutlined, EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas } from "@/presentation/hooks";
-import type { CobranzaEstado } from "@/domain/cobranza/entities/Cobranza";
+import { useCobranzas, useCarteraMetricas } from "@/presentation/hooks";
+import { getContainer } from "@/infrastructure/container";
+import { useQueryClient } from "@tanstack/react-query";
+
+const { Title, Text } = Typography;
 
 type CobranzaRow = {
   id_cobranza: number;
   id_contrato: number;
   numero_cuota: number;
   monto_cuota: number;
-  estado: CobranzaEstado;
+  estado: "pendiente" | "pagada" | "vencida";
 };
 
-const { Title } = Typography;
-
-const estadoColorMap: Record<CobranzaEstado, string> = {
-  pendiente: "orange",
-  pagada: "green",
-  vencida: "red",
+const estadoConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
+  pendiente: { color: "orange", icon: <ClockCircleOutlined />, label: "Pendiente" },
+  pagada: { color: "green", icon: <CheckCircleOutlined />, label: "Pagada" },
+  vencida: { color: "red", icon: <CloseCircleOutlined />, label: "Vencida" },
 };
-
-interface ModalState {
-  type: "view" | null;
-  visible: boolean;
-  record: CobranzaRow | null;
-}
 
 export function CobranzasPage() {
   const { data: cobranzas, isLoading } = useCobranzas();
+  const { data: metricas } = useCarteraMetricas();
   const [searchText, setSearchText] = useState("");
-  const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
-  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
+  const [messageApi, contextHolder] = message.useMessage();
+  const queryClient = useQueryClient();
+
+  const handleDetectarVencidas = async () => {
+    try {
+      const container = getContainer();
+      const detectadas = await container.detectarCuotasVencidas.execute();
+      await queryClient.invalidateQueries({ queryKey: ["cobranzas"] });
+      await queryClient.invalidateQueries({ queryKey: ["carteraMetricas"] });
+      messageApi.success(`${detectadas} cuotas marcadas como vencidas`);
+    } catch {
+      messageApi.error("Error detectando cuotas vencidas");
+    }
+  };
 
   const filteredData = useMemo(() => {
     if (!cobranzas) return [];
@@ -42,14 +51,6 @@ export function CobranzasPage() {
         c.estado.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [cobranzas, searchText]);
-
-  const openModal = (type: "view", record: CobranzaRow) => {
-    setModal({ type, visible: true, record });
-  };
-
-  const closeModal = () => {
-    setModal({ type: null, visible: false, record: null });
-  };
 
   const columns: TableColumnType<CobranzaRow>[] = [
     {
@@ -69,50 +70,87 @@ export function CobranzasPage() {
       dataIndex: "monto_cuota",
       key: "monto_cuota",
       sorter: (a, b) => a.monto_cuota - b.monto_cuota,
-      render: (monto: number) => `$${monto.toLocaleString()}`,
+      render: (monto: number) => <span style={{ fontWeight: 600 }}>${monto.toLocaleString()}</span>,
     },
     {
       title: "Estado",
       dataIndex: "estado",
       key: "estado",
-      filters: [
-        { text: "Pendiente", value: "pendiente" },
-        { text: "Pagada", value: "pagada" },
-        { text: "Vencida", value: "vencida" },
-      ],
+      filters: Object.entries(estadoConfig).map(([k, v]) => ({ text: v.label, value: k })),
       onFilter: (value, record) => record.estado === value,
-      render: (estado: CobranzaEstado) => <Tag color={estadoColorMap[estado]}>{(estado ?? "sin estado").toUpperCase()}</Tag>,
+      render: (estado: string) => {
+        const config = estadoConfig[estado] ?? estadoConfig.pendiente;
+        return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
+      },
     },
     {
       title: "Acciones",
       key: "acciones",
+      width: 80,
       render: (_: unknown, record: CobranzaRow) => (
-        <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
-        </Space>
+        <Tooltip title="Ver detalle">
+          <Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => setViewModal({ visible: true, record })} />
+        </Tooltip>
       ),
     },
   ];
 
   return (
     <div>
+      {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Cobranzas</Title>
-        <Space>
-          <Input
-            placeholder="Buscar..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Nuevo
-          </Button>
-        </Space>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>Cobranzas</Title>
+          <Text type="secondary">Control de cuotas y morosidad</Text>
+        </div>
+        <Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>
       </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Cuotas</span>} value={metricas?.totalCobranzas ?? 0} valueStyle={{ fontWeight: 700, fontSize: 22 }} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffe58f" }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={metricas?.pendientes ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#faad14" }} prefix={<ClockCircleOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffccc7" }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Vencidas</span>} value={metricas?.vencidas ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#ff4d4f" }} prefix={<WarningOutlined />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10, border: "1px solid #d9d9d9" }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Morosidad</span>} value={metricas?.morosidadPorcentaje ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: (metricas?.morosidadPorcentaje ?? 0) > 20 ? "#ff4d4f" : "#52c41a" }} suffix="%" />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={8}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Cartera</span>} value={metricas?.montoTotal ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16 }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Pendiente</span>} value={metricas?.montoPendiente ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16, color: "#faad14" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Vencido</span>} value={metricas?.montoVencido ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16, color: "#ff4d4f" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+          </Card>
+        </Col>
+      </Row>
+
       <Card>
+        <div style={{ marginBottom: 16 }}>
+          <Input placeholder="Buscar cobranza..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 300, borderRadius: 8 }} allowClear />
+        </div>
         <Table<CobranzaRow>
           columns={columns}
           dataSource={filteredData}
@@ -122,46 +160,16 @@ export function CobranzasPage() {
         />
       </Card>
 
-      {/* View Modal */}
-      <Modal
-        title="Detalle de la Cobranza"
-        open={modal.visible && modal.type === "view"}
-        onCancel={closeModal}
-        footer={[
-          <Button key="close" onClick={closeModal}>Cerrar</Button>,
-        ]}
-      >
-        {modal.record && (
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="ID Cobranza">{modal.record.id_cobranza}</Descriptions.Item>
-            <Descriptions.Item label="Contrato">ID {modal.record.id_contrato}</Descriptions.Item>
-            <Descriptions.Item label="Numero de Cuota">{modal.record.numero_cuota}</Descriptions.Item>
-            <Descriptions.Item label="Monto Cuota">
-              ${modal.record.monto_cuota.toLocaleString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="Estado">
-              <Tag color={estadoColorMap[modal.record.estado]}>
-                {(modal.record.estado ?? "sin estado").toUpperCase()}
-              </Tag>
-            </Descriptions.Item>
+      <Modal title="Detalle de Cobranza" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>
+        {viewModal.record && (
+          <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
+            <Descriptions.Item label="# Cobranza">{viewModal.record.id_cobranza}</Descriptions.Item>
+            <Descriptions.Item label="Estado"><Tag color={estadoConfig[viewModal.record.estado]?.color}>{estadoConfig[viewModal.record.estado]?.label}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Contrato">#{viewModal.record.id_contrato}</Descriptions.Item>
+            <Descriptions.Item label="Cuota">#{viewModal.record.numero_cuota}</Descriptions.Item>
+            <Descriptions.Item label="Monto" span={2}><span style={{ fontWeight: 700, fontSize: 18 }}>${viewModal.record.monto_cuota.toLocaleString()}</span></Descriptions.Item>
           </Descriptions>
         )}
-      </Modal>
-
-      {/* Create Info Modal */}
-      <Modal
-        title="Nueva Cobranza"
-        open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setCreateModalOpen(false)}>Cerrar</Button>,
-        ]}
-      >
-        <div style={{ padding: "16px 0", textAlign: "center" }}>
-          <Typography.Paragraph type="secondary">
-            Las cobranzas se crean automaticamente al generar un contrato. Contacte a un administrador para iniciar el proceso.
-          </Typography.Paragraph>
-        </div>
       </Modal>
     </div>
   );

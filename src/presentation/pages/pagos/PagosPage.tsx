@@ -1,24 +1,37 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Typography, Modal, Descriptions, message } from "antd";
-import { PlusOutlined, SearchOutlined, EyeOutlined } from "@ant-design/icons";
+import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic } from "antd";
+import { PlusOutlined, SearchOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePagos } from "@/presentation/hooks";
-import type { Pago } from "@/domain/pago/entities/Pago";
+import { getContainer } from "@/infrastructure/container";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
-interface ModalState {
-  type: "view" | null;
-  visible: boolean;
-  record: Pago | null;
-}
+type PagoRow = {
+  id_pago: number;
+  id_cobranza: number;
+  id_usuario: number;
+  monto_pagado: number;
+  fecha_pago: string;
+};
 
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
   const [searchText, setSearchText] = useState("");
-  const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
+  const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createForm] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
+  const queryClient = useQueryClient();
+
+  const stats = useMemo(() => {
+    if (!pagos) return { total: 0, montoTotal: 0 };
+    return {
+      total: pagos.length,
+      montoTotal: pagos.reduce((sum, p) => sum + p.monto_pagado, 0),
+    };
+  }, [pagos]);
 
   const filteredData = useMemo(() => {
     if (!pagos) return [];
@@ -30,76 +43,94 @@ export function PagosPage() {
     );
   }, [pagos, searchText]);
 
-  const openModal = (type: "view", record: Pago) => {
-    setModal({ type, visible: true, record });
+  const handleCreate = async () => {
+    try {
+      const values = await createForm.validateFields();
+      const container = getContainer();
+      await container.registerPago.execute({
+        id_cobranza: values.id_cobranza,
+        id_usuario: 1,
+        monto_pagado: values.monto_pagado,
+        fecha_pago: new Date().toISOString(),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["pagos"] });
+      await queryClient.invalidateQueries({ queryKey: ["cobranzas"] });
+      await queryClient.invalidateQueries({ queryKey: ["carteraMetricas"] });
+      messageApi.success("Pago registrado correctamente");
+      setCreateModalOpen(false);
+      createForm.resetFields();
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : "Error al registrar pago");
+    }
   };
 
-  const closeModal = () => {
-    setModal({ type: null, visible: false, record: null });
-  };
-
-  const handleCreate = () => {
-    messageApi.success("Creado correctamente");
-    setCreateModalOpen(false);
-  };
-
-  const columns: TableColumnType<Pago>[] = [
+  const columns: TableColumnType<PagoRow>[] = [
+    {
+      title: "# Pago",
+      dataIndex: "id_pago",
+      key: "id_pago",
+      sorter: (a, b) => a.id_pago - b.id_pago,
+    },
     {
       title: "Cobranza",
       dataIndex: "id_cobranza",
       key: "id_cobranza",
       sorter: (a, b) => a.id_cobranza - b.id_cobranza,
+      render: (id: number) => <Tag>#{id}</Tag>,
     },
     {
       title: "Monto Pagado",
       dataIndex: "monto_pagado",
       key: "monto_pagado",
       sorter: (a, b) => a.monto_pagado - b.monto_pagado,
-      render: (monto: number) => `$${monto.toLocaleString()}`,
+      render: (monto: number) => <span style={{ fontWeight: 600, color: "#52c41a" }}>${monto.toLocaleString()}</span>,
     },
     {
       title: "Fecha",
       dataIndex: "fecha_pago",
       key: "fecha_pago",
       sorter: (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
-    },
-    {
-      title: "Usuario",
-      dataIndex: "id_usuario",
-      key: "id_usuario",
-      sorter: (a, b) => a.id_usuario - b.id_usuario,
+      render: (fecha: string) => fecha ? new Date(fecha).toLocaleDateString() : "-",
     },
     {
       title: "Acciones",
       key: "acciones",
-      render: (_: unknown, record: Pago) => (
-        <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
-        </Space>
+      width: 80,
+      render: (_: unknown, record: PagoRow) => (
+        <Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => setViewModal({ visible: true, record })} />
       ),
     },
   ];
 
   return (
     <div>
+      {contextHolder}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Pagos</Title>
-        <Space>
-          <Input
-            placeholder="Buscar..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Nuevo
-          </Button>
-        </Space>
+        <div>
+          <Title level={4} style={{ margin: 0 }}>Pagos</Title>
+          <Text type="secondary">Registro de pagos recibidos</Text>
+        </div>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>Registrar Pago</Button>
       </div>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10 }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Pagos</span>} value={stats.total} valueStyle={{ fontWeight: 700, fontSize: 22 }} prefix={<DollarOutlined style={{ color: "#52c41a" }} />} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Recibido</span>} value={stats.montoTotal} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+          </Card>
+        </Col>
+      </Row>
+
       <Card>
-        <Table<Pago>
+        <div style={{ marginBottom: 16 }}>
+          <Input placeholder="Buscar pago..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 300, borderRadius: 8 }} allowClear />
+        </div>
+        <Table<PagoRow>
           columns={columns}
           dataSource={filteredData}
           rowKey="id_pago"
@@ -108,44 +139,28 @@ export function PagosPage() {
         />
       </Card>
 
-      {contextHolder}
-
-      {/* Create Info Modal */}
-      <Modal
-        title="Nuevo Pago"
-        open={createModalOpen}
-        onCancel={() => setCreateModalOpen(false)}
-        onOk={handleCreate}
-        okText="Crear"
-        cancelText="Cancelar"
-      >
-        <div style={{ padding: "16px 0", textAlign: "center" }}>
-          <Typography.Paragraph type="secondary">
-            Los pagos se crean automaticamente al registrar una cobranza. Contacte a un administrador para iniciar el proceso.
-          </Typography.Paragraph>
-        </div>
-      </Modal>
-
       {/* View Modal */}
-      <Modal
-        title="Detalle del Pago"
-        open={modal.visible && modal.type === "view"}
-        onCancel={closeModal}
-        footer={[
-          <Button key="close" onClick={closeModal}>Cerrar</Button>,
-        ]}
-      >
-        {modal.record && (
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="ID Pago">{modal.record.id_pago}</Descriptions.Item>
-            <Descriptions.Item label="Cobranza">ID {modal.record.id_cobranza}</Descriptions.Item>
-            <Descriptions.Item label="Monto Pagado">
-              ${modal.record.monto_pagado.toLocaleString()}
-            </Descriptions.Item>
-            <Descriptions.Item label="Fecha de Pago">{modal.record.fecha_pago}</Descriptions.Item>
-            <Descriptions.Item label="Usuario">ID {modal.record.id_usuario}</Descriptions.Item>
+      <Modal title="Detalle del Pago" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>
+        {viewModal.record && (
+          <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
+            <Descriptions.Item label="# Pago">{viewModal.record.id_pago}</Descriptions.Item>
+            <Descriptions.Item label="Cobranza"><Tag>#{viewModal.record.id_cobranza}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Monto Pagado"><span style={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }}>${viewModal.record.monto_pagado.toLocaleString()}</span></Descriptions.Item>
+            <Descriptions.Item label="Fecha">{viewModal.record.fecha_pago ? new Date(viewModal.record.fecha_pago).toLocaleDateString() : "-"}</Descriptions.Item>
           </Descriptions>
         )}
+      </Modal>
+
+      {/* Create Modal */}
+      <Modal title="Registrar Pago" open={createModalOpen} onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }} onOk={handleCreate} okText="Registrar" cancelText="Cancelar">
+        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="id_cobranza" label="ID Cobranza" rules={[{ required: true, message: "Ingrese el ID de la cobranza" }]}>
+            <InputNumber style={{ width: "100%" }} min={1} placeholder="ID de la cobranza a pagar" />
+          </Form.Item>
+          <Form.Item name="monto_pagado" label="Monto a Pagar" rules={[{ required: true, message: "Ingrese el monto" }]}>
+            <InputNumber style={{ width: "100%" }} min={0} step={100} prefix="$" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

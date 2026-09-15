@@ -10,6 +10,7 @@ export { useClientes } from "./useClientes";
 export { useCotizaciones } from "./useCotizaciones";
 export { useVentas } from "./useVentas";
 export { useContratos } from "./useContratos";
+export { useCarteraMetricas } from "./useCarteraMetricas";
 export { useCobranzas } from "./useCobranzas";
 export { usePagos } from "./usePagos";
 export { useUsuarios } from "./useUsuarios";

@@ -6,4 +6,5 @@ export interface CobranzaRepository {
   getById(id: number): Promise<Cobranza | null>;
   create(data: Omit<Cobranza, "id_cobranza">): Promise<Cobranza>;
   updateEstado(id: number, estado: CobranzaEstado): Promise<Cobranza>;
+  getVencidas(): Promise<Cobranza[]>;
 }

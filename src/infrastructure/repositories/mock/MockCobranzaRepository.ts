@@ -30,4 +30,8 @@ export class MockCobranzaRepository implements CobranzaRepository {
     this.data[index] = { ...this.data[index], estado };
     return this.data[index];
   }
+
+  async getVencidas(): Promise<Cobranza[]> {
+    return this.data.filter((c) => c.estado === "vencida");
+  }
 }

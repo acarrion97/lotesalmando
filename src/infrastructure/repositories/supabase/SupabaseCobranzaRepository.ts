@@ -32,4 +32,10 @@ export class SupabaseCobranzaRepository implements CobranzaRepository {
     if (error) throw error;
     return updated as Cobranza;
   }
+
+  async getVencidas(): Promise<Cobranza[]> {
+    const { data, error } = await supabase.from("cobranzas").select("*").eq("estado", "vencida");
+    if (error) throw error;
+    return (data ?? []) as Cobranza[];
+  }
 }

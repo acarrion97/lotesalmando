@@ -26,6 +26,8 @@ import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContra
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
+import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
+import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
 import { GetUsuariosUseCase } from "@/application/usuarios/use-cases/GetUsuariosUseCase";
 import { CreateUsuarioUseCase } from "@/application/usuarios/use-cases/CreateUsuarioUseCase";
 import { UpdateUsuarioUseCase } from "@/application/usuarios/use-cases/UpdateUsuarioUseCase";
@@ -82,6 +84,8 @@ export interface UseCases {
   getCobranzas: GetCobranzasUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
+  getCarteraMetricas: GetCarteraMetricasUseCase;
+  detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
   getUsuarios: GetUsuariosUseCase;
   createUsuario: CreateUsuarioUseCase;
   updateUsuario: UpdateUsuarioUseCase;
@@ -147,6 +151,8 @@ export function createUseCases(repos: Repositories): UseCases {
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
+    getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
+    detectarCuotasVencidas: new DetectarCuotasVencidasUseCase(repos.cobranzaRepo),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
