@@ -15,6 +15,7 @@ import {
   PayCircleOutlined,
   TeamOutlined,
   SettingOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 
@@ -56,6 +57,7 @@ const menuItems: MenuItem[] = [
       { key: "/asesores", icon: <TeamOutlined />, label: "Asesores" },
       { key: "/ventas", icon: <DollarOutlined />, label: "Ventas" },
       { key: "/contratos", icon: <FileTextOutlined />, label: "Contratos" },
+      { key: "/alertas", icon: <BellOutlined />, label: "Mando IA" },
     ],
   },
   {

@@ -12,6 +12,7 @@ import { ClientesPage } from "@/presentation/pages/clientes";
 import { CotizacionesPage, NuevaCotizacionPage } from "@/presentation/pages/cotizaciones";
 import { VentasPage } from "@/presentation/pages/ventas";
 import { ContratosPage } from "@/presentation/pages/contratos";
+import { AlertasPage } from "@/presentation/pages/alertas";
 import { CobranzasPage } from "@/presentation/pages/cobranzas";
 import { PagosPage } from "@/presentation/pages/pagos";
 import { UsuariosPage } from "@/presentation/pages/usuarios";
@@ -42,6 +43,7 @@ export function AppRouter() {
           <Route path="/cotizaciones/nueva" element={<NuevaCotizacionPage />} />
           <Route path="/ventas" element={<VentasPage />} />
           <Route path="/contratos" element={<ContratosPage />} />
+          <Route path="/alertas" element={<AlertasPage />} />
           <Route path="/cobranzas" element={<CobranzasPage />} />
           <Route path="/pagos" element={<PagosPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />

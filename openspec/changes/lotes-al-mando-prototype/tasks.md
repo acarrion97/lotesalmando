@@ -162,14 +162,14 @@
 
 ## 13. Mando IA — Alertas
 
-- [ ] 13.1 Crear src/modules/ia/ (domain, application, infrastructure, presentation)
-- [ ] 13.2 Implementar motor de reglas para alertas de inventario
-- [ ] 13.3 Implementar alertas de seguimiento (>48h sin actividad)
-- [ ] 13.4 Implementar alertas de cartera (cuotas que vencen en 7 días)
-- [ ] 13.5 Implementar alertas de morosidad
-- [ ] 13.6 Crear componente de alertas en dashboard
-- [ ] 13.7 Implementar configuración de umbrales
-- [ ] 13.8 Verificar alertas se muestran con datos reales
+- [x] 13.1 Crear src/modules/ia/ (domain, application, infrastructure, presentation)
+- [x] 13.2 Implementar motor de reglas para alertas de inventario
+- [x] 13.3 Implementar alertas de seguimiento (>48h sin actividad)
+- [x] 13.4 Implementar alertas de cartera (cuotas que vencen en 7 días)
+- [x] 13.5 Implementar alertas de morosidad
+- [x] 13.6 Crear componente de alertas en dashboard
+- [x] 13.7 Implementar configuración de umbrales
+- [x] 13.8 Verificar alertas se muestran con datos reales
 
 ## 14. Validación y Formularios
 
