@@ -5,6 +5,7 @@ import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePagos } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
+import { pagoSchema } from "@/presentation/validations";
 
 const { Title, Text } = Typography;
 
@@ -46,11 +47,12 @@ export function PagosPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
+      const parsed = pagoSchema.parse(values);
       const container = getContainer();
       await container.registerPago.execute({
-        id_cobranza: values.id_cobranza,
+        id_cobranza: parsed.id_cobranza,
         id_usuario: 1,
-        monto_pagado: values.monto_pagado,
+        monto_pagado: parsed.monto_pagado,
         fecha_pago: new Date().toISOString(),
       });
       await queryClient.invalidateQueries({ queryKey: ["pagos"] });
@@ -60,7 +62,8 @@ export function PagosPage() {
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error al registrar pago");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error al registrar pago");
     }
   };
 

@@ -173,13 +173,13 @@
 
 ## 14. Validación y Formularios
 
-- [ ] 14.1 Crear esquemas Zod para Prospecto
-- [ ] 14.2 Crear esquemas Zod para Asesor
-- [ ] 14.3 Crear esquemas Zod para Cotización
-- [ ] 14.4 Crear esquemas Zod para Venta
-- [ ] 14.5 Crear esquemas Zod para Pago
-- [ ] 14.6 Integrar Zod en todos los formularios existentes
-- [ ] 14.7 Verificar validaciones funcionan en cliente
+- [x] 14.1 Crear esquemas Zod para Prospecto
+- [x] 14.2 Crear esquemas Zod para Asesor
+- [x] 14.3 Crear esquemas Zod para Cotización
+- [x] 14.4 Crear esquemas Zod para Venta
+- [x] 14.5 Crear esquemas Zod para Pago
+- [x] 14.6 Integrar Zod en todos los formularios existentes
+- [x] 14.7 Verificar validaciones funcionan en cliente
 
 ## 15. Navegación y Layout
 

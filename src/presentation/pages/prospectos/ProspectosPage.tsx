@@ -6,6 +6,7 @@ import type { TableColumnType } from "antd";
 import { useProspectos } from "@/presentation/hooks";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
+import { prospectoSchema } from "@/presentation/validations";
 
 const { Title, Text } = Typography;
 
@@ -77,12 +78,14 @@ export function ProspectosPage() {
     if (!modal.record) return;
     try {
       const values = await editForm.validateFields();
-      await container.updateProspecto.execute(modal.record.id_prospecto, values);
+      const parsed = prospectoSchema.partial().parse(values);
+      await container.updateProspecto.execute(modal.record.id_prospecto, parsed);
       await refresh();
       messageApi.success("Prospecto actualizado");
       closeModal();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error al actualizar");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error al actualizar");
     }
   };
 
@@ -101,13 +104,15 @@ export function ProspectosPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createProspecto.execute({ ...values, id_empresa: 1, id_asesor: null, estado: "nuevo", notas: "", fecha_ultimo_seguimiento: null });
+      const parsed = prospectoSchema.parse(values);
+      await container.createProspecto.execute({ ...parsed, id_empresa: 1, id_asesor: null, fecha_ultimo_seguimiento: null });
       await refresh();
       messageApi.success("Prospecto creado");
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error al crear");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error al crear");
     }
   };
 

@@ -6,6 +6,7 @@ import type { TableColumnType } from "antd";
 import { useAsesores, useVentas } from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
+import { asesorSchema } from "@/presentation/validations";
 
 const { Title, Text } = Typography;
 
@@ -68,12 +69,14 @@ export function AsesoresPage() {
     if (!modal.record) return;
     try {
       const values = await editForm.validateFields();
-      await container.updateAsesor.execute(modal.record.id_asesor, values);
+      const parsed = asesorSchema.partial().parse(values);
+      await container.updateAsesor.execute(modal.record.id_asesor, parsed);
       await refresh();
       messageApi.success("Asesor actualizado");
       closeModal();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error");
     }
   };
 
@@ -85,20 +88,23 @@ export function AsesoresPage() {
       messageApi.success("Asesor eliminado");
       closeModal();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error");
     }
   };
 
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createAsesor.execute({ ...values, id_empresa: 1, id_usuario: null, estado: "activo" });
+      const parsed = asesorSchema.parse(values);
+      await container.createAsesor.execute({ ...parsed, id_empresa: 1, id_usuario: null });
       await refresh();
       messageApi.success("Asesor creado");
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "Error");
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error");
     }
   };
 
