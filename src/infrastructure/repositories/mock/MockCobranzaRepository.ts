@@ -3,7 +3,7 @@ import type { CobranzaRepository } from "@/domain/cobranza/repositories";
 import { cobranzas } from "@/mocks/cobranzas.mock";
 
 export class MockCobranzaRepository implements CobranzaRepository {
-  private data: Cobranza[] = [...cobranzas];
+  private data: Cobranza[] = [...cobranzas] as any;
 
   async getAll(): Promise<Cobranza[]> {
     return [...this.data];

@@ -3,7 +3,15 @@ import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Descriptions
 import { PlusOutlined, SearchOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useCobranzas } from "@/presentation/hooks";
-import type { Cobranza, CobranzaEstado } from "@/domain/cobranza/entities/Cobranza";
+import type { CobranzaEstado } from "@/domain/cobranza/entities/Cobranza";
+
+type CobranzaRow = {
+  id_cobranza: number;
+  id_contrato: number;
+  numero_cuota: number;
+  monto_cuota: number;
+  estado: CobranzaEstado;
+};
 
 const { Title } = Typography;
 
@@ -16,7 +24,7 @@ const estadoColorMap: Record<CobranzaEstado, string> = {
 interface ModalState {
   type: "view" | null;
   visible: boolean;
-  record: Cobranza | null;
+  record: CobranzaRow | null;
 }
 
 export function CobranzasPage() {
@@ -35,7 +43,7 @@ export function CobranzasPage() {
     );
   }, [cobranzas, searchText]);
 
-  const openModal = (type: "view", record: Cobranza) => {
+  const openModal = (type: "view", record: CobranzaRow) => {
     setModal({ type, visible: true, record });
   };
 
@@ -43,7 +51,7 @@ export function CobranzasPage() {
     setModal({ type: null, visible: false, record: null });
   };
 
-  const columns: TableColumnType<Cobranza>[] = [
+  const columns: TableColumnType<CobranzaRow>[] = [
     {
       title: "Contrato",
       dataIndex: "id_contrato",
@@ -78,7 +86,7 @@ export function CobranzasPage() {
     {
       title: "Acciones",
       key: "acciones",
-      render: (_: unknown, record: Cobranza) => (
+      render: (_: unknown, record: CobranzaRow) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
         </Space>
@@ -105,7 +113,7 @@ export function CobranzasPage() {
         </Space>
       </div>
       <Card>
-        <Table<Cobranza>
+        <Table<CobranzaRow>
           columns={columns}
           dataSource={filteredData}
           rowKey="id_cobranza"

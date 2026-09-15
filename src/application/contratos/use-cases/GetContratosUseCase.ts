@@ -19,6 +19,7 @@ export class GetContratosUseCase {
       id_venta: contrato.id_venta,
       numero_contrato: contrato.numero_contrato,
       monto_total: contrato.monto_total,
+      created_at: contrato.created_at,
     };
   }
 }

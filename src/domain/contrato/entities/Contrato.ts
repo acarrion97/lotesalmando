@@ -3,4 +3,5 @@ export interface Contrato {
   id_venta: number;
   numero_contrato: string;
   monto_total: number;
+  created_at?: string;
 }

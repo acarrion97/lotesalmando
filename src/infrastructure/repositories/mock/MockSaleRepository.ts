@@ -3,7 +3,7 @@ import type { SaleRepository } from "@/domain/venta/repositories";
 import { ventas } from "@/mocks/ventas.mock";
 
 export class MockSaleRepository implements SaleRepository {
-  private data: Venta[] = [...ventas];
+  private data: Venta[] = [...ventas] as any;
 
   async getAll(): Promise<Venta[]> {
     return [...this.data];

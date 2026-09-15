@@ -8,4 +8,5 @@ export interface VentaDto {
   id_usuario: number;
   precio_final: number;
   estado: VentaEstado;
+  created_at?: string;
 }

@@ -108,29 +108,29 @@
 
 ## 9. CRM — Asesores
 
-- [ ] 9.1 Crear src/modules/asesores/ (domain, application, infrastructure, presentation)
-- [ ] 9.2 Crear Asesor entity (independiente de Usuario) con usuario_id FK
-- [ ] 9.3 Implementar AsesorRepository Supabase
-- [ ] 9.4 Implementar useAsesores hook (TanStack Query)
-- [ ] 9.5 Crear AsesoresPage con CRUD real
-- [ ] 9.6 Implementar código único por empresa
-- [ ] 9.7 Implementar meta de ventas mensual
-- [ ] 9.8 Implementar tracking de rendimiento (ventas realizadas vs meta)
-- [ ] 9.9 Verificar asesores persisten en Supabase
+- [x] 9.1 Crear src/modules/asesores/ (domain, application, infrastructure, presentation)
+- [x] 9.2 Crear Asesor entity (independiente de Usuario) con usuario_id FK
+- [x] 9.3 Implementar AsesorRepository Supabase
+- [x] 9.4 Implementar useAsesores hook (TanStack Query)
+- [x] 9.5 Crear AsesoresPage con CRUD real
+- [x] 9.6 Implementar código único por empresa
+- [x] 9.7 Implementar meta de ventas mensual
+- [x] 9.8 Implementar tracking de rendimiento (ventas realizadas vs meta)
+- [x] 9.9 Verificar asesores persisten en Supabase
 
 ## 10. Ventas — Reservas, Ventas, Contratos
 
-- [ ] 10.1 Crear src/modules/ventas/ (domain, application, infrastructure, presentation)
-- [ ] 10.2 Implementar ReservarLoteUseCase (cambia estado a reservado)
-- [ ] 10.3 Implementar CancelarReservaUseCase (cambia estado a disponible)
-- [ ] 10.4 Implementar CreateVentaUseCase con transacción atómica
-- [ ] 10.5 Implementar generación automática de contrato
-- [ ] 10.6 Implementar generación automática de 12 cuotas
-- [ ] 10.7 Crear VentasPage con vista de ventas
-- [ ] 10.8 Crear src/modules/contratos/ con ContratoRepository
-- [ ] 10.9 Crear ContratosPage con vista de contratos
-- [ ] 10.10 Verificar transacción atómica: venta + lote + inventario + contrato + cuotas
-- [ ] 10.11 Verificar flujo completo: cotización → reserva → venta → contrato
+- [x] 10.1 Crear src/modules/ventas/ (domain, application, infrastructure, presentation)
+- [x] 10.2 Implementar ReservarLoteUseCase (cambia estado a reservado)
+- [x] 10.3 Implementar CancelarReservaUseCase (cambia estado a disponible)
+- [x] 10.4 Implementar CreateVentaUseCase con transacción atómica
+- [x] 10.5 Implementar generación automática de contrato
+- [x] 10.6 Implementar generación automática de 12 cuotas
+- [x] 10.7 Crear VentasPage con vista de ventas
+- [x] 10.8 Crear src/modules/contratos/ con ContratoRepository
+- [x] 10.9 Crear ContratosPage con vista de contratos
+- [x] 10.10 Verificar transacción atómica: venta + lote + inventario + contrato + cuotas
+- [x] 10.11 Verificar flujo completo: cotización → reserva → venta → contrato
 
 ## 11. Cartera — Pagos y Morosidad
 

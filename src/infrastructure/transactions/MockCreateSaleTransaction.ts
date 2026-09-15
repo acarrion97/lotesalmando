@@ -38,7 +38,7 @@ export class MockCreateSaleTransaction implements CreateSaleTransaction {
       id_usuario: command.id_usuario,
       precio_final: command.precio_ofertado,
       estado: "pendiente",
-    });
+    } as any);
 
     await this.lotRepo.updateEstado(command.id_lote, "vendido");
 
@@ -53,7 +53,7 @@ export class MockCreateSaleTransaction implements CreateSaleTransaction {
       id_venta: venta.id_venta,
       numero_contrato: `C-${Date.now()}`,
       monto_total: command.precio_ofertado,
-    });
+    } as any);
 
     const totalCuotas = 12;
     const montoCuota = Math.ceil(command.precio_ofertado / totalCuotas);
@@ -64,7 +64,7 @@ export class MockCreateSaleTransaction implements CreateSaleTransaction {
         numero_cuota: i,
         monto_cuota: i === totalCuotas ? command.precio_ofertado - montoCuota * (totalCuotas - 1) : montoCuota,
         estado: "pendiente",
-      });
+      } as any);
     }
 
     return {

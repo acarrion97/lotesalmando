@@ -8,4 +8,5 @@ export interface Venta {
   id_usuario: number;
   precio_final: number;
   estado: VentaEstado;
+  created_at?: string;
 }

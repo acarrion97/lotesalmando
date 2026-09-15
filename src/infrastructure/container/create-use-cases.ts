@@ -49,7 +49,11 @@ import { CreateOportunidadUseCase } from "@/application/oportunidades/use-cases/
 import { UpdateOportunidadUseCase } from "@/application/oportunidades/use-cases/UpdateOportunidadUseCase";
 import { GetActividadesUseCase } from "@/application/actividades/use-cases/GetActividadesUseCase";
 import { CreateActividadUseCase } from "@/application/actividades/use-cases/CreateActividadUseCase";
-import { MockCreateSaleTransaction } from "@/infrastructure/transactions/MockCreateSaleTransaction";
+import { GetAsesoresUseCase } from "@/application/asesores/use-cases/GetAsesoresUseCase";
+import { CreateAsesorUseCase } from "@/application/asesores/use-cases/CreateAsesorUseCase";
+import { UpdateAsesorUseCase } from "@/application/asesores/use-cases/UpdateAsesorUseCase";
+import { DeleteAsesorUseCase } from "@/application/asesores/use-cases/DeleteAsesorUseCase";
+import { SupabaseCreateSaleTransaction } from "@/infrastructure/transactions/SupabaseCreateSaleTransaction";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
@@ -101,10 +105,14 @@ export interface UseCases {
   updateOportunidad: UpdateOportunidadUseCase;
   getActividades: GetActividadesUseCase;
   createActividad: CreateActividadUseCase;
+  getAsesores: GetAsesoresUseCase;
+  createAsesor: CreateAsesorUseCase;
+  updateAsesor: UpdateAsesorUseCase;
+  deleteAsesor: DeleteAsesorUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
-  const createSaleTransaction = new MockCreateSaleTransaction(
+  const createSaleTransaction = new SupabaseCreateSaleTransaction(
     repos.lotRepository,
     repos.saleRepo,
     repos.inventarioRepo,
@@ -162,5 +170,9 @@ export function createUseCases(repos: Repositories): UseCases {
     updateOportunidad: new UpdateOportunidadUseCase(repos.oportunidadRepo),
     getActividades: new GetActividadesUseCase(repos.actividadRepo),
     createActividad: new CreateActividadUseCase(repos.actividadRepo),
+    getAsesores: new GetAsesoresUseCase(repos.asesorRepo),
+    createAsesor: new CreateAsesorUseCase(repos.asesorRepo),
+    updateAsesor: new UpdateAsesorUseCase(repos.asesorRepo),
+    deleteAsesor: new DeleteAsesorUseCase(repos.asesorRepo),
   };
 }

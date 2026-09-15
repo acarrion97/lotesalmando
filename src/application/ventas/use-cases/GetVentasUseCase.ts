@@ -22,6 +22,7 @@ export class GetVentasUseCase {
       id_usuario: venta.id_usuario,
       precio_final: venta.precio_final,
       estado: venta.estado,
+      created_at: venta.created_at,
     };
   }
 }
