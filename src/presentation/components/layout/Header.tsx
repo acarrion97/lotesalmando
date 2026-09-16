@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Select, Avatar, Dropdown, Space, Badge } from "antd";
+import { Select, Avatar, Dropdown, Space, Badge, Tooltip } from "antd";
 import {
   SettingOutlined,
   LogoutOutlined,
@@ -15,7 +15,7 @@ import type { MenuProps } from "antd";
 import { useEmpresa } from "@/presentation/providers";
 import { useTheme } from "@/presentation/theme";
 import { useAuth } from "@/presentation/providers/AuthProvider";
-import { useAlertas } from "@/presentation/hooks";
+import { useAlertas, useOnlineStatus } from "@/presentation/hooks";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -29,6 +29,7 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
   const { user, logout } = useAuth();
   const { data: alertas } = useAlertas();
   const alertCount = alertas?.filter((a) => a.prioridad === "alta").length ?? 0;
+  const isOnline = useOnlineStatus();
 
   const userMenuItems: MenuProps["items"] = useMemo(
     () => [
@@ -125,6 +126,27 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
       </div>
 
       <Space size={12} align="center">
+        {!isOnline && (
+          <Tooltip title="Sin conexión: los datos pueden estar desactualizados y no se pueden hacer cambios">
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: 6,
+                background: "#fffbe6",
+                border: "1px solid #ffe58f",
+                color: "#ad6800",
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#faad14" }} />
+              Sin conexión
+            </div>
+          </Tooltip>
+        )}
         <Select
           placeholder="Seleccionar Empresa"
           style={{ width: 260 }}

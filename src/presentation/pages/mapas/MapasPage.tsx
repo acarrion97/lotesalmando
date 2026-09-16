@@ -20,9 +20,11 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import { useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta } from "@/presentation/hooks";
+import { useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus } from "@/presentation/hooks";
 import { useAuth } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
+import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
+import { classifyFreshness } from "@/infrastructure/offline/freshness";
 
 async function findOrCreateCliente(nombres: string, cedula_ruc: string, email: string) {
   const container = getContainer();
@@ -92,11 +94,12 @@ export function MapasPage() {
   const queryClient = useQueryClient();
   const reservarLoteMutation = useReservarLote();
   const createVentaMutation = useCreateVenta();
+  const isOnline = useOnlineStatus();
 
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanasData, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
-  const { data: lotesData, isLoading: loadingLotes } = useLotesByManzana(selectedManzana ?? 0);
+  const { data: lotesData, isLoading: loadingLotes, dataUpdatedAt: lotesUpdatedAt } = useLotesByManzana(selectedManzana ?? 0);
 
   const currentProyecto = useMemo(() => {
     if (!proyectos || !selectedProyecto) return null;
@@ -122,8 +125,18 @@ export function MapasPage() {
   }, [lotesData]);
 
   const isLoading = loadingProyectos || loadingEtapas || loadingManzanas || loadingLotes;
+  const isVeryStale = classifyFreshness(lotesUpdatedAt) === "very-stale";
+  const commercialActionBlockedReason = !isOnline
+    ? "Sin conexión: no se pueden realizar acciones comerciales"
+    : isVeryStale
+      ? "Datos muy desactualizados: reconecte y actualice antes de continuar"
+      : null;
 
   const openModal = (type: ModalType) => {
+    if ((type === "cotizar" || type === "reservar" || type === "venta") && commercialActionBlockedReason) {
+      message.error(commercialActionBlockedReason);
+      return;
+    }
     setModalType(type);
     if (type === "cotizar") {
       setCotizacionStep(0);
@@ -340,7 +353,10 @@ export function MapasPage() {
             <Text strong style={{ fontSize: 15 }}>{currentProyecto?.nombre ?? "Seleccione un proyecto"}</Text>
             {selectedManzana && <Text type="secondary" style={{ marginLeft: 12, fontSize: 13 }}>{lotesData?.length ?? 0} lotes</Text>}
           </div>
-          <BookOutlined style={{ color: "#8c8c8c" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {selectedManzana && lotesData && <FreshnessBadge dataUpdatedAt={lotesUpdatedAt} />}
+            <BookOutlined style={{ color: "#8c8c8c" }} />
+          </div>
         </div>
 
         {isLoading ? (
@@ -434,20 +450,37 @@ export function MapasPage() {
               </Descriptions.Item>
             </Descriptions>
 
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 8 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Precio y estado según la última sincronización, no una garantía en tiempo real.
+              </Text>
+              <FreshnessBadge dataUpdatedAt={lotesUpdatedAt} />
+            </div>
+
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <Button icon={<ArrowLeftOutlined />} onClick={() => navigateLote("prev")} style={{ flex: 1 }}>Anterior</Button>
               <Button icon={<ArrowRightOutlined />} onClick={() => navigateLote("next")} style={{ flex: 1 }}>Siguiente</Button>
             </div>
 
+            {commercialActionBlockedReason && (
+              <Alert
+                message={commercialActionBlockedReason}
+                description={!isOnline ? "Vuelva a conectarse para cotizar, reservar o vender este lote." : "Reconecte y actualice antes de cotizar, reservar o vender este lote."}
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
+              />
+            )}
+
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {selectedLote.estado === "disponible" && (
                 <>
-                  <Button type="primary" block size="large" icon={<FileTextOutlined />} onClick={() => openModal("cotizar")}>Cotizar Lote</Button>
-                  <Button block size="large" icon={<ClockCircleOutlined />} style={{ borderColor: "#faad14", color: "#faad14" }} onClick={() => openModal("reservar")}>Reservar Lote</Button>
+                  <Button type="primary" block size="large" icon={<FileTextOutlined />} disabled={!!commercialActionBlockedReason} onClick={() => openModal("cotizar")}>Cotizar Lote</Button>
+                  <Button block size="large" disabled={!!commercialActionBlockedReason} style={{ borderColor: "#faad14", color: "#faad14" }} icon={<ClockCircleOutlined />} onClick={() => openModal("reservar")}>Reservar Lote</Button>
                 </>
               )}
               {selectedLote.estado === "reservado" && (
-                <Button type="primary" block size="large" icon={<DollarOutlined />} onClick={() => openModal("venta")}>Crear Venta</Button>
+                <Button type="primary" block size="large" icon={<DollarOutlined />} disabled={!!commercialActionBlockedReason} onClick={() => openModal("venta")}>Crear Venta</Button>
               )}
               <Button block icon={<HistoryOutlined />} onClick={() => openModal("historial")}>Ver historial</Button>
             </div>

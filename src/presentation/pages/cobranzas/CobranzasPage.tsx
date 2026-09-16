@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
 import { SearchOutlined, EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useCarteraMetricas } from "@/presentation/hooks";
+import { useCobranzas, useCarteraMetricas, useOnlineStatus } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
+import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 
 const { Title, Text } = Typography;
 
@@ -25,6 +26,7 @@ const estadoConfig: Record<string, { color: string; icon: React.ReactNode; label
 export function CobranzasPage() {
   const { data: cobranzas, isLoading } = useCobranzas();
   const { data: metricas } = useCarteraMetricas();
+  const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
   const [messageApi, contextHolder] = message.useMessage();
@@ -94,6 +96,10 @@ export function CobranzasPage() {
       ),
     },
   ];
+
+  if (!isOnline && !isLoading && !cobranzas) {
+    return <RequiresConnection />;
+  }
 
   return (
     <div>

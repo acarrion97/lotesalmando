@@ -37,6 +37,7 @@ import {
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useLotes, useManzanas } from "@/presentation/hooks";
+import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
 
@@ -175,7 +176,7 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
 }
 
 export function LotesPage() {
-  const { data: lotes, isLoading } = useLotes();
+  const { data: lotes, isLoading, dataUpdatedAt } = useLotes();
   const { data: manzanas } = useManzanas();
   const [searchText, setSearchText] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
@@ -390,11 +391,14 @@ export function LotesPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
-          Lotes
-        </Title>
-        <Text type="secondary">Gestion de lotes por manzana y proyecto</Text>
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
+            Lotes
+          </Title>
+          <Text type="secondary">Gestion de lotes por manzana y proyecto</Text>
+        </div>
+        {lotes && <FreshnessBadge dataUpdatedAt={dataUpdatedAt} />}
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

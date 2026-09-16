@@ -23,3 +23,4 @@ export { useProspectos } from "./useProspectos";
 export { useOportunidades } from "./useOportunidades";
 export { useActividades } from "./useActividades";
 export { useAsesores } from "./useAsesores";
+export { useOnlineStatus } from "./useOnlineStatus";

@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, Typography } from "antd";
+import { useOnlineStatus } from "@/presentation/hooks";
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -93,6 +94,7 @@ interface SidebarProps {
 export function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const isOnline = useOnlineStatus();
 
   const selectedKeys = [location.pathname === "/" ? "/dashboard" : location.pathname];
 
@@ -163,8 +165,18 @@ export function Sidebar({ collapsed }: SidebarProps) {
       {!collapsed && (
         <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", marginTop: "auto" }}>
           <div style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#52c41a", boxShadow: "0 0 8px #52c41a" }} />
-            <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>Sistema activo</Text>
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                background: isOnline ? "#52c41a" : "#faad14",
+                boxShadow: isOnline ? "0 0 8px #52c41a" : "0 0 8px #faad14",
+              }}
+            />
+            <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+              {isOnline ? "Sistema activo" : "Sin conexión"}
+            </Text>
           </div>
         </div>
       )}

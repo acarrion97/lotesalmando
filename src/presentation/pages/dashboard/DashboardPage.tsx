@@ -18,7 +18,7 @@ import {
   BarChartOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { useProyectos, useLotes, useVentas, useCobranzas, usePagos, useClientes, useAsesores } from "@/presentation/hooks";
+import { useProyectos, useLotes, useVentas, useCobranzas, usePagos, useClientes, useAsesores, useOnlineStatus } from "@/presentation/hooks";
 import { formatCurrency } from "@/utils";
 
 const { Title, Text } = Typography;
@@ -32,6 +32,7 @@ export function DashboardPage() {
   const { data: pagos, isLoading: loadingPagos } = usePagos();
   const { data: clientes } = useClientes(1);
   const { data: asesores } = useAsesores();
+  const isOnline = useOnlineStatus();
 
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
 
@@ -82,6 +83,12 @@ export function DashboardPage() {
 
   const ventasChange = getChangePercent(ventasCountMesActual, ventasCountMesAnterior);
 
+  // Ventas, cobranzas and pagos are intentionally not persisted offline
+  // (offline/data-policy) — without a connection and nothing cached, these
+  // KPIs would otherwise silently read as 0, which looks like "no debt"
+  // rather than "unknown". Show that explicitly instead.
+  const financialDataUnavailable = !isOnline && (ventas === undefined || cobranzas === undefined || pagos === undefined);
+
   const statCards = [
     {
       title: "Proyectos Activos",
@@ -113,6 +120,7 @@ export function DashboardPage() {
       icon: <ShoppingCartOutlined style={{ fontSize: 24, color: "#722ed1" }} />,
       color: "#f9f0ff",
       change: ventasChange,
+      unavailable: financialDataUnavailable,
     },
     {
       title: "Valor Vendido Total",
@@ -120,6 +128,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <DollarOutlined style={{ fontSize: 24, color: "#13c2c2" }} />,
       color: "#e6fffb",
+      unavailable: financialDataUnavailable,
     },
     {
       title: "Cartera Pendiente",
@@ -127,6 +136,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <WalletOutlined style={{ fontSize: 24, color: "#faad14" }} />,
       color: "#fffbe6",
+      unavailable: financialDataUnavailable,
     },
     {
       title: "Cartera Vencida",
@@ -134,6 +144,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <WarningOutlined style={{ fontSize: 24, color: "#ff4d4f" }} />,
       color: "#fff2f0",
+      unavailable: financialDataUnavailable,
     },
     {
       title: "Pagos Recibidos",
@@ -141,6 +152,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <ArrowUpOutlined style={{ fontSize: 24, color: "#52c41a" }} />,
       color: "#f6ffed",
+      unavailable: financialDataUnavailable,
     },
   ];
 
@@ -194,23 +206,35 @@ export function DashboardPage() {
                   {card.icon}
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <Statistic
-                    title={card.title}
-                    value={card.value}
-                    precision={card.isCurrency ? 0 : 0}
-                    styles={{
-                      content: {
-                        fontSize: 22,
-                        fontWeight: 700,
-                        color: card.title === "Cartera Vencida" ? "#ff4d4f" : undefined,
-                      },
-                    }}
-                    formatter={card.isCurrency ? (val) => formatCurrency(val as number) : undefined}
-                  />
-                  {"change" in card && card.change !== undefined && (
-                    <Tag color={card.change >= 0 ? "green" : "red"} style={{ fontSize: 11 }}>
-                      {card.change >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(card.change)}% vs mes anterior
-                    </Tag>
+                  {"unavailable" in card && card.unavailable ? (
+                    <Statistic
+                      title={card.title}
+                      value="—"
+                      styles={{ content: { fontSize: 22, fontWeight: 700, color: "#8c8c8c" } }}
+                    />
+                  ) : (
+                    <Statistic
+                      title={card.title}
+                      value={card.value}
+                      precision={card.isCurrency ? 0 : 0}
+                      styles={{
+                        content: {
+                          fontSize: 22,
+                          fontWeight: 700,
+                          color: card.title === "Cartera Vencida" ? "#ff4d4f" : undefined,
+                        },
+                      }}
+                      formatter={card.isCurrency ? (val) => formatCurrency(val as number) : undefined}
+                    />
+                  )}
+                  {"unavailable" in card && card.unavailable ? (
+                    <Tag color="warning" style={{ fontSize: 11 }}>Requiere conexión</Tag>
+                  ) : (
+                    "change" in card && card.change !== undefined && (
+                      <Tag color={card.change >= 0 ? "green" : "red"} style={{ fontSize: 11 }}>
+                        {card.change >= 0 ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {Math.abs(card.change)}% vs mes anterior
+                      </Tag>
+                    )
                   )}
                 </div>
               </div>
@@ -240,28 +264,32 @@ export function DashboardPage() {
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Resumen Cartera" style={{ borderRadius: 10 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Text>Total Cartera</Text>
-                <Text strong style={{ fontSize: 16 }}>{formatCurrency(cobranzaPendiente + cobranzaVencida + cobranzaPagada)}</Text>
+            {financialDataUnavailable ? (
+              <Text type="secondary">Se requiere conexión para consultar la cartera.</Text>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text>Total Cartera</Text>
+                  <Text strong style={{ fontSize: 16 }}>{formatCurrency(cobranzaPendiente + cobranzaVencida + cobranzaPagada)}</Text>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text>Pagada</Text>
+                  <Tag color="green">{formatCurrency(cobranzaPagada)}</Tag>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text>Pendiente</Text>
+                  <Tag color="orange">{formatCurrency(cobranzaPendiente)}</Tag>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text>Vencida</Text>
+                  <Tag color="red">{formatCurrency(cobranzaVencida)}</Tag>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Text>Morosidad</Text>
+                  <Tag color={morosidad > 5 ? "red" : "green"}>{morosidad} cuotas</Tag>
+                </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Text>Pagada</Text>
-                <Tag color="green">{formatCurrency(cobranzaPagada)}</Tag>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Text>Pendiente</Text>
-                <Tag color="orange">{formatCurrency(cobranzaPendiente)}</Tag>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Text>Vencida</Text>
-                <Tag color="red">{formatCurrency(cobranzaVencida)}</Tag>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Text>Morosidad</Text>
-                <Tag color={morosidad > 5 ? "red" : "green"}>{morosidad} cuotas</Tag>
-              </div>
-            </div>
+            )}
           </Card>
         </Col>
       </Row>

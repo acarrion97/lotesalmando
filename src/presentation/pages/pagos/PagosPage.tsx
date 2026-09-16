@@ -1,11 +1,12 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic } from "antd";
+import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic, Tooltip } from "antd";
 import { PlusOutlined, SearchOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePagos } from "@/presentation/hooks";
+import { usePagos, useOnlineStatus } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { pagoSchema } from "@/presentation/validations";
+import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 
 const { Title, Text } = Typography;
 
@@ -19,6 +20,7 @@ type PagoRow = {
 
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
+  const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -45,6 +47,10 @@ export function PagosPage() {
   }, [pagos, searchText]);
 
   const handleCreate = async () => {
+    if (!isOnline) {
+      messageApi.error("Sin conexión: no se puede registrar un pago");
+      return;
+    }
     try {
       const values = await createForm.validateFields();
       const parsed = pagoSchema.parse(values);
@@ -105,6 +111,10 @@ export function PagosPage() {
     },
   ];
 
+  if (!isOnline && !isLoading && !pagos) {
+    return <RequiresConnection />;
+  }
+
   return (
     <div>
       {contextHolder}
@@ -113,7 +123,9 @@ export function PagosPage() {
           <Title level={4} style={{ margin: 0 }}>Pagos</Title>
           <Text type="secondary">Registro de pagos recibidos</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>Registrar Pago</Button>
+        <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
+          <Button type="primary" icon={<PlusOutlined />} disabled={!isOnline} onClick={() => setCreateModalOpen(true)}>Registrar Pago</Button>
+        </Tooltip>
       </div>
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

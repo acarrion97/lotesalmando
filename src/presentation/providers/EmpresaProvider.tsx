@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "./AuthProvider";
 import { useEmpresas } from "@/presentation/hooks/useEmpresas";
+import { clearOfflinePersistence } from "@/infrastructure/offline/persistQueryClient";
 
 interface Empresa {
   id_empresa: number;
@@ -36,6 +38,7 @@ export function EmpresaProvider({ children }: EmpresaProviderProps) {
   const { user, isAuthenticated } = useAuth();
   const { data: empresasData } = useEmpresas({ enabled: isAuthenticated });
   const [manualEmpresaId, setManualEmpresaId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
   const empresas = useMemo(
     () => (isAuthenticated ? (empresasData ?? []) : []),
@@ -59,6 +62,16 @@ export function EmpresaProvider({ children }: EmpresaProviderProps) {
   }, [empresas, manualEmpresaId, user]);
 
   const setEmpresaActual = useCallback((empresa: Empresa | null) => {
+    const isSwitchingToAnotherEmpresa =
+      empresaActual !== null && empresa !== null && empresa.id_empresa !== empresaActual.id_empresa;
+
+    if (isSwitchingToAnotherEmpresa) {
+      // offline/tenant-isolation: purge before the new empresa's queries
+      // start populating the cache, so nothing from the previous tenant
+      // lingers alongside it.
+      void clearOfflinePersistence(queryClient);
+    }
+
     setManualEmpresaId(empresa ? empresa.id_empresa : null);
     try {
       if (empresa) {
@@ -69,7 +82,7 @@ export function EmpresaProvider({ children }: EmpresaProviderProps) {
     } catch {
       // localStorage not available
     }
-  }, []);
+  }, [empresaActual, queryClient]);
 
   const setEmpresas = useCallback((_empresas: Empresa[]) => {
     // no-op: the empresas list is derived from useEmpresas(); kept for interface compatibility

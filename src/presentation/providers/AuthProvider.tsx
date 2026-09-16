@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/infrastructure/supabase/client";
+import { clearOfflinePersistence } from "@/infrastructure/offline/persistQueryClient";
 
 interface AuthUser {
   id: string;
@@ -23,6 +25,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -160,7 +163,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
-  }, []);
+    // offline/tenant-isolation: nothing this device cached offline should
+    // survive past the session it belonged to.
+    await clearOfflinePersistence(queryClient);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
