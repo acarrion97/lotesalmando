@@ -3,6 +3,7 @@ import { ProtectedRoute } from "./ProtectedRoute";
 import { AppLayout } from "@/presentation/components/layout/AppLayout";
 import { LoginPage } from "@/presentation/pages/auth/LoginPage";
 import { RegisterPage } from "@/presentation/pages/auth/RegisterPage";
+import { RegisterEmpresaPage } from "@/presentation/pages/auth/RegisterEmpresaPage";
 import { DashboardPage } from "@/presentation/pages/dashboard";
 import { ProyectosPage } from "@/presentation/pages/proyectos";
 import { MapasPage } from "@/presentation/pages/mapas";
@@ -26,6 +27,7 @@ export function AppRouter() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
+        <Route path="/registro/empresa" element={<RegisterEmpresaPage />} />
         <Route
           element={
             <ProtectedRoute>

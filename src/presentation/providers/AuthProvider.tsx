@@ -15,6 +15,12 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   register: (email: string, password: string, nombres: string) => Promise<{ success: boolean; error?: string }>;
+  registerNuevaEmpresa: (
+    email: string,
+    password: string,
+    nombres: string,
+    razonSocial: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -100,6 +106,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback(async (email: string, password: string, nombres: string) => {
+    // El registro abierto requiere invitacion previa: un admin da de alta
+    // la fila `usuario` desde UsuariosPage antes de que la persona se
+    // registre. Se chequea ANTES de crear la cuenta de Supabase Auth para
+    // no dejar cuentas huerfanas sin empresa si no estaba invitada. Usa
+    // el RPC `usuario_invitado` (no una consulta directa a `usuario`)
+    // porque en este punto todavia no hay sesion (rol anon) y las
+    // politicas RLS de `usuario` solo permiten lectura a `authenticated`.
+    const { data: invitado, error: invitadoError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle();
+
+    if (invitadoError) {
+      return { success: false, error: "No se pudo verificar tu invitacion. Intenta de nuevo en un momento." };
+    }
+
+    if (!invitado) {
+      return {
+        success: false,
+        error: "Tu empresa todavia no te invito. Si queres crear tu propia empresa, usa la opcion 'Crea tu empresa'.",
+      };
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -113,49 +139,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     if (data.user) {
-      // Esperar un momento para que el trigger cree el registro en usuario
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Verificar si el usuario ya fue creado por el trigger
-      const { data: existingUser } = await supabase
-        .from("usuario")
-        .select("id_usuario, id_empresa")
-        .eq("email", data.user.email)
-        .single();
-
-      if (!existingUser) {
-        // Si no existe, crearlo manualmente (empresa por defecto: 1)
-        const { data: newUser } = await supabase
-          .from("usuario")
-          .insert({
-            id_empresa: 1,
-            nombres,
-            email: data.user.email || "",
-            estado: "activo",
-          })
-          .select("id_usuario, id_empresa")
-          .single();
-
-        setUser({
-          id: data.user.id,
-          email: data.user.email || "",
-          nombres,
-          id_usuario: newUser?.id_usuario,
-          id_empresa: newUser?.id_empresa,
-        });
-      } else {
-        setUser({
-          id: data.user.id,
-          email: data.user.email || "",
-          nombres,
-          id_usuario: existingUser.id_usuario,
-          id_empresa: existingUser.id_empresa,
-        });
-      }
+      setUser({
+        id: data.user.id,
+        email: data.user.email || "",
+        nombres: invitado.nombres || nombres,
+        id_usuario: invitado.id_usuario,
+        id_empresa: invitado.id_empresa,
+      });
     }
 
     return { success: true };
   }, []);
+
+  const registerNuevaEmpresa = useCallback(
+    async (email: string, password: string, nombres: string, razonSocial: string) => {
+      const { data: existente, error: existenteError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle();
+
+      if (existenteError) {
+        return { success: false, error: "No se pudo verificar el correo. Intenta de nuevo en un momento." };
+      }
+
+      if (existente) {
+        return {
+          success: false,
+          error: "Ya existe una cuenta con este correo. Si tu empresa ya te invito, inicia sesion o registrate normalmente.",
+        };
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { nombres },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message === "User already registered" ? "Este correo electronico ya esta registrado" : error.message };
+      }
+
+      if (!data.user) {
+        return { success: false, error: "No se pudo crear la cuenta" };
+      }
+
+      const { data: empresa, error: empresaError } = await supabase
+        .from("empresa")
+        .insert({ razon_social: razonSocial, estado: "activo" })
+        .select("id_empresa")
+        .single();
+
+      if (empresaError || !empresa) {
+        return { success: false, error: "No se pudo crear la empresa. Intenta de nuevo o contacta a soporte." };
+      }
+
+      const { data: nuevoUsuario, error: usuarioError } = await supabase
+        .from("usuario")
+        .insert({ id_empresa: empresa.id_empresa, nombres, email, estado: "activo" })
+        .select("id_usuario, id_empresa")
+        .single();
+
+      if (usuarioError || !nuevoUsuario) {
+        return { success: false, error: "La empresa se creo pero no se pudo vincular tu usuario. Contacta a soporte." };
+      }
+
+      setUser({
+        id: data.user.id,
+        email: data.user.email || "",
+        nombres,
+        id_usuario: nuevoUsuario.id_usuario,
+        id_empresa: nuevoUsuario.id_empresa,
+      });
+
+      return { success: true };
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
@@ -163,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, registerNuevaEmpresa, logout }}>
       {children}
     </AuthContext.Provider>
   );
