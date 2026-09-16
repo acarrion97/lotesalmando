@@ -17,16 +17,16 @@
 - [x] 2.1 Instalar @supabase/supabase-js
 - [x] 2.2 Crear .env con VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY
 - [x] 2.3 Crear infrastructure/supabase/client.ts (singleton client)
-- [ ] 2.4 Crear infrastructure/supabase/database.types.ts (generated types)
-- [ ] 2.5 Diseñar esquema PostgreSQL: empresas, usuarios, roles, usuario_roles
-- [ ] 2.6 Diseñar esquema PostgreSQL: proyectos, etapas, manzanas, lotes
-- [ ] 2.7 Diseñar esquema PostgreSQL: clientes, prospectos, asesores, oportunidades
-- [ ] 2.8 Diseñar esquema PostgreSQL: cotizaciones, ventas, contratos, cuotas, pagos
-- [ ] 2.9 Diseñar esquema PostgreSQL: inventario, configuracion, mapa
+- [x] 2.4 Crear infrastructure/supabase/database.types.ts (generated types) — estaba desactualizado (faltaban `prospectos`, `oportunidades`, `actividades`, `asesores` aunque esas tablas y sus repos Supabase ya existían); completado con los tipos Row/Insert/Update de esas 4 tablas segun `003_crm_prospectos.sql`/`004_asesores.sql`.
+- [x] 2.5 Diseñar esquema PostgreSQL: empresas, usuarios, roles, usuario_roles — `roles`/`permiso`/`rol_permiso`/`usuario_rol` están trackeados en `003_seed_roles_permisos.sql`; `empresa`/`usuario` existen en la BD real pero no están en una migración trackeada (ver nota de 2.6).
+- [ ] 2.6 Diseñar esquema PostgreSQL: proyectos, etapas, manzanas, lotes — **gap real**: estas tablas existen y funcionan en el Supabase real pero no hay ningún `CREATE TABLE` trackeado para ellas (`001_initial_schema.sql` es solo un comentario que dice "ya está en la base de datos"). Mismo patrón ya detectado para `cobranzas`/`contratos` (ver memoria de proyecto "Schema gaps"). Pendiente: pedirle al usuario un dump del schema real (`pg_dump --schema-only` o el SQL Editor) para escribir una migración retroactiva que documente la estructura real.
+- [ ] 2.7 Diseñar esquema PostgreSQL: clientes, prospectos, asesores, oportunidades — parcial: `prospectos`/`oportunidades`/`actividades` (003) y `asesores` (004) sí están trackeados; `cliente` no está en ninguna migración trackeada, mismo gap que 2.6.
+- [ ] 2.8 Diseñar esquema PostgreSQL: cotizaciones, ventas, contratos, cuotas, pagos — **gap real**, mismo patrón que 2.6: ninguna tabla de este grupo tiene `CREATE TABLE` trackeado (`005_cobranzas_fecha_vencimiento.sql` solo hace `ALTER TABLE` sobre `cobranzas`, asumiendo que ya existe).
+- [ ] 2.9 Diseñar esquema PostgreSQL: inventario, configuracion, mapa — **gap real**, mismo patrón que 2.6.
 - [x] 2.10 Crear migraciones SQL con tablas, foreign keys, índices
 - [x] 2.11 Crear políticas RLS por empresa_id en todas las tablas principales
-- [ ] 2.12 Crear seed data con empresas y usuarios de prueba
-- [ ] 2.13 Verificar RLS aislamiento de datos entre empresas
+- [x] 2.12 Crear seed data con empresas y usuarios de prueba — `002_seed_data.sql` siembra empresa/configuracion/proyectos/etapas/manzanas/lotes; el insert de `usuario` de prueba está deliberadamente comentado porque un usuario de Supabase Auth no se puede crear por SQL plano (requiere el Auth API/dashboard) — **pendiente de accion manual del usuario**, no es algo que este agente pueda hacer (crear cuentas esta fuera de lo que puedo ejecutar).
+- [ ] 2.13 Verificar RLS aislamiento de datos entre empresas — **pendiente, requiere al usuario**: no hay políticas RLS visibles en ninguna migración trackeada (solo se mencionan como intención en el diseño), y verificar aislamiento real requiere dos empresas + dos usuarios logueados, algo que este agente no puede hacer sin credenciales. Procedimiento sugerido: crear una segunda empresa y un segundo usuario en el Supabase real, loguearse con cada uno y confirmar que cada sesión solo ve datos de su propia empresa.
 - [x] 2.14 Actualizar .env.example con VITE_DATA_PROVIDER=supabase y documentar mock como opt-in explicito
 - [x] 2.15 Configurar Supabase como proveedor predeterminado cuando VITE_DATA_PROVIDER no este definido o este vacio
 - [x] 2.16 Rechazar valores de VITE_DATA_PROVIDER distintos de supabase o mock con un error de configuracion claro
@@ -42,20 +42,22 @@
 - [x] 3.6 Crear src/modules/empresas/ con EmpresaProvider (implementado en `src/presentation/providers/EmpresaProvider.tsx`, no bajo `src/modules/` — la reestructura modular de la sección 5 sigue pendiente)
 - [x] 3.7 Implementar selección de empresa (localStorage persistence)
 - [x] 3.8 Crear EmpresaRepository Supabase (`SupabaseEmpresaRepository`, verificado contra tabla `empresa` real)
-- [ ] 3.9 Crear LoginPage con formulario real (Zod validation)
-- [ ] 3.10 Verificar auth flow completo: login → sesión → protected routes
+- [x] 3.9 Crear LoginPage con formulario real (Zod validation) — `LoginPage.tsx` solo usaba reglas de `antd Form`, pese a que la fase 14 decía que Zod ya estaba integrado en "todos los formularios existentes" (gap real, aislado). Se agregó `loginSchema` (`src/presentation/validations/loginSchema.ts`) validado con `safeParse` antes de llamar a `login()`.
+- [x] 3.10 Verificar auth flow completo: login → sesión → protected routes — `src/app/router/ProtectedRoute.tsx` ya verifica `loading`/`isAuthenticated` y redirige a `/login` correctamente; verificado también en vivo (submit con credenciales invalidas llega a Supabase Auth real y muestra "Correo electronico o contrasena incorrectos").
 
 ## 4. Fundación — Usuarios y Roles
 
-- [ ] 4.1 Crear src/modules/usuarios/ (domain, application, infrastructure, presentation)
-- [ ] 4.2 Crear UsuarioRepository interface + Supabase implementation
-- [ ] 4.3 Crear useUsuarios hook (TanStack Query)
+- [x] 4.1 Crear src/modules/usuarios/ (domain, application, infrastructure, presentation) — implementado bajo `src/domain/usuario/`, `src/application/usuarios/`, `src/infrastructure/repositories/{mock,supabase}/*UsuarioRepository.ts` en vez de `src/modules/usuarios/` (misma nota que 3.6: la reestructura de la sección 5 no se hizo).
+- [x] 4.2 Crear UsuarioRepository interface + Supabase implementation — `src/domain/usuario/repositories/UsuarioRepository.ts` + `SupabaseUsuarioRepository`.
+- [x] 4.3 Crear useUsuarios hook (TanStack Query) — `src/presentation/hooks/useUsuarios.ts` usa `useQuery`.
 - [x] 4.4 Crear UsuariosPage con CRUD real (create, edit, delete)
-- [ ] 4.5 Agregar Zod validation en formulario de usuario
-- [ ] 4.6 Crear src/modules/roles/ básico (domain + repository)
-- [ ] 4.7 Conectar roles con usuarios (asignación)
-- [ ] 4.8 Verificar CRUD de usuarios persiste en Supabase
+- [x] 4.5 Agregar Zod validation en formulario de usuario — se agregó `usuarioSchema` (`src/presentation/validations/usuarioSchema.ts`), integrado en `UsuariosPage.tsx` siguiendo el mismo patron que `AsesoresPage`/`PagosPage`/`ProspectosPage` (`.parse()`/`.partial().parse()` en el submit handler).
+- [x] 4.6 Crear src/modules/roles/ básico (domain + repository) — **gap real confirmado**: las tablas `roles`/`permiso`/`rol_permiso`/`usuario_rol` existían en la BD (migracion 003) pero no había ninguna capa de dominio/aplicacion/UI sobre ellas. Se creó `src/domain/rol/` (entidad `Rol` + `RolRepository`), `src/application/roles/use-cases/` (Get/GetByUsuario/Assign/Remove), y repos Mock+Supabase, siguiendo el mismo patron de módulos existentes (asesores, usuarios, etc.).
+- [x] 4.7 Conectar roles con usuarios (asignación) — `UsuariosPage.tsx` ahora tiene un selector multiple de roles en el modal de edición: carga los roles actuales del usuario (`getRolesByUsuario`) y al guardar calcula el diff para llamar `assignRol`/`removeRol` solo sobre lo que cambió. Verificado con un script aislado (tsx + `MockRolRepository`): asignar, remover y evitar duplicados funcionan correctamente.
+- [ ] 4.8 Verificar CRUD de usuarios persiste en Supabase — el cableado es correcto (`create-repositories.ts` selecciona `SupabaseUsuarioRepository` salvo `VITE_DATA_PROVIDER=mock` explicito), pero falta la verificación en vivo contra el Supabase real (no tengo credenciales de login para probarlo por UI).
 ## 5. Reestructura Modular
+
+**Superseded por decisión de arquitectura** (no ejecutado, y se recomienda no ejecutarlo): desde la fase 6 en adelante, cada módulo se implementó consistentemente con una arquitectura por capas (`src/domain/<entidad>/`, `src/application/<feature>/use-cases/`, `src/infrastructure/repositories/{mock,supabase}/`, `src/presentation/{pages,hooks}/`) en vez de `src/modules/<feature>/` por-feature que describe esta sección. `src/modules/` no existe en ningún lado del código (confirmado). Es una divergencia deliberada y ya consolidada: prácticamente todo el código (~20 módulos: proyectos, lotes, ventas, cobranzas, prospectos, asesores, roles, etc.) sigue el patrón por capas. Hacer la reestructura ahora significaría mover casi todo el árbol `src/` sin ningún beneficio funcional, con alto riesgo de romper algo, solo para cumplir un checklist desactualizado. Si el usuario de todas formas quiere migrar a `src/modules/`, es una decisión aparte que debería tomarse explícitamente, no siguiendo automáticamente esta lista.
 
 - [ ] 5.1 Crear estructura src/modules/ con subcarpetas por módulo
 - [ ] 5.2 Mover módulos existentes a nueva estructura (proyectos, lotes, clientes, etc.)
@@ -86,7 +88,7 @@
 - [x] 7.3 Implementar useLotes hook (TanStack Query)
 - [x] 7.4 Crear LotesPage con tabla + vista grid + estadísticas
 - [x] 7.5 Implementar estados de lote: disponible, reservado, en negociación, vendido, bloqueado, no disponible
-- [ ] 7.6 Agregar Zod validation en formulario de lote
+- [x] 7.6 Agregar Zod validation en formulario de lote — se agregó `loteSchema` (`src/presentation/validations/loteSchema.ts`), integrado en `LotesPage.tsx` con el mismo patrón `.parse()`/`.partial().parse()`.
 - [x] 7.7 Crear src/modules/lotes/ con mapa SVG interactivo
 - [x] 7.8 Implementar colores por estado en mapa (regla visual)
 - [x] 7.9 Implementar leyenda con color + texto + icono
