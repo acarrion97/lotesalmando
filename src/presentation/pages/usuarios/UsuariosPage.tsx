@@ -7,6 +7,7 @@ import { useUsuarios, useRoles } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
 import { usuarioSchema } from "@/presentation/validations";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
 const { Title } = Typography;
 
@@ -24,6 +25,7 @@ interface ModalState {
 export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
   const { data: roles } = useRoles();
+  const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -99,10 +101,15 @@ export function UsuariosPage() {
   };
 
   const handleCreate = async () => {
+    if (!empresaActual) {
+      messageApi.error("No se pudo determinar la empresa actual");
+      return;
+    }
+
     try {
       const values = await createForm.validateFields();
       const parsed = usuarioSchema.parse(values);
-      await container.createUsuario.execute({ ...parsed, id_empresa: 1 });
+      await container.createUsuario.execute({ ...parsed, id_empresa: empresaActual.id_empresa });
       await refreshUsuarios();
       messageApi.success("Usuario creado correctamente");
       setCreateModalOpen(false);
