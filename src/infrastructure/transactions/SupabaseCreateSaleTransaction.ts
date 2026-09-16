@@ -4,6 +4,9 @@ import type { SaleRepository } from "@/domain/venta/repositories";
 import type { InventarioRepository } from "@/domain/inventario/repositories";
 import type { ContractRepository } from "@/domain/contrato/repositories";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
+import type { Venta } from "@/domain/venta/entities";
+import type { Contrato } from "@/domain/contrato/entities";
+import type { Cobranza } from "@/domain/cobranza/entities";
 
 export class SupabaseCreateSaleTransaction implements CreateSaleTransaction {
   private lotRepo: LotRepository;
@@ -31,14 +34,15 @@ export class SupabaseCreateSaleTransaction implements CreateSaleTransaction {
 
     const estadoAnterior = lote.estado;
 
-    const venta = await this.saleRepo.create({
+    const ventaPayload: Omit<Venta, "id_venta"> = {
       id_cliente: command.id_cliente,
       id_lote: command.id_lote,
       id_cotizacion: command.id_cotizacion,
       id_usuario: command.id_usuario,
       precio_final: command.precio_ofertado,
-      estado: "pendiente",
-    } as any);
+      estado: "completada",
+    };
+    const venta = await this.saleRepo.create(ventaPayload);
 
     await this.lotRepo.updateEstado(command.id_lote, "vendido");
 
@@ -49,22 +53,24 @@ export class SupabaseCreateSaleTransaction implements CreateSaleTransaction {
       estado_nuevo: "vendido",
     });
 
-    const contrato = await this.contractRepo.create({
+    const contratoPayload: Omit<Contrato, "id_contrato"> = {
       id_venta: venta.id_venta,
       numero_contrato: `C-${Date.now()}`,
       monto_total: command.precio_ofertado,
-    } as any);
+    };
+    const contrato = await this.contractRepo.create(contratoPayload);
 
     const totalCuotas = 12;
     const montoCuota = Math.ceil(command.precio_ofertado / totalCuotas);
 
     for (let i = 1; i <= totalCuotas; i++) {
-      await this.cobranzaRepo.create({
+      const cuotaPayload: Omit<Cobranza, "id_cobranza"> = {
         id_contrato: contrato.id_contrato,
         numero_cuota: i,
         monto_cuota: i === totalCuotas ? command.precio_ofertado - montoCuota * (totalCuotas - 1) : montoCuota,
         estado: "pendiente",
-      } as any);
+      };
+      await this.cobranzaRepo.create(cuotaPayload);
     }
 
     return {

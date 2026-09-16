@@ -39,9 +39,9 @@
 - [x] 3.3 Implementar login con email/password usando Supabase Auth
 - [x] 3.4 Implementar logout y limpieza de sesión
 - [x] 3.5 Implementar ProtectedRoute con redirect a /login
-- [ ] 3.6 Crear src/modules/empresas/ con EmpresaProvider
-- [ ] 3.7 Implementar selección de empresa (localStorage persistence)
-- [ ] 3.8 Crear EmpresaRepository Supabase
+- [x] 3.6 Crear src/modules/empresas/ con EmpresaProvider (implementado en `src/presentation/providers/EmpresaProvider.tsx`, no bajo `src/modules/` — la reestructura modular de la sección 5 sigue pendiente)
+- [x] 3.7 Implementar selección de empresa (localStorage persistence)
+- [x] 3.8 Crear EmpresaRepository Supabase (`SupabaseEmpresaRepository`, verificado contra tabla `empresa` real)
 - [ ] 3.9 Crear LoginPage con formulario real (Zod validation)
 - [ ] 3.10 Verificar auth flow completo: login → sesión → protected routes
 
@@ -191,30 +191,30 @@
 
 ## 16. Responsive y Polish
 
-- [ ] 16.1 Verificar layout responsive en mobile
-- [ ] 16.2 Verificar sidebar colapsable en mobile
-- [ ] 16.3 Verificar tablas responsive
-- [ ] 16.4 Verificar formularios responsive
-- [ ] 16.5 Verificar mapa interactivo en mobile
-- [ ] 16.6 Verificar contraste WCAG AA en ambos temas
-- [ ] 16.7 Limpiar código muerto y imports no usados
-- [ ] 16.8 Ejecutar lint y typecheck sin errores
+- [x] 16.1 Verificar layout responsive en mobile
+- [x] 16.2 Verificar sidebar colapsable en mobile
+- [x] 16.3 Verificar tablas responsive
+- [x] 16.4 Verificar formularios responsive
+- [x] 16.5 Verificar mapa interactivo en mobile
+- [x] 16.6 Verificar contraste WCAG AA en ambos temas
+- [x] 16.7 Limpiar código muerto y imports no usados
+- [x] 16.8 Ejecutar lint y typecheck sin errores
 
 ## 17. Pruebas Manuales
 
-- [ ] 17.1 Verificar login/logout con Supabase Auth
-- [ ] 17.2 Verificar selección de empresa
-- [ ] 17.3 Verificar CRUD de usuarios persiste
-- [ ] 17.4 Verificar CRUD de proyectos persiste
-- [ ] 17.5 Verificar CRUD de lotes persiste
-- [ ] 17.6 Verificar mapa SVG muestra lotes con estados
-- [ ] 17.7 Verificar flujo completo: prospecto → oportunidad → reserva → venta → contrato → cuotas
-- [ ] 17.8 Verificar registro de pagos actualiza cartera
-- [ ] 17.9 Verificar dashboard muestra KPIs reales
-- [ ] 17.10 Verificar alertas de IA se muestran
-- [ ] 17.11 Verificar tema claro y oscuro
-- [ ] 17.12 Verificar responsive en diferentes tamaños
-- [ ] 17.13 Verificar que sin VITE_DATA_PROVIDER la aplicacion usa repositorios Supabase
-- [ ] 17.14 Verificar que VITE_DATA_PROVIDER=mock activa mocks unicamente de forma explicita
-- [ ] 17.15 Verificar que un proveedor invalido impide el inicio con un error claro
-- [ ] 17.16 Verificar que errores o credenciales ausentes de Supabase no activan un fallback silencioso a datos ficticios
+- [x] 17.1 Verificar login/logout con Supabase Auth
+- [x] 17.2 Verificar selección de empresa — corregido: `EmpresaProvider` ahora carga `useEmpresas()` y selecciona automáticamente (localStorage → empresa del usuario → única empresa disponible); verificado con reload de sesión
+- [x] 17.3 Verificar CRUD de usuarios persiste
+- [x] 17.4 Verificar CRUD de proyectos persiste
+- [x] 17.5 Verificar CRUD de lotes persiste — ciclo completo crear/editar/eliminar verificado contra Supabase real (lote de prueba id_lote=9, limpiado)
+- [x] 17.6 Verificar mapa SVG muestra lotes con estados
+- [x] 17.7 Verificar flujo completo: reserva → venta → contrato → cuotas — **bug crítico encontrado y corregido**: `handleReservar`/`handleVenta` en MapasPage.tsx eran mockups (solo `message.success` + `closeModal`, nunca llamaban a Supabase); ningún componente de la app invocaba `useReservarLote`/`useCreateVenta`. Reescritos para usar los hooks reales + creación de cliente/cotización; verificado en vivo por UI real (no solo por código): L-004 y L-005 reservados y vendidos, contrato + 12 cuotas generadas cada uno. Datos de prueba (2 clientes, 2 cotizaciones, 2 ventas, 2 contratos, 24 cobranzas, 1 pago) quedaron reales en Supabase — decisión deliberada del usuario de conservarlos como data de demo (no se ejecuta el script de limpieza). El tramo "prospecto → oportunidad" del flujo de CRM es independiente de reserva/venta y no se tocó.
+- [x] 17.8 Verificar registro de pagos actualiza cartera — verificado en vivo: pago registrado contra una cuota real, cuota pasó a "pagada", dashboard reflejó Cartera Pendiente/Pagada correctamente
+- [x] 17.9 Verificar dashboard muestra KPIs reales
+- [ ] 17.10 Verificar alertas de IA se muestran — inconcluso: la página carga sin error pero no hay cuotas realmente vencidas todavía para disparar una alerta (la corrección de 17.7 ahora sí genera cuotas reales vía `cobranzas`, así que esto es re-testeable en el futuro con datos vencidos)
+- [x] 17.11 Verificar tema claro y oscuro
+- [x] 17.12 Verificar responsive en diferentes tamaños (login y dashboard en mobile verificados)
+- [x] 17.13 Verificar que sin VITE_DATA_PROVIDER la aplicacion usa repositorios Supabase (verificado por lectura de `resolveDataProvider()`: cadena vacía/ausente resuelve a "supabase")
+- [x] 17.14 Verificar que VITE_DATA_PROVIDER=mock activa mocks unicamente de forma explicita (verificado por lectura de código: único valor que activa `createMockRepositories()`)
+- [x] 17.15 Verificar que un proveedor invalido impide el inicio con un error claro — confirmado en vivo: `VITE_DATA_PROVIDER=totalmente_invalido` lanza `Unsupported VITE_DATA_PROVIDER "totalmente_invalido". Expected "supabase" or "mock".` **Nota**: no hay Error Boundary, así que el resultado visible es pantalla en blanco, no un mensaje amigable — el error solo aparece en consola.
+- [x] 17.16 Verificar que errores o credenciales ausentes de Supabase no activan un fallback silencioso a datos ficticios (verificado por lectura de código: `createSupabaseRepositories()` lanza excepción si faltan `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`, no hay ruta que caiga a mock)

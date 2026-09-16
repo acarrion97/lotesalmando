@@ -135,22 +135,22 @@ export function VentasPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total Ventas</span>} value={stats.total} valueStyle={{ fontWeight: 700, fontSize: 24 }} prefix={<DollarOutlined style={{ color: "#1677ff" }} />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Ventas</span>} value={stats.total} styles={{ content: { fontWeight: 700, fontSize: 24 } }} prefix={<DollarOutlined style={{ color: "#1677ff" }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Completadas</span>} value={stats.completada} valueStyle={{ fontWeight: 700, fontSize: 24, color: "#52c41a" }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Completadas</span>} value={stats.completada} styles={{ content: { fontWeight: 700, fontSize: 24, color: "#52c41a" } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #91caff" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={stats.pendiente} valueStyle={{ fontWeight: 700, fontSize: 24, color: "#1677ff" }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={stats.pendiente} styles={{ content: { fontWeight: 700, fontSize: 24, color: "#1677ff" } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #f0f0f0" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Valor Total</span>} value={stats.valorTotal} valueStyle={{ fontWeight: 700, fontSize: 24, color: "#262626" }} prefix="$" />
+            <Statistic title={<span style={{ fontSize: 12 }}>Valor Total</span>} value={stats.valorTotal} styles={{ content: { fontWeight: 700, fontSize: 24, color: "#262626" } }} prefix="$" />
           </Card>
         </Col>
       </Row>

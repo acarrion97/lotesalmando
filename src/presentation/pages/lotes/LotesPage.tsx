@@ -492,10 +492,10 @@ export function LotesPage() {
             prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 280, borderRadius: 8 }}
+            style={{ width: "100%", maxWidth: 280, borderRadius: 8 }}
             allowClear
           />
-          <Space>
+          <Space size={8} wrap>
             <div
               style={{
                 display: "flex",
@@ -529,6 +529,7 @@ export function LotesPage() {
             dataSource={filteredData}
             rowKey="id_lote"
             loading={isLoading}
+            scroll={{ x: 900 }}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
@@ -609,12 +610,12 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber
+            <InputNumber<number>
               style={{ width: "100%" }}
               min={0}
               step={100}
               formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|(,*)/g, "") || 0) as any}
+              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
             />
           </Form.Item>
           <Form.Item
@@ -665,12 +666,12 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber
+            <InputNumber<number>
               style={{ width: "100%" }}
               min={0}
               step={100}
               formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|(,*)/g, "") || 0) as any}
+              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
             />
           </Form.Item>
           <Form.Item

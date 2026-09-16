@@ -1,1 +1,0 @@
-export { PermisosPage } from "./PermisosPage";

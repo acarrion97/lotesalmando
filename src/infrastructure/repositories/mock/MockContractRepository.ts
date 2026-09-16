@@ -3,7 +3,7 @@ import type { ContractRepository } from "@/domain/contrato/repositories";
 import { contratos } from "@/mocks/contratos.mock";
 
 export class MockContractRepository implements ContractRepository {
-  private data: Contrato[] = [...contratos] as any;
+  private data: Contrato[] = [...contratos];
 
   async getAll(): Promise<Contrato[]> {
     return [...this.data];

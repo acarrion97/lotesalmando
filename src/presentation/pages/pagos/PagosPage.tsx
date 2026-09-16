@@ -119,12 +119,12 @@ export function PagosPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total Pagos</span>} value={stats.total} valueStyle={{ fontWeight: 700, fontSize: 22 }} prefix={<DollarOutlined style={{ color: "#52c41a" }} />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Pagos</span>} value={stats.total} styles={{ content: { fontWeight: 700, fontSize: 22 } }} prefix={<DollarOutlined style={{ color: "#52c41a" }} />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Recibido</span>} value={stats.montoTotal} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Recibido</span>} value={stats.montoTotal} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#52c41a" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
       </Row>

@@ -15,6 +15,10 @@ import type { ProspectoRepository } from "@/domain/prospecto/repositories";
 import type { OportunidadRepository } from "@/domain/oportunidad/repositories";
 import type { ActividadRepository } from "@/domain/actividad/repositories";
 import type { AsesorRepository } from "@/domain/asesor/repositories";
+import type { Prospecto } from "@/domain/prospecto/entities";
+import type { Oportunidad } from "@/domain/oportunidad/entities";
+import type { Actividad } from "@/domain/actividad/entities";
+import type { Asesor } from "@/domain/asesor/entities";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
 import { MockProyectoRepository } from "@/infrastructure/repositories/mock/MockProyectoRepository";
@@ -69,6 +73,87 @@ export interface Repositories {
 }
 
 function createMockRepositories(): Repositories {
+  const prospectoRepo: ProspectoRepository = {
+    getAll: async () => [],
+    getByEmpresaId: async () => [],
+    getById: async () => null,
+    create: async (data: Omit<Prospecto, "id_prospecto" | "created_at">): Promise<Prospecto> => ({
+      ...data,
+      id_prospecto: 1,
+      created_at: "",
+    }),
+    update: async (_id: number, data: Partial<Prospecto>): Promise<Prospecto> => ({
+      ...data,
+      id_prospecto: 1,
+      id_empresa: data.id_empresa ?? 1,
+      id_asesor: data.id_asesor ?? null,
+      nombres: data.nombres ?? "",
+      email: data.email ?? "",
+      telefono: data.telefono ?? "",
+      origen: data.origen ?? "",
+      estado: data.estado ?? "nuevo",
+      notas: data.notas ?? "",
+      fecha_ultimo_seguimiento: data.fecha_ultimo_seguimiento ?? null,
+      created_at: "",
+    }),
+    delete: async () => {},
+  };
+
+  const oportunidadRepo: OportunidadRepository = {
+    getAll: async () => [],
+    getByProspectoId: async () => [],
+    getById: async () => null,
+    create: async (data: Omit<Oportunidad, "id_oportunidad" | "created_at">): Promise<Oportunidad> => ({
+      ...data,
+      id_oportunidad: 1,
+      created_at: "",
+    }),
+    update: async (_id: number, data: Partial<Oportunidad>): Promise<Oportunidad> => ({
+      ...data,
+      id_oportunidad: 1,
+      id_empresa: data.id_empresa ?? 1,
+      id_prospecto: data.id_prospecto ?? 1,
+      id_lote: data.id_lote ?? null,
+      etapa: data.etapa ?? "contactado",
+      valor_estimado: data.valor_estimado ?? 0,
+      notas: data.notas ?? "",
+      created_at: "",
+    }),
+    delete: async () => {},
+  };
+
+  const actividadRepo: ActividadRepository = {
+    getByProspectoId: async () => [],
+    create: async (data: Omit<Actividad, "id_actividad" | "created_at">): Promise<Actividad> => ({
+      ...data,
+      id_actividad: 1,
+      created_at: "",
+    }),
+  };
+
+  const asesorRepo: AsesorRepository = {
+    getAll: async () => [],
+    getByEmpresaId: async () => [],
+    getById: async () => null,
+    create: async (data: Omit<Asesor, "id_asesor" | "created_at">): Promise<Asesor> => ({
+      ...data,
+      id_asesor: 1,
+      created_at: "",
+    }),
+    update: async (_id: number, data: Partial<Asesor>): Promise<Asesor> => ({
+      ...data,
+      id_asesor: 1,
+      id_empresa: data.id_empresa ?? 1,
+      id_usuario: data.id_usuario ?? null,
+      codigo: data.codigo ?? "",
+      nombre_comercial: data.nombre_comercial ?? "",
+      meta_ventas_mensual: data.meta_ventas_mensual ?? 0,
+      estado: data.estado ?? "activo",
+      created_at: "",
+    }),
+    delete: async () => {},
+  };
+
   return {
     empresaRepo: new MockEmpresaRepository(),
     proyectoRepo: new MockProyectoRepository(),
@@ -83,10 +168,10 @@ function createMockRepositories(): Repositories {
     inventarioRepo: new MockInventarioRepository(),
     etapaRepo: new MockEtapaRepository(),
     manzanaRepo: new MockManzanaRepository(),
-    prospectoRepo: { getAll: async () => [], getByEmpresaId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_prospecto: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_prospecto: 1, created_at: "" }), delete: async () => {} } as any,
-    oportunidadRepo: { getAll: async () => [], getByProspectoId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_oportunidad: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_oportunidad: 1, created_at: "" }), delete: async () => {} } as any,
-    actividadRepo: { getByProspectoId: async () => [], create: async (d: any) => ({ ...d, id_actividad: 1, created_at: "" }) } as any,
-    asesorRepo: { getAll: async () => [], getByEmpresaId: async () => [], getById: async () => null, create: async (d: any) => ({ ...d, id_asesor: 1, created_at: "" }), update: async (_id: number, d: any) => ({ ...d, id_asesor: 1, created_at: "" }), delete: async () => {} } as any,
+    prospectoRepo,
+    oportunidadRepo,
+    actividadRepo,
+    asesorRepo,
   };
 }
 

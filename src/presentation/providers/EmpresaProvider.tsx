@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
 import type { ReactNode } from "react";
+import { useAuth } from "./AuthProvider";
+import { useEmpresas } from "@/presentation/hooks/useEmpresas";
 
 interface Empresa {
   id_empresa: number;
@@ -21,12 +23,43 @@ interface EmpresaProviderProps {
   children: ReactNode;
 }
 
+function getStoredEmpresaId(): number | null {
+  try {
+    const stored = localStorage.getItem("lotesalmando-empresa-id");
+    return stored ? Number(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function EmpresaProvider({ children }: EmpresaProviderProps) {
-  const [empresaActual, setEmpresaActualState] = useState<Empresa | null>(null);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const { user, isAuthenticated } = useAuth();
+  const { data: empresasData } = useEmpresas({ enabled: isAuthenticated });
+  const [manualEmpresaId, setManualEmpresaId] = useState<number | null>(null);
+
+  const empresas = useMemo(
+    () => (isAuthenticated ? (empresasData ?? []) : []),
+    [isAuthenticated, empresasData]
+  );
+
+  const empresaActual = useMemo(() => {
+    if (empresas.length === 0) return null;
+
+    const manual = manualEmpresaId ? empresas.find((e) => e.id_empresa === manualEmpresaId) : undefined;
+    if (manual) return manual;
+
+    const storedId = getStoredEmpresaId();
+    const fromStorage = storedId ? empresas.find((e) => e.id_empresa === storedId) : undefined;
+    const fromUser = user?.id_empresa
+      ? empresas.find((e) => e.id_empresa === user.id_empresa)
+      : undefined;
+    const fallback = empresas.length === 1 ? empresas[0] : undefined;
+
+    return fromStorage ?? fromUser ?? fallback ?? null;
+  }, [empresas, manualEmpresaId, user]);
 
   const setEmpresaActual = useCallback((empresa: Empresa | null) => {
-    setEmpresaActualState(empresa);
+    setManualEmpresaId(empresa ? empresa.id_empresa : null);
     try {
       if (empresa) {
         localStorage.setItem("lotesalmando-empresa-id", String(empresa.id_empresa));
@@ -36,6 +69,10 @@ export function EmpresaProvider({ children }: EmpresaProviderProps) {
     } catch {
       // localStorage not available
     }
+  }, []);
+
+  const setEmpresas = useCallback((_empresas: Empresa[]) => {
+    // no-op: the empresas list is derived from useEmpresas(); kept for interface compatibility
   }, []);
 
   const value = useMemo(

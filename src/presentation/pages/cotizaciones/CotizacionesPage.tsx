@@ -232,7 +232,13 @@ export function CotizacionesPage() {
               <Select placeholder="Seleccionar lote" options={[{ value: 1, label: "Lote A-01" }, { value: 2, label: "Lote A-02" }, { value: 3, label: "Lote B-01" }]} />
             </Form.Item>
             <Form.Item name="precio_ofertado" label="Precio Ofertado" rules={[{ required: true, message: "Ingrese el precio" }]}>
-              <InputNumber style={{ width: "100%" }} min={0} step={100} formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")} parser={(value) => Number(value?.replace(/\$\s?|(,*)/g, "") || 0) as any} />
+              <InputNumber<number>
+                style={{ width: "100%" }}
+                min={0}
+                step={100}
+                formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
+              />
             </Form.Item>
           </Form>
         )}

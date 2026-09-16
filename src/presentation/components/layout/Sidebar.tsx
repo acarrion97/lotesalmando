@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, Typography } from "antd";
 import {
@@ -24,7 +23,7 @@ const { Text } = Typography;
 type MenuItem = Required<MenuProps>["items"][number];
 
 const groupLabel = (text: string) => (
-  <Text style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" }}>
+<Text style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.2, color: "rgba(255,255,255,0.72)", textTransform: "uppercase" }}>
     {text}
   </Text>
 );
@@ -95,29 +94,30 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const selectedKeys = useMemo(() => {
-    const path = location.pathname;
-    return [path === "/" ? "/dashboard" : path];
-  }, [location.pathname]);
+  const selectedKeys = [location.pathname === "/" ? "/dashboard" : location.pathname];
 
-  const openKeys = useMemo(() => {
+  const openKeys = (() => {
     const path = location.pathname;
     const groups = ["inventario", "comercial", "financiero", "ia", "administracion"];
+
     for (const group of groups) {
       const groupItem = menuItems.find(
         (item) => item && "key" in item && item.key === group,
       );
+
       if (groupItem && "children" in groupItem && groupItem.children) {
         const childKeys = groupItem.children.map((child) =>
           child && "key" in child ? child.key : "",
         );
+
         if (childKeys.includes(path)) {
           return [group];
         }
       }
     }
+
     return [];
-  }, [location.pathname]);
+  })();
 
   const handleMenuClick: MenuProps["onClick"] = ({ key }) => {
     navigate(key);
@@ -141,9 +141,9 @@ export function Sidebar({ collapsed }: SidebarProps) {
         </div>
         {!collapsed && (
           <div>
-            <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 9, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>LOTES</div>
+            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 9, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>LOTES</div>
             <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, letterSpacing: 1, lineHeight: 1.1, marginTop: 1 }}>AL MANDO</div>
-            <div style={{ color: "rgba(255,255,255,0.35)", fontSize: 7, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 3 }}>PLATAFORMA INMOBILIARIA INTEGRAL</div>
+            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 7, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 3 }}>PLATAFORMA INMOBILIARIA INTEGRAL</div>
           </div>
         )}
       </div>
@@ -153,7 +153,7 @@ export function Sidebar({ collapsed }: SidebarProps) {
           theme="dark"
           mode="inline"
           selectedKeys={selectedKeys}
-          defaultOpenKeys={collapsed ? [] : openKeys}
+          openKeys={collapsed ? [] : openKeys}
           items={menuItems}
           onClick={handleMenuClick}
           style={{ borderRight: 0, background: "transparent" }}

@@ -198,7 +198,13 @@ export function DashboardPage() {
                     title={card.title}
                     value={card.value}
                     precision={card.isCurrency ? 0 : 0}
-                    valueStyle={{ fontSize: 22, fontWeight: 700, color: card.title === "Cartera Vencida" ? "#ff4d4f" : undefined }}
+                    styles={{
+                      content: {
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: card.title === "Cartera Vencida" ? "#ff4d4f" : undefined,
+                      },
+                    }}
                     formatter={card.isCurrency ? (val) => formatCurrency(val as number) : undefined}
                   />
                   {"change" in card && card.change !== undefined && (
@@ -283,9 +289,9 @@ export function DashboardPage() {
         <Col xs={24} sm={12}>
           <Card title="Metricas Comerciales" style={{ borderRadius: 10 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Statistic title="Clientes Registrados" value={clientes?.length ?? 0} valueStyle={{ fontWeight: 700 }} prefix={<UserOutlined style={{ color: "#1677ff" }} />} />
-              <Statistic title="Asesores Activos" value={asesores?.filter((a) => a.estado === "activo").length ?? 0} valueStyle={{ fontWeight: 700 }} prefix={<TeamOutlined style={{ color: "#52c41a" }} />} />
-              <Statistic title="Cotizaciones" value={0} valueStyle={{ fontWeight: 700 }} prefix={<FileTextOutlined style={{ color: "#722ed1" }} />} />
+              <Statistic title="Clientes Registrados" value={clientes?.length ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<UserOutlined style={{ color: "#1677ff" }} />} />
+              <Statistic title="Asesores Activos" value={asesores?.filter((a) => a.estado === "activo").length ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<TeamOutlined style={{ color: "#52c41a" }} />} />
+              <Statistic title="Cotizaciones" value={0} styles={{ content: { fontWeight: 700 } }} prefix={<FileTextOutlined style={{ color: "#722ed1" }} />} />
             </div>
           </Card>
         </Col>

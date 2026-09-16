@@ -1,8 +1,25 @@
-import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import type { ReactNode } from "react";
 import { ConfigProvider } from "antd";
 import { lightTheme } from "./light-theme";
 import { darkTheme } from "./dark-theme";
+
+function subscribeToSystemTheme(callback: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  const handleChange = () => callback();
+
+  if (typeof mediaQuery.addEventListener === "function") {
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }
+
+  mediaQuery.addListener(handleChange);
+  return () => mediaQuery.removeListener(handleChange);
+}
 
 type ThemeMode = "light" | "dark" | "system";
 
@@ -40,7 +57,11 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children }: ThemeProviderProps) {
   const [mode, setModeState] = useState<ThemeMode>(getStoredTheme);
-  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(getSystemTheme);
+  const systemTheme = useSyncExternalStore(
+    subscribeToSystemTheme,
+    getSystemTheme,
+    getSystemTheme,
+  );
 
   const isDark = mode === "system" ? systemTheme === "dark" : mode === "dark";
 
@@ -52,19 +73,6 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       // localStorage not available
     }
   }, []);
-
-  useEffect(() => {
-    if (mode !== "system") return;
-
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (e: MediaQueryListEvent) => {
-      setSystemTheme(e.matches ? "dark" : "light");
-    };
-
-    setSystemTheme(mediaQuery.matches ? "dark" : "light");
-    mediaQuery.addEventListener("change", handleChange);
-    return () => mediaQuery.removeEventListener("change", handleChange);
-  }, [mode]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", isDark ? "dark" : "light");

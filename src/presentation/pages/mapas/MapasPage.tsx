@@ -1,5 +1,9 @@
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Typography, Tag, Button, Modal, Descriptions, Select, Row, Col, Card, Statistic, Form, InputNumber, Input, Steps, message, Timeline, Alert, Spin, Empty } from "antd";
+import type { Lote } from "@/domain/lote/entities/Lote";
+import type { Etapa } from "@/domain/etapa/entities/Etapa";
+import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import {
   HomeOutlined,
   CheckCircleOutlined,
@@ -16,7 +20,17 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import { useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana } from "@/presentation/hooks";
+import { useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta } from "@/presentation/hooks";
+import { useAuth } from "@/presentation/providers";
+import { getContainer } from "@/infrastructure/container";
+
+async function findOrCreateCliente(nombres: string, cedula_ruc: string, email: string) {
+  const container = getContainer();
+  const clientes = await container.getClientes.execute(0);
+  const existing = clientes.find((c) => c.email === email || c.cedula_ruc === cedula_ruc);
+  if (existing) return existing;
+  return container.createCliente.execute({ nombres, cedula_ruc, email });
+}
 
 const { Title, Text } = Typography;
 
@@ -27,6 +41,13 @@ const estadoConfig: Record<string, { color: string; bg: string; border: string; 
   en_negociacion: { color: "#1677ff", bg: "rgba(22, 119, 255, 0.3)", border: "#1677ff", label: "En Negociacion", icon: <ClockCircleOutlined /> },
   bloqueado: { color: "#8c8c8c", bg: "rgba(140, 140, 140, 0.3)", border: "#8c8c8c", label: "Bloqueado", icon: <StopOutlined /> },
   no_disponible: { color: "#8c8c8c", bg: "rgba(140, 140, 140, 0.3)", border: "#8c8c8c", label: "No Disponible", icon: <StopOutlined /> },
+};
+
+type PositionedLote = Lote & {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 function getLotePosition(index: number, total: number) {
@@ -49,15 +70,28 @@ export function MapasPage() {
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
   const [selectedEtapa, setSelectedEtapa] = useState<number | null>(null);
   const [selectedManzana, setSelectedManzana] = useState<number | null>(null);
-  const [selectedLote, setSelectedLote] = useState<any | null>(null);
+  const [selectedLote, setSelectedLote] = useState<PositionedLote | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [cotizacionStep, setCotizacionStep] = useState(0);
   const [reservaStep, setReservaStep] = useState(0);
   const [ventaStep, setVentaStep] = useState(0);
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
+  const [ventaClienteInfo, setVentaClienteInfo] = useState<{
+    cliente_nombre: string;
+    cliente_cedula: string;
+    cliente_email: string;
+  } | null>(null);
+  const [ventaSubmitting, setVentaSubmitting] = useState(false);
+  const [reservaSubmitting, setReservaSubmitting] = useState(false);
   const [cotizacionForm] = Form.useForm();
   const [reservaForm] = Form.useForm();
   const [ventaForm] = Form.useForm();
+  const [ventaClienteForm] = Form.useForm();
+
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const reservarLoteMutation = useReservarLote();
+  const createVentaMutation = useCreateVenta();
 
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
@@ -69,9 +103,9 @@ export function MapasPage() {
     return proyectos.find((p) => p.id_proyecto === selectedProyecto) ?? null;
   }, [proyectos, selectedProyecto]);
 
-  const lotesConPosicion = useMemo(() => {
+  const lotesConPosicion = useMemo<PositionedLote[]>(() => {
     if (!lotesData) return [];
-    return lotesData.map((lote: any, index: number) => {
+    return lotesData.map((lote: Lote, index: number) => {
       const pos = getLotePosition(index, lotesData.length);
       return { ...lote, ...pos };
     });
@@ -81,9 +115,9 @@ export function MapasPage() {
     if (!lotesData) return { total: 0, disponibles: 0, reservados: 0, vendidos: 0 };
     return {
       total: lotesData.length,
-      disponibles: lotesData.filter((l: any) => l.estado === "disponible").length,
-      reservados: lotesData.filter((l: any) => l.estado === "reservado").length,
-      vendidos: lotesData.filter((l: any) => l.estado === "vendido").length,
+      disponibles: lotesData.filter((l: Lote) => l.estado === "disponible").length,
+      reservados: lotesData.filter((l: Lote) => l.estado === "reservado").length,
+      vendidos: lotesData.filter((l: Lote) => l.estado === "vendido").length,
     };
   }, [lotesData]);
 
@@ -103,7 +137,9 @@ export function MapasPage() {
     if (type === "venta") {
       setVentaStep(0);
       setSelectedCliente(null);
+      setVentaClienteInfo(null);
       ventaForm.resetFields();
+      ventaClienteForm.resetFields();
     }
   };
 
@@ -112,14 +148,14 @@ export function MapasPage() {
     setSelectedLote(null);
   };
 
-  const handleLoteClick = (lote: any) => {
+  const handleLoteClick = (lote: PositionedLote) => {
     setSelectedLote(lote);
     openModal("detail");
   };
 
   const navigateLote = (direction: "prev" | "next") => {
     if (!selectedLote || !lotesConPosicion.length) return;
-    const currentIndex = lotesConPosicion.findIndex((l: any) => l.id_lote === selectedLote.id_lote);
+    const currentIndex = lotesConPosicion.findIndex((l: PositionedLote) => l.id_lote === selectedLote.id_lote);
     const newIndex = direction === "next"
       ? (currentIndex + 1) % lotesConPosicion.length
       : (currentIndex - 1 + lotesConPosicion.length) % lotesConPosicion.length;
@@ -140,21 +176,81 @@ export function MapasPage() {
 
   const handleReservar = () => {
     if (reservaStep === 0) { setReservaStep(1); return; }
-    reservaForm.validateFields().then(() => {
-      message.success(`Lote ${selectedLote?.numero_lote} reservado correctamente`);
-      closeModal();
+    reservaForm.validateFields().then(async (values) => {
+      if (!selectedLote || !user?.id_usuario) {
+        message.error("No se pudo identificar el usuario actual");
+        return;
+      }
+      setReservaSubmitting(true);
+      try {
+        await findOrCreateCliente(values.cliente_nombre, values.cliente_cedula, values.cliente_email);
+        queryClient.invalidateQueries({ queryKey: ["clientes"] });
+        await reservarLoteMutation.mutateAsync({ loteId: selectedLote.id_lote, usuarioId: user.id_usuario });
+        message.success(`Lote ${selectedLote.numero_lote} reservado correctamente`);
+        closeModal();
+      } catch (err) {
+        message.error(err instanceof Error ? err.message : "Error al reservar el lote");
+      } finally {
+        setReservaSubmitting(false);
+      }
     });
   };
 
   const handleVenta = () => {
     if (ventaStep === 0) {
-      if (!selectedCliente) { message.warning("Seleccione un cliente"); return; }
-      setVentaStep(1);
+      ventaClienteForm.validateFields().then((values) => {
+        setVentaClienteInfo({
+          cliente_nombre: values.cliente_nombre,
+          cliente_cedula: values.cliente_cedula,
+          cliente_email: values.cliente_email,
+        });
+        setVentaStep(1);
+      });
     } else if (ventaStep === 1) {
-      setVentaStep(2);
+      ventaForm.validateFields().then(() => setVentaStep(2));
     } else {
-      message.success(`Venta de Lote ${selectedLote?.numero_lote} registrada correctamente`);
-      closeModal();
+      if (!selectedLote || !user?.id_usuario || !ventaClienteInfo) {
+        message.error("No se pudo identificar el usuario o el cliente");
+        return;
+      }
+      const lote = selectedLote;
+      const usuarioId = user.id_usuario;
+      const clienteInfo = ventaClienteInfo;
+      setVentaSubmitting(true);
+      (async () => {
+        try {
+          const cliente = await findOrCreateCliente(
+            clienteInfo.cliente_nombre,
+            clienteInfo.cliente_cedula,
+            clienteInfo.cliente_email,
+          );
+          queryClient.invalidateQueries({ queryKey: ["clientes"] });
+
+          const precioOfertado = lote.precio_lista ?? 0;
+          const container = getContainer();
+          const cotizacion = await container.createCotizacion.execute({
+            id_cliente: cliente.id_cliente,
+            id_lote: lote.id_lote,
+            precio_ofertado: precioOfertado,
+            estado: "aceptada",
+          });
+
+          await createVentaMutation.mutateAsync({
+            id_cliente: cliente.id_cliente,
+            id_lote: lote.id_lote,
+            id_cotizacion: cotizacion.id_cotizacion,
+            precio_ofertado: precioOfertado,
+            id_usuario: usuarioId,
+          });
+
+          message.success(`Venta de Lote ${lote.numero_lote} registrada correctamente`);
+          closeModal();
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Error al registrar la venta");
+        } finally {
+          setVentaSubmitting(false);
+        }
+      })();
     }
   };
 
@@ -189,7 +285,7 @@ export function MapasPage() {
             disabled={!selectedProyecto}
             value={selectedEtapa}
             onChange={(v) => { setSelectedEtapa(v); setSelectedManzana(null); }}
-            options={(etapas ?? []).map((e: any) => ({ value: e.id_etapa, label: e.nombre }))}
+            options={(etapas ?? []).map((e: Etapa) => ({ value: e.id_etapa, label: e.nombre }))}
           />
         </Col>
         <Col xs={24} sm={8}>
@@ -201,7 +297,7 @@ export function MapasPage() {
             disabled={!selectedEtapa}
             value={selectedManzana}
             onChange={setSelectedManzana}
-            options={(manzanasData ?? []).map((m: any) => ({ value: m.id_manzana, label: m.nombre_codigo ?? `Manzana ${m.id_manzana}` }))}
+            options={(manzanasData ?? []).map((m: Manzana) => ({ value: m.id_manzana, label: m.nombre_codigo ?? `Manzana ${m.id_manzana}` }))}
           />
         </Col>
       </Row>
@@ -209,29 +305,29 @@ export function MapasPage() {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total</span>} value={stats.total} valueStyle={{ fontWeight: 700, fontSize: 22 }} prefix={<HomeOutlined style={{ color: "#1677ff" }} />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Total</span>} value={stats.total} styles={{ content: { fontWeight: 700, fontSize: 22 } }} prefix={<HomeOutlined style={{ color: "#1677ff" }} />} />
           </Card>
         </Col>
         <Col xs={8} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Disponibles</span>} value={stats.disponibles} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Disponibles</span>} value={stats.disponibles} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#52c41a" } }} />
           </Card>
         </Col>
         <Col xs={8} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffe58f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Reservados</span>} value={stats.reservados} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#faad14" }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Reservados</span>} value={stats.reservados} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#faad14" } }} />
           </Card>
         </Col>
         <Col xs={8} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #d9b8a8" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Vendidos</span>} value={stats.vendidos} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#a0522d" }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Vendidos</span>} value={stats.vendidos} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#a0522d" } }} />
           </Card>
         </Col>
       </Row>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {Object.entries(estadoConfig).map(([key, config]) => (
-          <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#fff", borderRadius: 6, border: "1px solid #f0f0f0" }}>
+          <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#fff", borderRadius: 6, border: "1px solid #f0f0f0", fontSize: 12 }}>
             <div style={{ width: 14, height: 14, borderRadius: 4, background: config.bg, border: `2px solid ${config.border}` }} />
             <span style={{ fontSize: 12 }}>{config.label}</span>
           </div>
@@ -256,8 +352,8 @@ export function MapasPage() {
             <Empty description="Seleccione un proyecto, etapa y manzana para ver el mapa" />
           </div>
         ) : (
-          <div style={{ position: "relative", width: "100%", paddingBottom: "60%", overflow: "hidden", background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" }}>
-            {lotesConPosicion.map((lote: any) => {
+          <div style={{ position: "relative", width: "100%", minHeight: 280, paddingBottom: "min(60%, 520px)", overflow: "hidden", background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" }}>
+            {lotesConPosicion.map((lote: PositionedLote) => {
               const config = estadoConfig[lote.estado] ?? estadoConfig.disponible;
               return (
                 <button
@@ -267,8 +363,8 @@ export function MapasPage() {
                     position: "absolute",
                     left: `${lote.x}%`,
                     top: `${lote.y}%`,
-                    width: `${lote.width}%`,
-                    height: `${lote.height}%`,
+                    width: `${Math.max(lote.width, 12)}%`,
+                    height: `${Math.max(lote.height, 12)}%`,
                     background: config.bg,
                     border: `2px solid ${config.border}`,
                     borderRadius: 6,
@@ -282,6 +378,8 @@ export function MapasPage() {
                     padding: 0,
                     outline: "none",
                     backdropFilter: "blur(2px)",
+                    minWidth: 26,
+                    minHeight: 26,
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = "scale(1.05)";
@@ -376,7 +474,14 @@ export function MapasPage() {
           <Form form={cotizacionForm} layout="vertical">
             <Alert message={`Lote ${selectedLote?.numero_lote} - Precio lista: $${selectedLote?.precio_lista?.toLocaleString()}`} type="success" showIcon style={{ marginBottom: 16 }} />
             <Form.Item name="precio_ofertado" label="Precio Ofertado" rules={[{ required: true, message: "Ingrese el precio" }]}>
-              <InputNumber style={{ width: "100%" }} min={0} step={100} prefix="$" formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")} parser={(value) => Number(value?.replace(/,/g, "") || 0) as any} />
+              <InputNumber<number>
+                style={{ width: "100%" }}
+                min={0}
+                step={100}
+                prefix="$"
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                parser={(value) => Number(value?.replace(/,/g, "") || 0)}
+              />
             </Form.Item>
             <Form.Item name="observaciones" label="Observaciones">
               <Input.TextArea rows={3} placeholder="Notas adicionales..." />
@@ -393,8 +498,8 @@ export function MapasPage() {
         centered
         title={<div style={{ display: "flex", alignItems: "center", gap: 12 }}><ClockCircleOutlined style={{ fontSize: 20, color: "#faad14" }} /><span>Reservar Lote {selectedLote?.numero_lote}</span></div>}
         footer={[
-          <Button key="cancel" onClick={closeModal}>Cancelar</Button>,
-          <Button key="submit" type="primary" onClick={handleReservar}>{reservaStep === 0 ? "Siguiente" : "Confirmar Reserva"}</Button>,
+          <Button key="cancel" onClick={closeModal} disabled={reservaSubmitting}>Cancelar</Button>,
+          <Button key="submit" type="primary" loading={reservaSubmitting} onClick={handleReservar}>{reservaStep === 0 ? "Siguiente" : "Confirmar Reserva"}</Button>,
         ]}
       >
         <Steps current={reservaStep} items={[{ title: "Confirmar" }, { title: "Detalles" }]} style={{ marginBottom: 24 }} />
@@ -433,13 +538,23 @@ export function MapasPage() {
         centered
         title={<div style={{ display: "flex", alignItems: "center", gap: 12 }}><DollarOutlined style={{ fontSize: 20, color: "#52c41a" }} /><span>Crear Venta - Lote {selectedLote?.numero_lote}</span></div>}
         footer={[
-          <Button key="cancel" onClick={closeModal}>Cancelar</Button>,
-          <Button key="submit" type="primary" onClick={handleVenta}>{ventaStep === 2 ? "Confirmar Venta" : "Siguiente"}</Button>,
+          <Button key="cancel" onClick={closeModal} disabled={ventaSubmitting}>Cancelar</Button>,
+          <Button key="submit" type="primary" loading={ventaSubmitting} onClick={handleVenta}>{ventaStep === 2 ? "Confirmar Venta" : "Siguiente"}</Button>,
         ]}
       >
         <Steps current={ventaStep} items={[{ title: "Cliente" }, { title: "Pago" }, { title: "Confirmar" }]} style={{ marginBottom: 24 }} />
         {ventaStep === 0 && (
-          <Alert message="Seleccione el cliente para la venta" type="info" showIcon style={{ marginBottom: 16 }} />
+          <Form form={ventaClienteForm} layout="vertical">
+            <Form.Item name="cliente_nombre" label="Nombre del Cliente" rules={[{ required: true, message: "Ingrese el nombre" }]}>
+              <Input prefix={<UserOutlined />} placeholder="Nombre completo" />
+            </Form.Item>
+            <Form.Item name="cliente_cedula" label="Cedula/RUC" rules={[{ required: true, message: "Ingrese la cedula" }]}>
+              <Input placeholder="0912345678" />
+            </Form.Item>
+            <Form.Item name="cliente_email" label="Email" rules={[{ required: true, message: "Ingrese el email" }, { type: "email", message: "Email invalido" }]}>
+              <Input prefix={<MailOutlined />} placeholder="cliente@email.com" />
+            </Form.Item>
+          </Form>
         )}
         {ventaStep === 1 && (
           <Form form={ventaForm} layout="vertical">

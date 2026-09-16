@@ -109,22 +109,22 @@ export function CobranzasPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total Cuotas</span>} value={metricas?.totalCobranzas ?? 0} valueStyle={{ fontWeight: 700, fontSize: 22 }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Cuotas</span>} value={metricas?.totalCobranzas ?? 0} styles={{ content: { fontWeight: 700, fontSize: 22 } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffe58f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={metricas?.pendientes ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#faad14" }} prefix={<ClockCircleOutlined />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={metricas?.pendientes ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#faad14" } }} prefix={<ClockCircleOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffccc7" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Vencidas</span>} value={metricas?.vencidas ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#ff4d4f" }} prefix={<WarningOutlined />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Vencidas</span>} value={metricas?.vencidas ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#ff4d4f" } }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #d9d9d9" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Morosidad</span>} value={metricas?.morosidadPorcentaje ?? 0} valueStyle={{ fontWeight: 700, fontSize: 18, color: (metricas?.morosidadPorcentaje ?? 0) > 20 ? "#ff4d4f" : "#52c41a" }} suffix="%" />
+            <Statistic title={<span style={{ fontSize: 12 }}>Morosidad</span>} value={metricas?.morosidadPorcentaje ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: (metricas?.morosidadPorcentaje ?? 0) > 20 ? "#ff4d4f" : "#52c41a" } }} suffix="%" />
           </Card>
         </Col>
       </Row>
@@ -132,17 +132,17 @@ export function CobranzasPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Cartera</span>} value={metricas?.montoTotal ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16 }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Cartera</span>} value={metricas?.montoTotal ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16 } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Pendiente</span>} value={metricas?.montoPendiente ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16, color: "#faad14" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Pendiente</span>} value={metricas?.montoPendiente ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#faad14" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Vencido</span>} value={metricas?.montoVencido ?? 0} valueStyle={{ fontWeight: 700, fontSize: 16, color: "#ff4d4f" }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Vencido</span>} value={metricas?.montoVencido ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#ff4d4f" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
       </Row>
