@@ -147,6 +147,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: "Este correo electronico ya esta registrado" };
     }
 
+    // Si el proyecto tiene "Confirm email" activado, signUp() no devuelve
+    // sesion hasta que la persona confirme por correo. Sin este chequeo se
+    // mostraria como logueado sin serlo de verdad (mismo tipo de bug que el
+    // caso de arriba).
+    if (!data.session) {
+      return {
+        success: false,
+        error: "Cuenta creada. Revisa tu correo para confirmar tu cuenta antes de iniciar sesion.",
+      };
+    }
+
     setUser({
       id: data.user.id,
       email: data.user.email || "",
@@ -191,6 +202,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // empresa nueva huerfana para un email que en realidad ya tiene cuenta.
       if (!data.user || (data.user.identities?.length ?? 1) === 0) {
         return { success: false, error: "Este correo electronico ya esta registrado" };
+      }
+
+      // Si "Confirm email" esta activo en el proyecto, todavia no hay sesion
+      // real aca - las politicas RLS de `empresa`/`usuario` (006) exigen rol
+      // `authenticated`, asi que crear la empresa ahora fallaria igual. Se
+      // corta antes de intentarlo con un mensaje claro.
+      if (!data.session) {
+        return {
+          success: false,
+          error: "Tu cuenta necesita confirmacion por correo antes de crear la empresa. Confirma tu correo y pedile a un administrador que te cree la empresa manualmente, o desactiva 'Confirm email' en Supabase para usar este flujo de punta a punta.",
+        };
       }
 
       const { data: empresa, error: empresaError } = await supabase
