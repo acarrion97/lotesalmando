@@ -77,7 +77,7 @@ export class GenerarAlertasUseCase {
     const en7Dias = new Date(hoy.getTime() + config.diasCarteraVencer * 24 * 60 * 60 * 1000);
     const porVencer = cobranzas.filter((c) => {
       if (c.estado !== "pendiente") return false;
-      const fecha = new Date(c.created_at ?? "");
+      const fecha = new Date(c.fecha_vencimiento);
       return fecha >= hoy && fecha <= en7Dias;
     });
     if (porVencer.length > 0) {

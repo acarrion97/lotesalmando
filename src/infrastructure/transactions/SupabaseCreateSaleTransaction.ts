@@ -62,13 +62,18 @@ export class SupabaseCreateSaleTransaction implements CreateSaleTransaction {
 
     const totalCuotas = 12;
     const montoCuota = Math.ceil(command.precio_ofertado / totalCuotas);
+    const fechaVenta = new Date();
 
     for (let i = 1; i <= totalCuotas; i++) {
+      const fechaVencimiento = new Date(fechaVenta);
+      fechaVencimiento.setMonth(fechaVencimiento.getMonth() + i);
+
       const cuotaPayload: Omit<Cobranza, "id_cobranza"> = {
         id_contrato: contrato.id_contrato,
         numero_cuota: i,
         monto_cuota: i === totalCuotas ? command.precio_ofertado - montoCuota * (totalCuotas - 1) : montoCuota,
         estado: "pendiente",
+        fecha_vencimiento: fechaVencimiento.toISOString().slice(0, 10),
       };
       await this.cobranzaRepo.create(cuotaPayload);
     }
