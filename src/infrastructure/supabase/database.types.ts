@@ -288,6 +288,8 @@ export interface Database {
           numero_cuota: number;
           monto_cuota: number;
           estado: string | null;
+          created_at: string | null;
+          fecha_vencimiento: string;
         };
         Insert: {
           id_cobranza?: number;
@@ -295,6 +297,8 @@ export interface Database {
           numero_cuota: number;
           monto_cuota: number;
           estado?: string | null;
+          created_at?: string | null;
+          fecha_vencimiento: string;
         };
         Update: {
           id_cobranza?: number;
@@ -302,6 +306,8 @@ export interface Database {
           numero_cuota?: number;
           monto_cuota?: number;
           estado?: string | null;
+          created_at?: string | null;
+          fecha_vencimiento?: string;
         };
       };
       pagos: {
