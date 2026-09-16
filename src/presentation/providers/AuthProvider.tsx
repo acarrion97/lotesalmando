@@ -138,15 +138,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: error.message === "User already registered" ? "Este correo electronico ya esta registrado" : error.message };
     }
 
-    if (data.user) {
-      setUser({
-        id: data.user.id,
-        email: data.user.email || "",
-        nombres: invitado.nombres || nombres,
-        id_usuario: invitado.id_usuario,
-        id_empresa: invitado.id_empresa,
-      });
+    // Supabase no rechaza signUp() con un email ya registrado (para evitar
+    // que se pueda "probar" si un email existe): devuelve un `user` sin
+    // `identities` y sin sesion real. Sin este chequeo, cualquiera podria
+    // "loguearse" visualmente como el dueno de un email ya invitado sin
+    // conocer su contrasena real.
+    if (!data.user || (data.user.identities?.length ?? 1) === 0) {
+      return { success: false, error: "Este correo electronico ya esta registrado" };
     }
+
+    setUser({
+      id: data.user.id,
+      email: data.user.email || "",
+      nombres: invitado.nombres || nombres,
+      id_usuario: invitado.id_usuario,
+      id_empresa: invitado.id_empresa,
+    });
 
     return { success: true };
   }, []);
@@ -178,8 +185,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: error.message === "User already registered" ? "Este correo electronico ya esta registrado" : error.message };
       }
 
-      if (!data.user) {
-        return { success: false, error: "No se pudo crear la cuenta" };
+      // Mismo caso que en register(): un email ya registrado no siempre
+      // produce un `error` en signUp() - a veces devuelve un `user` sin
+      // `identities` y sin sesion real. Sin este chequeo se crearia una
+      // empresa nueva huerfana para un email que en realidad ya tiene cuenta.
+      if (!data.user || (data.user.identities?.length ?? 1) === 0) {
+        return { success: false, error: "Este correo electronico ya esta registrado" };
       }
 
       const { data: empresa, error: empresaError } = await supabase
