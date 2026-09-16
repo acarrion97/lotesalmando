@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Form, Input, Button, Typography, Alert, message } from "antd";
 import { MailOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
+import { loginSchema } from "@/presentation/validations";
 
 const { Text } = Typography;
 
@@ -17,7 +18,14 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const result = await login(values.email, values.password);
+    const parsed = loginSchema.safeParse(values);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Datos invalidos");
+      setLoading(false);
+      return;
+    }
+
+    const result = await login(parsed.data.email, parsed.data.password);
 
     if (!result.success) {
       setError(result.error || "Error al iniciar sesion");

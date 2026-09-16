@@ -3,9 +3,10 @@ import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Form, Select
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useUsuarios } from "@/presentation/hooks";
+import { useUsuarios, useRoles } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
+import { usuarioSchema } from "@/presentation/validations";
 
 const { Title } = Typography;
 
@@ -22,12 +23,14 @@ interface ModalState {
 
 export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
+  const { data: roles } = useRoles();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+  const [rolesAsignados, setRolesAsignados] = useState<number[]>([]);
   const queryClient = useQueryClient();
   const container = getContainer();
 
@@ -43,10 +46,13 @@ export function UsuariosPage() {
     );
   }, [usuarios, searchText]);
 
-  const openModal = (type: "view" | "edit" | "delete", record: Usuario) => {
+  const openModal = async (type: "view" | "edit" | "delete", record: Usuario) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ nombres: record.nombres, email: record.email, estado: record.estado });
+      const rolesDelUsuario = await container.getRolesByUsuario.execute(record.id_usuario);
+      const rolIds = rolesDelUsuario.map((r) => r.id_rol);
+      setRolesAsignados(rolIds);
+      editForm.setFieldsValue({ nombres: record.nombres, email: record.email, estado: record.estado, roles: rolIds });
     }
   };
 
@@ -59,8 +65,18 @@ export function UsuariosPage() {
     if (!modal.record) return;
 
     try {
-      const values = await editForm.validateFields();
-      await container.updateUsuario.execute(modal.record.id_usuario, values);
+      const { roles: rolesSeleccionados, ...values } = await editForm.validateFields();
+      const parsed = usuarioSchema.partial().parse(values);
+      await container.updateUsuario.execute(modal.record.id_usuario, parsed);
+
+      const nuevos: number[] = rolesSeleccionados ?? [];
+      const agregados = nuevos.filter((id) => !rolesAsignados.includes(id));
+      const removidos = rolesAsignados.filter((id) => !nuevos.includes(id));
+      await Promise.all([
+        ...agregados.map((id) => container.assignRol.execute(modal.record!.id_usuario, id)),
+        ...removidos.map((id) => container.removeRol.execute(modal.record!.id_usuario, id)),
+      ]);
+
       await refreshUsuarios();
       messageApi.success("Usuario actualizado correctamente");
       closeModal();
@@ -85,7 +101,8 @@ export function UsuariosPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createUsuario.execute({ ...values, id_empresa: 1 });
+      const parsed = usuarioSchema.parse(values);
+      await container.createUsuario.execute({ ...parsed, id_empresa: 1 });
       await refreshUsuarios();
       messageApi.success("Usuario creado correctamente");
       setCreateModalOpen(false);
@@ -252,6 +269,13 @@ export function UsuariosPage() {
                 { value: "activo", label: "Activo" },
                 { value: "inactivo", label: "Inactivo" },
               ]}
+            />
+          </Form.Item>
+          <Form.Item name="roles" label="Roles">
+            <Select
+              mode="multiple"
+              placeholder="Selecciona los roles del usuario"
+              options={(roles ?? []).map((r) => ({ value: r.id_rol, label: r.nombre_rol }))}
             />
           </Form.Item>
         </Form>

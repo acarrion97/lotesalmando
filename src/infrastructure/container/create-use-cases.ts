@@ -56,6 +56,10 @@ import { GetAsesoresUseCase } from "@/application/asesores/use-cases/GetAsesores
 import { CreateAsesorUseCase } from "@/application/asesores/use-cases/CreateAsesorUseCase";
 import { UpdateAsesorUseCase } from "@/application/asesores/use-cases/UpdateAsesorUseCase";
 import { DeleteAsesorUseCase } from "@/application/asesores/use-cases/DeleteAsesorUseCase";
+import { GetRolesUseCase } from "@/application/roles/use-cases/GetRolesUseCase";
+import { GetRolesByUsuarioUseCase } from "@/application/roles/use-cases/GetRolesByUsuarioUseCase";
+import { AssignRolUseCase } from "@/application/roles/use-cases/AssignRolUseCase";
+import { RemoveRolUseCase } from "@/application/roles/use-cases/RemoveRolUseCase";
 import { SupabaseCreateSaleTransaction } from "@/infrastructure/transactions/SupabaseCreateSaleTransaction";
 
 export interface UseCases {
@@ -115,6 +119,10 @@ export interface UseCases {
   createAsesor: CreateAsesorUseCase;
   updateAsesor: UpdateAsesorUseCase;
   deleteAsesor: DeleteAsesorUseCase;
+  getRoles: GetRolesUseCase;
+  getRolesByUsuario: GetRolesByUsuarioUseCase;
+  assignRol: AssignRolUseCase;
+  removeRol: RemoveRolUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
@@ -183,5 +191,9 @@ export function createUseCases(repos: Repositories): UseCases {
     createAsesor: new CreateAsesorUseCase(repos.asesorRepo),
     updateAsesor: new UpdateAsesorUseCase(repos.asesorRepo),
     deleteAsesor: new DeleteAsesorUseCase(repos.asesorRepo),
+    getRoles: new GetRolesUseCase(repos.rolRepo),
+    getRolesByUsuario: new GetRolesByUsuarioUseCase(repos.rolRepo),
+    assignRol: new AssignRolUseCase(repos.rolRepo),
+    removeRol: new RemoveRolUseCase(repos.rolRepo),
   };
 }

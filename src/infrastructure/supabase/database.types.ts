@@ -389,6 +389,146 @@ export interface Database {
           id_permiso?: number;
         };
       };
+      prospectos: {
+        Row: {
+          id_prospecto: number;
+          id_empresa: number;
+          id_asesor: number | null;
+          nombres: string;
+          email: string | null;
+          telefono: string | null;
+          origen: string | null;
+          estado: string | null;
+          notas: string | null;
+          fecha_ultimo_seguimiento: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id_prospecto?: number;
+          id_empresa: number;
+          id_asesor?: number | null;
+          nombres: string;
+          email?: string | null;
+          telefono?: string | null;
+          origen?: string | null;
+          estado?: string | null;
+          notas?: string | null;
+          fecha_ultimo_seguimiento?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id_prospecto?: number;
+          id_empresa?: number;
+          id_asesor?: number | null;
+          nombres?: string;
+          email?: string | null;
+          telefono?: string | null;
+          origen?: string | null;
+          estado?: string | null;
+          notas?: string | null;
+          fecha_ultimo_seguimiento?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+      };
+      oportunidades: {
+        Row: {
+          id_oportunidad: number;
+          id_empresa: number;
+          id_prospecto: number;
+          id_lote: number | null;
+          etapa: string | null;
+          valor_estimado: number | null;
+          notas: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+        Insert: {
+          id_oportunidad?: number;
+          id_empresa: number;
+          id_prospecto: number;
+          id_lote?: number | null;
+          etapa?: string | null;
+          valor_estimado?: number | null;
+          notas?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+        Update: {
+          id_oportunidad?: number;
+          id_empresa?: number;
+          id_prospecto?: number;
+          id_lote?: number | null;
+          etapa?: string | null;
+          valor_estimado?: number | null;
+          notas?: string | null;
+          created_at?: string | null;
+          updated_at?: string | null;
+        };
+      };
+      actividades: {
+        Row: {
+          id_actividad: number;
+          id_prospecto: number;
+          id_usuario: number | null;
+          tipo: string;
+          descripcion: string | null;
+          fecha_actividad: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id_actividad?: number;
+          id_prospecto: number;
+          id_usuario?: number | null;
+          tipo: string;
+          descripcion?: string | null;
+          fecha_actividad?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id_actividad?: number;
+          id_prospecto?: number;
+          id_usuario?: number | null;
+          tipo?: string;
+          descripcion?: string | null;
+          fecha_actividad?: string | null;
+          created_at?: string | null;
+        };
+      };
+      asesores: {
+        Row: {
+          id_asesor: number;
+          id_empresa: number;
+          id_usuario: number | null;
+          codigo: string;
+          nombre_comercial: string;
+          meta_ventas_mensual: number | null;
+          estado: string | null;
+          created_at: string | null;
+        };
+        Insert: {
+          id_asesor?: number;
+          id_empresa: number;
+          id_usuario?: number | null;
+          codigo: string;
+          nombre_comercial: string;
+          meta_ventas_mensual?: number | null;
+          estado?: string | null;
+          created_at?: string | null;
+        };
+        Update: {
+          id_asesor?: number;
+          id_empresa?: number;
+          id_usuario?: number | null;
+          codigo?: string;
+          nombre_comercial?: string;
+          meta_ventas_mensual?: number | null;
+          estado?: string | null;
+          created_at?: string | null;
+        };
+      };
     };
   };
 }

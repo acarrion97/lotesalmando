@@ -15,6 +15,7 @@ import type { ProspectoRepository } from "@/domain/prospecto/repositories";
 import type { OportunidadRepository } from "@/domain/oportunidad/repositories";
 import type { ActividadRepository } from "@/domain/actividad/repositories";
 import type { AsesorRepository } from "@/domain/asesor/repositories";
+import type { RolRepository } from "@/domain/rol/repositories";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
 import type { Actividad } from "@/domain/actividad/entities";
@@ -33,6 +34,7 @@ import { MockUsuarioRepository } from "@/infrastructure/repositories/mock/MockUs
 import { MockInventarioRepository } from "@/infrastructure/repositories/mock/MockInventarioRepository";
 import { MockEtapaRepository } from "@/infrastructure/repositories/mock/MockEtapaRepository";
 import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockManzanaRepository";
+import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
@@ -51,6 +53,7 @@ import { SupabaseProspectoRepository } from "@/infrastructure/repositories/supab
 import { SupabaseOportunidadRepository } from "@/infrastructure/repositories/supabase/SupabaseOportunidadRepository";
 import { SupabaseActividadRepository } from "@/infrastructure/repositories/supabase/SupabaseActividadRepository";
 import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase/SupabaseAsesorRepository";
+import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
@@ -70,6 +73,7 @@ export interface Repositories {
   oportunidadRepo: OportunidadRepository;
   actividadRepo: ActividadRepository;
   asesorRepo: AsesorRepository;
+  rolRepo: RolRepository;
 }
 
 function createMockRepositories(): Repositories {
@@ -172,6 +176,7 @@ function createMockRepositories(): Repositories {
     oportunidadRepo,
     actividadRepo,
     asesorRepo,
+    rolRepo: new MockRolRepository(),
   };
 }
 
@@ -203,6 +208,7 @@ function createSupabaseRepositories(): Repositories {
     oportunidadRepo: new SupabaseOportunidadRepository(),
     actividadRepo: new SupabaseActividadRepository(),
     asesorRepo: new SupabaseAsesorRepository(),
+    rolRepo: new SupabaseRolRepository(),
   };
 }
 
