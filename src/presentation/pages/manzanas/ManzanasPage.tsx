@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Typography, Modal, Form, Descriptions, message } from "antd";
+import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useManzanas } from "@/presentation/hooks";
 import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import { getContainer } from "@/infrastructure/container";
-
-const { Title } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -128,31 +128,21 @@ export function ManzanasPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Manzanas</Title>
-        <Space>
-          <Input
-            placeholder="Buscar..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
+      <PageToolbar
+        title="Manzanas"
+        search={{ value: searchText, onChange: setSearchText }}
+        actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             Nueva Manzana
           </Button>
-        </Space>
-      </div>
-      <Card>
-        <Table<Manzana>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_manzana"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+        }
+      />
+      <DataTable<Manzana>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_manzana"
+        loading={isLoading}
+      />
 
       {/* View Modal */}
       <Modal

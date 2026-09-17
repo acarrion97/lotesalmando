@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Form, InputNumber, Select, Descriptions, message, Row, Col, Statistic, Progress, Tooltip } from "antd";
+import { Card, Button, Space, Input, Tag, Modal, Form, InputNumber, Select, Descriptions, message, Row, Col, Statistic, Progress, Tooltip } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, TrophyOutlined, UserOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, TrophyOutlined, UserOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useAsesores, useVentas } from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
-
-const { Title, Text } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const estadoConfig: Record<AsesorEstado, { color: string; label: string }> = {
   activo: { color: "green", label: "Activo" },
@@ -173,13 +173,16 @@ export function AsesoresPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Asesores</Title>
-          <Text type="secondary">Gestion de asesores comerciales</Text>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>Nuevo Asesor</Button>
-      </div>
+      <PageToolbar
+        title="Asesores"
+        subtitle="Gestion de asesores comerciales"
+        search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar asesor..." }}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            Nuevo Asesor
+          </Button>
+        }
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -204,18 +207,12 @@ export function AsesoresPage() {
         </Col>
       </Row>
 
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Input placeholder="Buscar asesor..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 300, borderRadius: 8 }} allowClear />
-        </div>
-        <Table<Asesor>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_asesor"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<Asesor>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_asesor"
+        loading={isLoading}
+      />
 
       {/* View Modal */}
       <Modal title="Detalle del Asesor" open={modal.visible && modal.type === "view"} onCancel={closeModal} footer={[<Button key="close" onClick={closeModal}>Cerrar</Button>]} width={500}>

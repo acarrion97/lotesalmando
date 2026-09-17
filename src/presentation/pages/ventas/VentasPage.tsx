@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react";
 import {
-  Table,
   Card,
   Button,
   Space,
-  Input,
   Tag,
   Typography,
   Modal,
@@ -15,7 +13,6 @@ import {
   Tooltip,
 } from "antd";
 import {
-  SearchOutlined,
   EyeOutlined,
   DollarOutlined,
   CheckCircleOutlined,
@@ -27,6 +24,8 @@ import {
 import type { TableColumnType } from "antd";
 import { useVentas } from "@/presentation/hooks";
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const { Title, Text } = Typography;
 
@@ -127,10 +126,16 @@ export function VentasPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Ventas</Title>
-        <Text type="secondary">Registro de ventas realizadas</Text>
-      </div>
+      <PageToolbar
+        title="Ventas"
+        subtitle="Registro de ventas realizadas"
+        search={{ value: searchText, onChange: setSearchText }}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalState({ type: "info", visible: true, record: null })}>
+            Nueva Venta
+          </Button>
+        }
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -155,21 +160,12 @@ export function VentasPage() {
         </Col>
       </Row>
 
-      <Card style={{ borderRadius: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-          <Input placeholder="Buscar..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 280 }} allowClear />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalState({ type: "info", visible: true, record: null })}>
-            Nueva Venta
-          </Button>
-        </div>
-        <Table<Venta>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_venta"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<Venta>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_venta"
+        loading={isLoading}
+      />
 
       <Modal
         title={modalState.type === "view" ? "Detalle de Venta" : "Nueva Venta"}

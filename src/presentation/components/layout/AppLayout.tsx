@@ -107,7 +107,7 @@ export function AppLayout() {
             height: 64,
           }}
         >
-          <Header collapsed={collapsed} onToggleCollapse={handleToggleCollapse} />
+          <Header collapsed={collapsed} onToggleCollapse={handleToggleCollapse} isMobile={isMobile} />
         </Layout.Header>
 
         <Content

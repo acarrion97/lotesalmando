@@ -20,9 +20,10 @@ import { useAlertas, useOnlineStatus } from "@/presentation/hooks";
 interface HeaderProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
+  isMobile?: boolean;
 }
 
-export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
+export function Header({ collapsed, onToggleCollapse, isMobile = false }: HeaderProps) {
   const navigate = useNavigate();
   const { empresaActual, empresas, setEmpresaActual } = useEmpresa();
   const { setMode, isDark } = useTheme();
@@ -93,8 +94,9 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
         alignItems: "center",
         justifyContent: "space-between",
         width: "100%",
-        padding: "0 24px",
+        padding: isMobile ? "0 12px" : "0 24px",
         height: 64,
+        minWidth: 0,
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -125,31 +127,31 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
         </div>
       </div>
 
-      <Space size={12} align="center">
+      <Space size={isMobile ? 8 : 12} align="center">
         {!isOnline && (
           <Tooltip title="Sin conexión: los datos pueden estar desactualizados y no se pueden hacer cambios">
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                padding: "4px 10px",
+                gap: isMobile ? 0 : 6,
+                padding: isMobile ? 0 : "4px 10px",
                 borderRadius: 6,
-                background: "#fffbe6",
-                border: "1px solid #ffe58f",
+                background: isMobile ? "transparent" : "#fffbe6",
+                border: isMobile ? "none" : "1px solid #ffe58f",
                 color: "#ad6800",
                 fontSize: 12,
                 fontWeight: 500,
               }}
             >
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#faad14" }} />
-              Sin conexión
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#faad14", flexShrink: 0 }} />
+              {!isMobile && "Sin conexión"}
             </div>
           </Tooltip>
         )}
         <Select
           placeholder="Seleccionar Empresa"
-          style={{ width: 260 }}
+          style={{ width: isMobile ? 130 : 260, minWidth: 0 }}
           size="large"
           value={empresaActual?.id_empresa}
           onChange={handleEmpresaChange}
@@ -217,39 +219,43 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
           </div>
         </Badge>
 
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            borderRadius: 8,
-            transition: "all 0.2s",
-            color: "#595959",
-            fontSize: 16,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f5f5f5";
-            e.currentTarget.style.color = "#1677ff";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#595959";
-          }}
-        >
-          <QuestionCircleOutlined />
-        </div>
+        {!isMobile && (
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              borderRadius: 8,
+              transition: "all 0.2s",
+              color: "#595959",
+              fontSize: 16,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "#f5f5f5";
+              e.currentTarget.style.color = "#1677ff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "transparent";
+              e.currentTarget.style.color = "#595959";
+            }}
+          >
+            <QuestionCircleOutlined />
+          </div>
+        )}
 
-        <div
-          style={{
-            width: 1,
-            height: 24,
-            background: "#f0f0f0",
-            margin: "0 4px",
-          }}
-        />
+        {!isMobile && (
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              background: "#f0f0f0",
+              margin: "0 4px",
+            }}
+          />
+        )}
 
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={["click"]}>
           <div
@@ -258,10 +264,10 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
               alignItems: "center",
               gap: 10,
               cursor: "pointer",
-              padding: "6px 12px",
+              padding: isMobile ? 2 : "6px 12px",
               borderRadius: 10,
               transition: "all 0.2s",
-              border: "1px solid #f0f0f0",
+              border: isMobile ? "none" : "1px solid #f0f0f0",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = "#fafafa";
@@ -278,18 +284,21 @@ export function Header({ collapsed, onToggleCollapse }: HeaderProps) {
                 background: "linear-gradient(135deg, #1677ff 0%, #4096ff 100%)",
                 fontWeight: 600,
                 fontSize: 12,
+                flexShrink: 0,
               }}
             >
               {user?.nombres ? getInitials(user.nombres) : "U"}
             </Avatar>
-            <div style={{ lineHeight: 1.2 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: "#262626" }}>
-                {user?.nombres?.split(" ").slice(0, 2).join(" ") || "Usuario"}
+            {!isMobile && (
+              <div style={{ lineHeight: 1.2 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: "#262626" }}>
+                  {user?.nombres?.split(" ").slice(0, 2).join(" ") || "Usuario"}
+                </div>
+                <div style={{ fontSize: 11, color: "#8c8c8c" }}>
+                  {user?.email || "usuario@email.com"}
+                </div>
               </div>
-              <div style={{ fontSize: 11, color: "#8c8c8c" }}>
-                {user?.email || "usuario@email.com"}
-              </div>
-            </div>
+            )}
           </div>
         </Dropdown>
       </Space>

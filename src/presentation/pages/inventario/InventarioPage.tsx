@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Typography } from "antd";
+import { Button, Space, Input } from "antd";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import type { Inventario } from "@/domain/inventario/entities/Inventario";
-
-const { Title } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const mockData: Inventario[] = [];
 
@@ -90,30 +90,20 @@ export function InventarioPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Inventario</Title>
-        <Space>
-          <Input
-            placeholder="Buscar..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
+      <PageToolbar
+        title="Inventario"
+        search={{ value: searchText, onChange: setSearchText }}
+        actions={
           <Button type="primary" icon={<PlusOutlined />}>
             Nuevo
           </Button>
-        </Space>
-      </div>
-      <Card>
-        <Table<Inventario>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_inventario"
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+        }
+      />
+      <DataTable<Inventario>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_inventario"
+      />
     </div>
   );
 }

@@ -1,13 +1,11 @@
 import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  Table,
   Card,
   Button,
   Space,
   Input,
   Tag,
-  Typography,
   Row,
   Col,
   Statistic,
@@ -23,7 +21,6 @@ import {
 } from "antd";
 import {
   PlusOutlined,
-  SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -40,8 +37,8 @@ import { useLotes, useManzanas } from "@/presentation/hooks";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
-
-const { Title, Text } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
@@ -391,15 +388,42 @@ export function LotesPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <Title level={4} style={{ margin: 0, marginBottom: 4 }}>
-            Lotes
-          </Title>
-          <Text type="secondary">Gestion de lotes por manzana y proyecto</Text>
-        </div>
-        {lotes && <FreshnessBadge dataUpdatedAt={dataUpdatedAt} />}
-      </div>
+      <PageToolbar
+        title="Lotes"
+        subtitle="Gestion de lotes por manzana y proyecto"
+        search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar lote..." }}
+        extra={
+          <>
+            {lotes && <FreshnessBadge dataUpdatedAt={dataUpdatedAt} />}
+            <div
+              style={{
+                display: "flex",
+                border: "1px solid #d9d9d9",
+                borderRadius: 8,
+                overflow: "hidden",
+              }}
+            >
+              <Button
+                type={viewMode === "table" ? "primary" : "text"}
+                icon={<UnorderedListOutlined />}
+                onClick={() => setViewMode("table")}
+                style={{ borderRadius: 0, border: "none" }}
+              />
+              <Button
+                type={viewMode === "grid" ? "primary" : "text"}
+                icon={<AppstoreOutlined />}
+                onClick={() => setViewMode("grid")}
+                style={{ borderRadius: 0, border: "none" }}
+              />
+            </div>
+          </>
+        }
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, fontWeight: 600 }} onClick={() => setCreateModalOpen(true)}>
+            Nuevo Lote
+          </Button>
+        }
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -480,60 +504,13 @@ export function LotesPage() {
           body: { padding: 0 },
         }}
       >
-        <div
-          style={{
-            padding: "16px 24px",
-            borderBottom: "1px solid #f0f0f0",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 12,
-          }}
-        >
-          <Input
-            placeholder="Buscar lote..."
-            prefix={<SearchOutlined style={{ color: "#bfbfbf" }} />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: "100%", maxWidth: 280, borderRadius: 8 }}
-            allowClear
-          />
-          <Space size={8} wrap>
-            <div
-              style={{
-                display: "flex",
-                border: "1px solid #d9d9d9",
-                borderRadius: 8,
-                overflow: "hidden",
-              }}
-            >
-              <Button
-                type={viewMode === "table" ? "primary" : "text"}
-                icon={<UnorderedListOutlined />}
-                onClick={() => setViewMode("table")}
-                style={{ borderRadius: 0, border: "none" }}
-              />
-              <Button
-                type={viewMode === "grid" ? "primary" : "text"}
-                icon={<AppstoreOutlined />}
-                onClick={() => setViewMode("grid")}
-                style={{ borderRadius: 0, border: "none" }}
-              />
-            </div>
-            <Button type="primary" icon={<PlusOutlined />} style={{ borderRadius: 8, fontWeight: 600 }} onClick={() => setCreateModalOpen(true)}>
-              Nuevo Lote
-            </Button>
-          </Space>
-        </div>
-
         {viewMode === "table" ? (
-          <Table<Lote>
+          <DataTable<Lote>
+            card={false}
             columns={columns}
             dataSource={filteredData}
             rowKey="id_lote"
             loading={isLoading}
-            scroll={{ x: 900 }}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,

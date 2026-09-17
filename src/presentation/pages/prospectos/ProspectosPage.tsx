@@ -1,14 +1,16 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip } from "antd";
+import { Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useProspectos } from "@/presentation/hooks";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const estadoConfig: Record<ProspectoEstado, { color: string; label: string }> = {
   nuevo: { color: "blue", label: "Nuevo" },
@@ -168,13 +170,16 @@ export function ProspectosPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Prospectos</Title>
-          <Text type="secondary">Pipeline de ventas y seguimiento</Text>
-        </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>Nuevo Prospecto</Button>
-      </div>
+      <PageToolbar
+        title="Prospectos"
+        subtitle="Pipeline de ventas y seguimiento"
+        search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar prospecto..." }}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+            Nuevo Prospecto
+          </Button>
+        }
+      />
 
       {/* Pipeline Visual */}
       <Row gutter={[8, 8]} style={{ marginBottom: 24 }}>
@@ -203,25 +208,12 @@ export function ProspectosPage() {
         </Card>
       )}
 
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Input
-            placeholder="Buscar prospecto..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 300, borderRadius: 8 }}
-            allowClear
-          />
-        </div>
-        <Table<Prospecto>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_prospecto"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<Prospecto>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_prospecto"
+        loading={isLoading}
+      />
 
       {/* View Modal */}
       <Modal

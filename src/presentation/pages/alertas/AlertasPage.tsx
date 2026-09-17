@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
-import { Card, Table, Tag, Typography, Select, Statistic, Row, Col, Button } from "antd";
+import { Card, Tag, Typography, Select, Statistic, Row, Col, Button } from "antd";
 import { WarningOutlined, ClockCircleOutlined, AlertOutlined, ExclamationCircleOutlined, BellOutlined, ReloadOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useAlertas } from "@/presentation/hooks";
 import type { Alerta, AlertaTipo, AlertaPrioridad } from "@/domain/alerta/entities/Alerta";
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 
 const tipoConfig: Record<AlertaTipo, { color: string; icon: React.ReactNode; label: string }> = {
   inventario: { color: "blue", icon: <AlertOutlined />, label: "Inventario" },
@@ -94,15 +96,15 @@ export function AlertasPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>
+      <PageToolbar
+        title={
+          <>
             <BellOutlined /> Mando IA - Alertas
-          </Title>
-          <Text type="secondary">Alertas automaticas del sistema</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Actualizar</Button>
-      </div>
+          </>
+        }
+        subtitle="Alertas automaticas del sistema"
+        actions={<Button icon={<ReloadOutlined />} onClick={() => refetch()}>Actualizar</Button>}
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -149,7 +151,8 @@ export function AlertasPage() {
             <Select.Option value="baja">Baja</Select.Option>
           </Select>
         </div>
-        <Table<Alerta>
+        <DataTable<Alerta>
+          card={false}
           columns={columns}
           dataSource={filteredData}
           rowKey="id"

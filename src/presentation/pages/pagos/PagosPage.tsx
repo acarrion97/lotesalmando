@@ -1,14 +1,14 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic, Tooltip } from "antd";
-import { PlusOutlined, SearchOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
+import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic, Tooltip } from "antd";
+import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePagos, useOnlineStatus } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { pagoSchema } from "@/presentation/validations";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
-
-const { Title, Text } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 type PagoRow = {
   id_pago: number;
@@ -118,15 +118,18 @@ export function PagosPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Pagos</Title>
-          <Text type="secondary">Registro de pagos recibidos</Text>
-        </div>
-        <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
-          <Button type="primary" icon={<PlusOutlined />} disabled={!isOnline} onClick={() => setCreateModalOpen(true)}>Registrar Pago</Button>
-        </Tooltip>
-      </div>
+      <PageToolbar
+        title="Pagos"
+        subtitle="Registro de pagos recibidos"
+        search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar pago..." }}
+        actions={
+          <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
+            <Button type="primary" icon={<PlusOutlined />} disabled={!isOnline} onClick={() => setCreateModalOpen(true)}>
+              Registrar Pago
+            </Button>
+          </Tooltip>
+        }
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -141,18 +144,12 @@ export function PagosPage() {
         </Col>
       </Row>
 
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Input placeholder="Buscar pago..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 300, borderRadius: 8 }} allowClear />
-        </div>
-        <Table<PagoRow>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_pago"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<PagoRow>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_pago"
+        loading={isLoading}
+      />
 
       {/* View Modal */}
       <Modal title="Detalle del Pago" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>

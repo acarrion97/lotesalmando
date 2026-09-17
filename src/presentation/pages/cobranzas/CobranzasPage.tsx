@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Input, Tag, Typography, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
-import { SearchOutlined, EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
+import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useCobranzas, useCarteraMetricas, useOnlineStatus } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
-
-const { Title, Text } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 type CobranzaRow = {
   id_cobranza: number;
@@ -104,13 +104,12 @@ export function CobranzasPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div>
-          <Title level={4} style={{ margin: 0 }}>Cobranzas</Title>
-          <Text type="secondary">Control de cuotas y morosidad</Text>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>
-      </div>
+      <PageToolbar
+        title="Cobranzas"
+        subtitle="Control de cuotas y morosidad"
+        search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar cobranza..." }}
+        actions={<Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>}
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -153,18 +152,12 @@ export function CobranzasPage() {
         </Col>
       </Row>
 
-      <Card>
-        <div style={{ marginBottom: 16 }}>
-          <Input placeholder="Buscar cobranza..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 300, borderRadius: 8 }} allowClear />
-        </div>
-        <Table<CobranzaRow>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_cobranza"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<CobranzaRow>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_cobranza"
+        loading={isLoading}
+      />
 
       <Modal title="Detalle de Cobranza" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>
         {viewModal.record && (

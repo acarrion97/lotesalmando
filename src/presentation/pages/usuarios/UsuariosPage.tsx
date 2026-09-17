@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
-import { Table, Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message } from "antd";
+import { Button, Space, Input, Tag, Modal, Form, Select, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useUsuarios } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
-
-const { Title } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const estadoColorMap: Record<UsuarioEstado, string> = {
   activo: "green",
@@ -166,31 +166,21 @@ export function UsuariosPage() {
   return (
     <div>
       {contextHolder}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Usuarios</Title>
-        <Space>
-          <Input
-            placeholder="Buscar..."
-            prefix={<SearchOutlined />}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{ width: 250 }}
-            allowClear
-          />
+      <PageToolbar
+        title="Usuarios"
+        search={{ value: searchText, onChange: setSearchText }}
+        actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             Nuevo
           </Button>
-        </Space>
-      </div>
-      <Card>
-        <Table<Usuario>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_usuario"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+        }
+      />
+      <DataTable<Usuario>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_usuario"
+        loading={isLoading}
+      />
 
       {/* View Modal */}
       <Modal

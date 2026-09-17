@@ -1,12 +1,9 @@
 import { useState, useMemo } from "react";
 import {
-  Table,
   Card,
   Button,
   Space,
-  Input,
   Tag,
-  Typography,
   Modal,
   Form,
   Select,
@@ -21,7 +18,6 @@ import {
 } from "antd";
 import {
   PlusOutlined,
-  SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   EyeOutlined,
@@ -30,8 +26,8 @@ import {
 import type { TableColumnType } from "antd";
 import { useCotizaciones } from "@/presentation/hooks";
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
-
-const { Title, Text } = Typography;
+import { DataTable } from "@/presentation/components/common/DataTable";
+import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
 const estadoConfig: Record<CotizacionEstado, { color: string; label: string }> = {
   borrador: { color: "default", label: "BORRADOR" },
@@ -159,10 +155,16 @@ export function CotizacionesPage() {
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <Title level={4} style={{ margin: 0, marginBottom: 4 }}>Cotizaciones</Title>
-        <Text type="secondary">Gestion de cotizaciones y presupuestos</Text>
-      </div>
+      <PageToolbar
+        title="Cotizaciones"
+        subtitle="Gestion de cotizaciones y presupuestos"
+        search={{ value: searchText, onChange: setSearchText }}
+        actions={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("create")}>
+            Nueva Cotizacion
+          </Button>
+        }
+      />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -187,19 +189,12 @@ export function CotizacionesPage() {
         </Col>
       </Row>
 
-      <Card style={{ borderRadius: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-          <Input placeholder="Buscar..." prefix={<SearchOutlined />} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 280 }} allowClear />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("create")}>Nueva Cotizacion</Button>
-        </div>
-        <Table<Cotizacion>
-          columns={columns}
-          dataSource={filteredData}
-          rowKey="id_cotizacion"
-          loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
-        />
-      </Card>
+      <DataTable<Cotizacion>
+        columns={columns}
+        dataSource={filteredData}
+        rowKey="id_cotizacion"
+        loading={isLoading}
+      />
 
       <Modal
         title={modalState.type === "create" ? "Nueva Cotizacion" : modalState.type === "edit" ? "Editar Cotizacion" : "Detalle de Cotizacion"}
