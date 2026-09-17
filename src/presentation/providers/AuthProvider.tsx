@@ -9,6 +9,12 @@ interface AuthUser {
   id_empresa?: number;
 }
 
+interface UsuarioInvitado {
+  nombres: string;
+  id_usuario: number;
+  id_empresa: number;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -113,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // el RPC `usuario_invitado` (no una consulta directa a `usuario`)
     // porque en este punto todavia no hay sesion (rol anon) y las
     // politicas RLS de `usuario` solo permiten lectura a `authenticated`.
-    const { data: invitado, error: invitadoError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle();
+    const { data: invitado, error: invitadoError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle<UsuarioInvitado>();
 
     if (invitadoError) {
       return { success: false, error: "No se pudo verificar tu invitacion. Intenta de nuevo en un momento." };
@@ -171,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerNuevaEmpresa = useCallback(
     async (email: string, password: string, nombres: string, razonSocial: string) => {
-      const { data: existente, error: existenteError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle();
+      const { data: existente, error: existenteError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle<UsuarioInvitado>();
 
       if (existenteError) {
         return { success: false, error: "No se pudo verificar el correo. Intenta de nuevo en un momento." };
