@@ -225,10 +225,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // signUp() a las siguientes peticiones .from(...). Forzarla con
       // setSession() antes de insertar evita que el insert de abajo corra
       // como anon y lo rechace RLS.
-      await supabase.auth.setSession({
+      const { data: setSessionData, error: setSessionError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
       });
+
+      if (setSessionError) {
+        return { success: false, error: `No se pudo establecer la sesion: ${setSessionError.message}` };
+      }
+
+      // Diagnostico: confirma que el cliente realmente tiene la sesion
+      // activa justo antes del insert, para no seguir adivinando si el
+      // problema es de RLS o de propagacion de sesion.
+      const { data: sessionCheck } = await supabase.auth.getSession();
+      const diag = `sesion=${sessionCheck.session ? "si" : "no"} setSessionUser=${setSessionData.user?.id ?? "null"} getSessionUser=${sessionCheck.session?.user?.id ?? "null"}`;
 
       const { data: empresa, error: empresaError } = await supabase
         .from("empresa")
@@ -239,7 +249,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (empresaError || !empresa) {
         return {
           success: false,
-          error: `No se pudo crear la empresa: ${empresaError?.message ?? "error desconocido"}`,
+          error: `No se pudo crear la empresa: ${empresaError?.message ?? "error desconocido"} [${diag}]`,
         };
       }
 
