@@ -237,7 +237,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (empresaError || !empresa) {
-        return { success: false, error: "No se pudo crear la empresa. Intenta de nuevo o contacta a soporte." };
+        return {
+          success: false,
+          error: `No se pudo crear la empresa: ${empresaError?.message ?? "error desconocido"}`,
+        };
       }
 
       const { data: nuevoUsuario, error: usuarioError } = await supabase
@@ -247,7 +250,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
 
       if (usuarioError || !nuevoUsuario) {
-        return { success: false, error: "La empresa se creo pero no se pudo vincular tu usuario. Contacta a soporte." };
+        return {
+          success: false,
+          error: `La empresa se creo pero no se pudo vincular tu usuario: ${usuarioError?.message ?? "error desconocido"}`,
+        };
       }
 
       setUser({
