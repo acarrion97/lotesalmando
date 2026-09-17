@@ -221,6 +221,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      // supabase-js puede tardar un instante en propagar la sesion nueva de
+      // signUp() a las siguientes peticiones .from(...). Forzarla con
+      // setSession() antes de insertar evita que el insert de abajo corra
+      // como anon y lo rechace RLS.
+      await supabase.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+
       const { data: empresa, error: empresaError } = await supabase
         .from("empresa")
         .insert({ razon_social: razonSocial, estado: "activo" })
