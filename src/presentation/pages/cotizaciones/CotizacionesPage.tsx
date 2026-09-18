@@ -24,7 +24,7 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCotizaciones } from "@/presentation/hooks";
+import { useCotizaciones, useClientes, useLotes, useLookup } from "@/presentation/hooks";
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
@@ -44,6 +44,10 @@ interface ModalState {
 
 export function CotizacionesPage() {
   const { data: cotizaciones, isLoading } = useCotizaciones();
+  const { data: clientes } = useClientes();
+  const { data: lotes } = useLotes();
+  const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
+  const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
   const [searchText, setSearchText] = useState("");
   const [modalState, setModalState] = useState<ModalState>({ type: null, visible: false, record: null });
   const [form] = Form.useForm();
@@ -99,13 +103,13 @@ export function CotizacionesPage() {
       title: "Cliente",
       dataIndex: "id_cliente",
       key: "id_cliente",
-      render: (id: number) => <span style={{ fontWeight: 500 }}>Cliente #{id}</span>,
+      render: (id: number) => <span style={{ fontWeight: 500 }}>{clienteMap[id] ?? `Cliente #${id}`}</span>,
     },
     {
       title: "Lote",
       dataIndex: "id_lote",
       key: "id_lote",
-      render: (id: number) => <Tag>Lote #{id}</Tag>,
+      render: (id: number) => <Tag>{loteMap[id] ? `${loteMap[id]} #${id}` : `Lote #${id}`}</Tag>,
     },
     {
       title: "Precio Ofertado",
@@ -211,8 +215,8 @@ export function CotizacionesPage() {
         {modalState.type === "view" && modalState.record ? (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="ID">{modalState.record.id_cotizacion}</Descriptions.Item>
-            <Descriptions.Item label="Cliente">Cliente #{modalState.record.id_cliente}</Descriptions.Item>
-            <Descriptions.Item label="Lote">Lote #{modalState.record.id_lote}</Descriptions.Item>
+            <Descriptions.Item label="Cliente">{clienteMap[modalState.record.id_cliente] ?? `Cliente #${modalState.record.id_cliente}`}</Descriptions.Item>
+            <Descriptions.Item label="Lote">{loteMap[modalState.record.id_lote] ? `${loteMap[modalState.record.id_lote]} #${modalState.record.id_lote}` : `Lote #${modalState.record.id_lote}`}</Descriptions.Item>
             <Descriptions.Item label="Precio Ofertado">${modalState.record.precio_ofertado.toLocaleString()}</Descriptions.Item>
             <Descriptions.Item label="Estado">
               <Tag color={estadoConfig[modalState.record.estado]?.color}>{estadoConfig[modalState.record.estado]?.label}</Tag>

@@ -3,7 +3,7 @@ import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, message, Row
 import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePagos, useOnlineStatus } from "@/presentation/hooks";
+import { usePagos, useOnlineStatus, useCobranzas, useLookup } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { pagoSchema } from "@/presentation/validations";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -20,6 +20,8 @@ type PagoRow = {
 
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
+  const { data: cobranzas } = useCobranzas();
+  const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
@@ -85,7 +87,7 @@ export function PagosPage() {
       dataIndex: "id_cobranza",
       key: "id_cobranza",
       sorter: (a, b) => a.id_cobranza - b.id_cobranza,
-      render: (id: number) => <Tag>#{id}</Tag>,
+      render: (id: number) => <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>,
     },
     {
       title: "Monto Pagado",

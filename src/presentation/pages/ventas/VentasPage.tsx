@@ -22,7 +22,7 @@ import {
   InfoCircleOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas } from "@/presentation/hooks";
+import { useVentas, useClientes, useLotes, useUsuarios, useLookup } from "@/presentation/hooks";
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
@@ -43,6 +43,12 @@ interface ModalState {
 
 export function VentasPage() {
   const { data: ventas, isLoading } = useVentas();
+  const { data: clientes } = useClientes();
+  const { data: lotes } = useLotes();
+  const { data: usuarios } = useUsuarios();
+  const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
+  const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
+  const usuarioMap = useLookup(usuarios, "id_usuario", "nombres", "Usuario");
   const [searchText, setSearchText] = useState("");
   const [modalState, setModalState] = useState<ModalState>({ type: null, visible: false, record: null });
 
@@ -78,13 +84,13 @@ export function VentasPage() {
       title: "Cliente",
       dataIndex: "id_cliente",
       key: "id_cliente",
-      render: (id: number) => <span style={{ fontWeight: 500 }}>Cliente #{id}</span>,
+      render: (id: number) => <span style={{ fontWeight: 500 }}>{clienteMap[id] ?? `Cliente #${id}`}</span>,
     },
     {
       title: "Lote",
       dataIndex: "id_lote",
       key: "id_lote",
-      render: (id: number) => <Tag>Lote #{id}</Tag>,
+      render: (id: number) => <Tag>{loteMap[id] ? `${loteMap[id]} #${id}` : `Lote #${id}`}</Tag>,
     },
     {
       title: "Precio Final",
@@ -177,10 +183,10 @@ export function VentasPage() {
         {modalState.type === "view" && modalState.record ? (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="ID">{modalState.record.id_venta}</Descriptions.Item>
-            <Descriptions.Item label="Cliente">Cliente #{modalState.record.id_cliente}</Descriptions.Item>
-            <Descriptions.Item label="Lote">Lote #{modalState.record.id_lote}</Descriptions.Item>
+            <Descriptions.Item label="Cliente">{clienteMap[modalState.record.id_cliente] ?? `Cliente #${modalState.record.id_cliente}`}</Descriptions.Item>
+            <Descriptions.Item label="Lote">{loteMap[modalState.record.id_lote] ? `${loteMap[modalState.record.id_lote]} #${modalState.record.id_lote}` : `Lote #${modalState.record.id_lote}`}</Descriptions.Item>
             <Descriptions.Item label="Cotizacion">Cotizacion #{modalState.record.id_cotizacion}</Descriptions.Item>
-            <Descriptions.Item label="Usuario">Usuario #{modalState.record.id_usuario}</Descriptions.Item>
+            <Descriptions.Item label="Usuario">{usuarioMap[modalState.record.id_usuario] ?? `Usuario #${modalState.record.id_usuario}`}</Descriptions.Item>
             <Descriptions.Item label="Precio Final">${modalState.record.precio_final.toLocaleString()}</Descriptions.Item>
             <Descriptions.Item label="Estado">
               <Tag color={estadoConfig[modalState.record.estado]?.color}>{estadoConfig[modalState.record.estado]?.label}</Tag>

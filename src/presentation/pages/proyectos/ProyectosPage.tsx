@@ -3,7 +3,7 @@ import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProyectos } from "@/presentation/hooks";
+import { useProyectos, useEmpresas, useLookup } from "@/presentation/hooks";
 import type { Proyecto } from "@/domain/proyecto/entities/Proyecto";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -21,6 +21,8 @@ interface ModalState {
 export function ProyectosPage() {
   const { data: proyectos, isLoading } = useProyectos();
   const { empresaActual } = useEmpresa();
+  const { data: empresas } = useEmpresas();
+  const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -121,6 +123,7 @@ export function ProyectosPage() {
       title: "Empresa",
       dataIndex: "id_empresa",
       key: "id_empresa",
+      render: (id: number) => empresaMap[id] ?? id,
       sorter: (a, b) => a.id_empresa - b.id_empresa,
     },
     {
@@ -167,7 +170,7 @@ export function ProyectosPage() {
         {modal.record && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Nombre">{modal.record.nombre}</Descriptions.Item>
-            <Descriptions.Item label="Empresa">ID {modal.record.id_empresa}</Descriptions.Item>
+            <Descriptions.Item label="Empresa">{empresaMap[modal.record.id_empresa] ?? modal.record.id_empresa}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip } from "antd";
 import { EyeOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useContratos } from "@/presentation/hooks";
+import { useContratos, useVentas, useLookup } from "@/presentation/hooks";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
@@ -15,6 +15,8 @@ type ContratoRow = {
 
 export function ContratosPage() {
   const { data: contratos, isLoading } = useContratos();
+  const { data: ventas } = useVentas();
+  const ventaMap = useLookup(ventas, "id_venta", "id_venta", "Venta");
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: ContratoRow | null }>({ visible: false, record: null });
 
@@ -46,6 +48,7 @@ export function ContratosPage() {
       title: "Venta",
       dataIndex: "id_venta",
       key: "id_venta",
+      render: (id: number) => `Venta #${id}`,
       sorter: (a, b) => a.id_venta - b.id_venta,
     },
     {

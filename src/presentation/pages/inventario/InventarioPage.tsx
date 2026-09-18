@@ -1,36 +1,127 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input } from "antd";
+import { Button, Space, Input, Modal, Form, message, Descriptions, Spin } from "antd";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import type { Inventario } from "@/domain/inventario/entities/Inventario";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useInventario, useLotes, useUsuarios, useLookup } from "@/presentation/hooks";
+import { getContainer } from "@/infrastructure/container";
+import { useQueryClient } from "@tanstack/react-query";
+import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 
-const mockData: Inventario[] = [];
+type ModalType = "create" | "edit" | "view" | "delete" | null;
+
+interface ModalState {
+  type: ModalType;
+  visible: boolean;
+  record: Inventario | null;
+}
 
 export function InventarioPage() {
+  const { data: inventario, isLoading, error } = useInventario();
+  const { data: lotes } = useLotes();
+  const { data: usuarios } = useUsuarios();
+  const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
+  const usuarioMap = useLookup(usuarios, "id_usuario", "nombres", "Usuario");
+  const container = getContainer();
+  const queryClient = useQueryClient();
+  const [messageApi, contextHolder] = message.useMessage();
+
   const [searchText, setSearchText] = useState("");
+  const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
+  const [createForm] = Form.useForm();
+  const [editForm] = Form.useForm();
 
   const filteredData = useMemo(() => {
-    return mockData.filter(
+    if (!inventario) return [];
+    return inventario.filter(
       (i) =>
         String(i.id_lote).includes(searchText) ||
         i.estado_anterior.toLowerCase().includes(searchText.toLowerCase()) ||
         i.estado_nuevo.toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [searchText]);
+  }, [inventario, searchText]);
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: inventoryKeys.inventario() });
+
+  const openModal = (type: ModalType, record: Inventario | null = null) => {
+    setModal({ type, visible: true, record });
+    if (type === "edit" && record) {
+      editForm.setFieldsValue({ estado_nuevo: record.estado_nuevo });
+    }
+    if (type === "create") {
+      createForm.resetFields();
+    }
+  };
+
+  const closeModal = () => {
+    setModal({ type: null, visible: false, record: null });
+    createForm.resetFields();
+    editForm.resetFields();
+  };
+
+  const handleCreate = async () => {
+    try {
+      const values = await createForm.validateFields();
+      await container.createInventario.execute({
+        id_lote: values.id_lote,
+        id_usuario: values.id_usuario,
+        estado_anterior: values.estado_anterior,
+        estado_nuevo: values.estado_nuevo,
+      });
+      await refresh();
+      messageApi.success("Registro creado correctamente");
+      closeModal();
+    } catch (error) {
+      if (error instanceof Error) {
+        messageApi.error(error.message);
+      }
+    }
+  };
+
+  const handleEdit = async () => {
+    try {
+      const values = await editForm.validateFields();
+      await container.updateInventario.execute(modal.record!.id_inventario, {
+        estado_nuevo: values.estado_nuevo,
+      });
+      await refresh();
+      messageApi.success("Registro actualizado correctamente");
+      closeModal();
+    } catch (error) {
+      if (error instanceof Error) {
+        messageApi.error(error.message);
+      }
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await container.deleteInventario.execute(modal.record!.id_inventario);
+      await refresh();
+      messageApi.success("Registro eliminado correctamente");
+      closeModal();
+    } catch (error) {
+      if (error instanceof Error) {
+        messageApi.error(error.message);
+      }
+    }
+  };
 
   const columns: TableColumnType<Inventario>[] = [
     {
       title: "Lote",
       dataIndex: "id_lote",
       key: "id_lote",
+      render: (id: number) => loteMap[id] ? `${loteMap[id]} #${id}` : `Lote #${id}`,
       sorter: (a, b) => a.id_lote - b.id_lote,
     },
     {
       title: "Usuario",
       dataIndex: "id_usuario",
       key: "id_usuario",
+      render: (id: number) => usuarioMap[id] ?? `Usuario #${id}`,
       sorter: (a, b) => a.id_usuario - b.id_usuario,
     },
     {
@@ -78,32 +169,139 @@ export function InventarioPage() {
     {
       title: "Acciones",
       key: "acciones",
-      render: () => (
+      render: (_, record) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />}>Ver</Button>
-          <Button type="link" icon={<EditOutlined />}>Editar</Button>
-          <Button type="link" danger icon={<DeleteOutlined />}>Eliminar</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>
+            Ver
+          </Button>
+          <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>
+            Editar
+          </Button>
+          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>
+            Eliminar
+          </Button>
         </Space>
       ),
     },
   ];
 
+  if (error) {
+    return <div>Error al cargar inventario</div>;
+  }
+
   return (
     <div>
+      {contextHolder}
       <PageToolbar
         title="Inventario"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("create")}>
             Nuevo
           </Button>
         }
       />
-      <DataTable<Inventario>
-        columns={columns}
-        dataSource={filteredData}
-        rowKey="id_inventario"
-      />
+      <Spin spinning={isLoading}>
+        <DataTable<Inventario>
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="id_inventario"
+        />
+      </Spin>
+
+      {/* Modal de Crear */}
+      <Modal
+        title="Crear Registro de Inventario"
+        open={modal.visible && modal.type === "create"}
+        onCancel={closeModal}
+        onOk={handleCreate}
+        okText="Crear"
+        cancelText="Cancelar"
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item
+            name="id_lote"
+            label="Lote"
+            rules={[{ required: true, message: "Ingrese el ID del lote" }]}
+          >
+            <Input type="number" placeholder="ID del lote" />
+          </Form.Item>
+          <Form.Item
+            name="id_usuario"
+            label="Usuario"
+            rules={[{ required: true, message: "Ingrese el ID del usuario" }]}
+          >
+            <Input type="number" placeholder="ID del usuario" />
+          </Form.Item>
+          <Form.Item
+            name="estado_anterior"
+            label="Estado Anterior"
+            rules={[{ required: true, message: "Ingrese el estado anterior" }]}
+          >
+            <Input placeholder="Estado anterior" />
+          </Form.Item>
+          <Form.Item
+            name="estado_nuevo"
+            label="Estado Nuevo"
+            rules={[{ required: true, message: "Ingrese el estado nuevo" }]}
+          >
+            <Input placeholder="Estado nuevo" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal de Editar */}
+      <Modal
+        title="Editar Registro de Inventario"
+        open={modal.visible && modal.type === "edit"}
+        onCancel={closeModal}
+        onOk={handleEdit}
+        okText="Guardar"
+        cancelText="Cancelar"
+      >
+        <Form form={editForm} layout="vertical">
+          <Form.Item
+            name="estado_nuevo"
+            label="Estado Nuevo"
+            rules={[{ required: true, message: "Ingrese el estado nuevo" }]}
+          >
+            <Input placeholder="Estado nuevo" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Modal de Ver */}
+      <Modal
+        title="Detalle de Registro de Inventario"
+        open={modal.visible && modal.type === "view"}
+        onCancel={closeModal}
+        footer={null}
+      >
+        {modal.record && (
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="ID Inventario">{modal.record.id_inventario}</Descriptions.Item>
+            <Descriptions.Item label="Lote">{loteMap[modal.record.id_lote] ? `${loteMap[modal.record.id_lote]} #${modal.record.id_lote}` : `Lote #${modal.record.id_lote}`}</Descriptions.Item>
+            <Descriptions.Item label="Usuario">{usuarioMap[modal.record.id_usuario] ?? `Usuario #${modal.record.id_usuario}`}</Descriptions.Item>
+            <Descriptions.Item label="Estado Anterior">{modal.record.estado_anterior}</Descriptions.Item>
+            <Descriptions.Item label="Estado Nuevo">{modal.record.estado_nuevo}</Descriptions.Item>
+          </Descriptions>
+        )}
+      </Modal>
+
+      {/* Modal de Eliminar */}
+      <Modal
+        title="Eliminar Registro de Inventario"
+        open={modal.visible && modal.type === "delete"}
+        onCancel={closeModal}
+        onOk={handleDelete}
+        okText="Eliminar"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true }}
+      >
+        <p style={{ marginTop: 16 }}>
+          ¿Estás seguro que deseas eliminar el registro del lote <strong>{modal.record?.id_lote}</strong>?
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -19,4 +19,21 @@ export class MockInventarioRepository implements InventarioRepository {
     this.data.push(item);
     return item;
   }
+
+  async getById(id: number): Promise<Inventario | null> {
+    return this.data.find((i) => i.id_inventario === id) ?? null;
+  }
+
+  async update(id: number, data: Partial<Inventario>): Promise<Inventario> {
+    const index = this.data.findIndex((i) => i.id_inventario === id);
+    if (index === -1) throw new Error("Inventario no encontrado");
+    this.data[index] = { ...this.data[index], ...data };
+    return this.data[index];
+  }
+
+  async delete(id: number): Promise<void> {
+    const index = this.data.findIndex((i) => i.id_inventario === id);
+    if (index === -1) throw new Error("Inventario no encontrado");
+    this.data.splice(index, 1);
+  }
 }

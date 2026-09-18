@@ -3,7 +3,7 @@ import { Button, Space, Input, Tag, Modal, Form, Select, Descriptions, message }
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useUsuarios, useRoles } from "@/presentation/hooks";
+import { useUsuarios, useRoles, useEmpresas, useLookup } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -28,6 +28,8 @@ export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
   const { data: roles } = useRoles();
   const { empresaActual } = useEmpresa();
+  const { data: empresas } = useEmpresas();
+  const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -226,7 +228,7 @@ export function UsuariosPage() {
                 {(modal.record.estado ?? "sin estado").toUpperCase()}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Empresa">ID {modal.record.id_empresa}</Descriptions.Item>
+            <Descriptions.Item label="Empresa">{empresaMap[modal.record.id_empresa] ?? modal.record.id_empresa}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

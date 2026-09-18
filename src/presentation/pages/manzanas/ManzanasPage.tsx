@@ -3,7 +3,7 @@ import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useManzanas } from "@/presentation/hooks";
+import { useManzanas, useEtapas, useLookup } from "@/presentation/hooks";
 import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -17,6 +17,8 @@ interface ModalState {
 
 export function ManzanasPage() {
   const { data: manzanas, isLoading } = useManzanas();
+  const { data: etapas } = useEtapas();
+  const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -107,9 +109,10 @@ export function ManzanasPage() {
       onFilter: (value, record) => (record.nombre_codigo ?? "").toLowerCase().includes(String(value).toLowerCase()),
     },
     {
-      title: "Etapa ID",
+      title: "Etapa",
       dataIndex: "id_etapa",
       key: "id_etapa",
+      render: (id: number) => etapaMap[id] ?? `Etapa #${id}`,
       sorter: (a, b) => a.id_etapa - b.id_etapa,
     },
     {
@@ -154,7 +157,7 @@ export function ManzanasPage() {
         {modal.record && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Codigo">{modal.record.nombre_codigo ?? "S/N"}</Descriptions.Item>
-            <Descriptions.Item label="Etapa ID">{modal.record.id_etapa}</Descriptions.Item>
+            <Descriptions.Item label="Etapa">{etapaMap[modal.record.id_etapa] ?? `Etapa #${modal.record.id_etapa}`}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

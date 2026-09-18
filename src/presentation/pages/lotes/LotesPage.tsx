@@ -33,7 +33,7 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useLotes, useManzanas } from "@/presentation/hooks";
+import { useLotes, useManzanas, useLookup } from "@/presentation/hooks";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
@@ -178,6 +178,7 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
 export function LotesPage() {
   const { data: lotes, isLoading, dataUpdatedAt } = useLotes();
   const { data: manzanas } = useManzanas();
+  const manzanaMap = useLookup(manzanas, "id_manzana", "codigo", "Manzana");
   const [searchText, setSearchText] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
@@ -298,11 +299,11 @@ export function LotesPage() {
       key: "id_manzana",
       sorter: (a, b) => a.id_manzana - b.id_manzana,
       filters: manzanas
-        ? Array.from(new Set(manzanas.map((m) => m.id_manzana))).map((id) => ({ text: `Mz. ${id}`, value: id }))
+        ? Array.from(new Set(manzanas.map((m) => m.id_manzana))).map((id) => ({ text: manzanaMap[id] ?? `Mz. ${id}`, value: id }))
         : [],
       onFilter: (value, record) => record.id_manzana === value,
       render: (id: number) => (
-        <Tag style={{ borderRadius: 6, fontWeight: 500 }}>Mz. {id}</Tag>
+        <Tag style={{ borderRadius: 6, fontWeight: 500 }}>{manzanaMap[id] ?? `Mz. ${id}`}</Tag>
       ),
     },
     {
@@ -561,7 +562,7 @@ export function LotesPage() {
         {modal.record && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Numero">{modal.record.numero_lote}</Descriptions.Item>
-            <Descriptions.Item label="Manzana">Manzana {modal.record.id_manzana}</Descriptions.Item>
+            <Descriptions.Item label="Manzana">{manzanaMap[modal.record.id_manzana] ?? `Manzana ${modal.record.id_manzana}`}</Descriptions.Item>
             <Descriptions.Item label="Precio de Lista">
               ${modal.record.precio_lista.toLocaleString()}
             </Descriptions.Item>

@@ -15,4 +15,5 @@ export const inventoryKeys = {
   lotes: (empresaId: number) => ["lotes", empresaId] as const,
   lotesByManzana: (empresaId: number, manzanaId: number) =>
     ["lotes", empresaId, "manzana", manzanaId] as const,
+  inventario: () => ["inventario"] as const,
 };

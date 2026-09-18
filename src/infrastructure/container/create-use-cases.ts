@@ -61,6 +61,10 @@ import { GetRolesByUsuarioUseCase } from "@/application/roles/use-cases/GetRoles
 import { AssignRolUseCase } from "@/application/roles/use-cases/AssignRolUseCase";
 import { RemoveRolUseCase } from "@/application/roles/use-cases/RemoveRolUseCase";
 import { SupabaseCreateSaleTransaction } from "@/infrastructure/transactions/SupabaseCreateSaleTransaction";
+import { GetInventarioUseCase } from "@/application/inventario/use-cases/GetInventarioUseCase";
+import { CreateInventarioUseCase } from "@/application/inventario/use-cases/CreateInventarioUseCase";
+import { UpdateInventarioUseCase } from "@/application/inventario/use-cases/UpdateInventarioUseCase";
+import { DeleteInventarioUseCase } from "@/application/inventario/use-cases/DeleteInventarioUseCase";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
@@ -123,6 +127,10 @@ export interface UseCases {
   getRolesByUsuario: GetRolesByUsuarioUseCase;
   assignRol: AssignRolUseCase;
   removeRol: RemoveRolUseCase;
+  getInventario: GetInventarioUseCase;
+  createInventario: CreateInventarioUseCase;
+  updateInventario: UpdateInventarioUseCase;
+  deleteInventario: DeleteInventarioUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
@@ -195,5 +203,9 @@ export function createUseCases(repos: Repositories): UseCases {
     getRolesByUsuario: new GetRolesByUsuarioUseCase(repos.rolRepo),
     assignRol: new AssignRolUseCase(repos.rolRepo),
     removeRol: new RemoveRolUseCase(repos.rolRepo),
+    getInventario: new GetInventarioUseCase(repos.inventarioRepo),
+    createInventario: new CreateInventarioUseCase(repos.inventarioRepo),
+    updateInventario: new UpdateInventarioUseCase(repos.inventarioRepo),
+    deleteInventario: new DeleteInventarioUseCase(repos.inventarioRepo),
   };
 }

@@ -3,7 +3,7 @@ import { Button, Space, Input, Modal, Form, InputNumber, Descriptions, message }
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useEtapas } from "@/presentation/hooks";
+import { useEtapas, useProyectos, useLookup } from "@/presentation/hooks";
 import type { Etapa } from "@/domain/etapa/entities/Etapa";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -17,6 +17,8 @@ interface ModalState {
 
 export function EtapasPage() {
   const { data: etapas, isLoading } = useEtapas();
+  const { data: proyectos } = useProyectos();
+  const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -155,7 +157,7 @@ export function EtapasPage() {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="Nombre">{modal.record.nombre}</Descriptions.Item>
             <Descriptions.Item label="Orden">{modal.record.orden}</Descriptions.Item>
-            <Descriptions.Item label="Proyecto ID">{modal.record.id_proyecto}</Descriptions.Item>
+            <Descriptions.Item label="Proyecto">{proyectoMap[modal.record.id_proyecto] ?? `Proyecto #${modal.record.id_proyecto}`}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
