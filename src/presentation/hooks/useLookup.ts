@@ -2,7 +2,7 @@ import { useMemo } from "react";
 
 type LookupMap = Record<number, string>;
 
-export function useLookup<T extends Record<string, unknown>>(
+export function useLookup<T>(
   data: T[] | undefined,
   idField: keyof T,
   labelField: keyof T,

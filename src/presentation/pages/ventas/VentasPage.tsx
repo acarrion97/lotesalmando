@@ -26,6 +26,7 @@ import { useVentas, useClientes, useLotes, useUsuarios, useLookup } from "@/pres
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useEmpresa } from "@/presentation/providers";
 
 const { Title, Text } = Typography;
 
@@ -42,8 +43,10 @@ interface ModalState {
 }
 
 export function VentasPage() {
+  const { empresaActual } = useEmpresa();
+  const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: ventas, isLoading } = useVentas();
-  const { data: clientes } = useClientes();
+  const { data: clientes } = useClientes(empresaId);
   const { data: lotes } = useLotes();
   const { data: usuarios } = useUsuarios();
   const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");

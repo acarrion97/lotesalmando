@@ -11,8 +11,6 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
-const { Title, Text } = Typography;
-
 const estadoConfig: Record<AsesorEstado, { color: string; label: string }> = {
   activo: { color: "green", label: "Activo" },
   inactivo: { color: "red", label: "Inactivo" },

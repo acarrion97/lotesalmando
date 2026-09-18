@@ -28,6 +28,7 @@ import { useCotizaciones, useClientes, useLotes, useLookup } from "@/presentatio
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useEmpresa } from "@/presentation/providers";
 
 const estadoConfig: Record<CotizacionEstado, { color: string; label: string }> = {
   borrador: { color: "default", label: "BORRADOR" },
@@ -43,8 +44,10 @@ interface ModalState {
 }
 
 export function CotizacionesPage() {
+  const { empresaActual } = useEmpresa();
+  const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: cotizaciones, isLoading } = useCotizaciones();
-  const { data: clientes } = useClientes();
+  const { data: clientes } = useClientes(empresaId);
   const { data: lotes } = useLotes();
   const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
   const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");

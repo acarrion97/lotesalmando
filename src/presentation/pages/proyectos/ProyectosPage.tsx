@@ -10,8 +10,6 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
-const { Title } = Typography;
-
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
   visible: boolean;

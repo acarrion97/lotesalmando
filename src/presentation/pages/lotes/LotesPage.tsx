@@ -41,8 +41,6 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { loteSchema } from "@/presentation/validations";
 
-const { Title, Text } = Typography;
-
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
     color: "#52c41a",

@@ -11,8 +11,6 @@ import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { usuarioSchema } from "@/presentation/validations";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
-const { Title } = Typography;
-
 const estadoColorMap: Record<UsuarioEstado, string> = {
   activo: "green",
   inactivo: "red",
