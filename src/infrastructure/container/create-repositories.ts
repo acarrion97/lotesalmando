@@ -105,6 +105,7 @@ function createMockRepositories(): Repositories {
 
   const oportunidadRepo: OportunidadRepository = {
     getAll: async () => [],
+    getByEmpresaId: async () => [],
     getByProspectoId: async () => [],
     getById: async () => null,
     create: async (data: Omit<Oportunidad, "id_oportunidad" | "created_at">): Promise<Oportunidad> => ({
