@@ -16,7 +16,6 @@ type ContratoRow = {
 export function ContratosPage() {
   const { data: contratos, isLoading } = useContratos();
   const { data: ventas } = useVentas();
-  const ventaMap = useLookup(ventas, "id_venta", "id_venta", "Venta");
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: ContratoRow | null }>({ visible: false, record: null });
 

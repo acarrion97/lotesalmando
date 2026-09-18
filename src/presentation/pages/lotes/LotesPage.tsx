@@ -176,7 +176,7 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
 export function LotesPage() {
   const { data: lotes, isLoading, dataUpdatedAt } = useLotes();
   const { data: manzanas } = useManzanas();
-  const manzanaMap = useLookup(manzanas, "id_manzana", "codigo", "Manzana");
+  const manzanaMap = useLookup(manzanas, "id_manzana", "nombre_codigo", "Manzana");
   const [searchText, setSearchText] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
