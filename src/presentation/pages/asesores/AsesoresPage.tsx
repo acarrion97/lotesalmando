@@ -9,6 +9,9 @@ import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+
+const { Title, Text } = Typography;
 
 const estadoConfig: Record<AsesorEstado, { color: string; label: string }> = {
   activo: { color: "green", label: "Activo" },
@@ -24,6 +27,7 @@ interface ModalState {
 export function AsesoresPage() {
   const { data: asesores, isLoading } = useAsesores();
   const { data: ventas } = useVentas();
+  const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -94,10 +98,15 @@ export function AsesoresPage() {
   };
 
   const handleCreate = async () => {
+    if (!empresaActual) {
+      messageApi.error("No se pudo determinar la empresa actual");
+      return;
+    }
+
     try {
       const values = await createForm.validateFields();
       const parsed = asesorSchema.parse(values);
-      await container.createAsesor.execute({ ...parsed, id_empresa: 1, id_usuario: null });
+      await container.createAsesor.execute({ ...parsed, id_empresa: empresaActual.id_empresa, id_usuario: null });
       await refresh();
       messageApi.success("Asesor creado");
       setCreateModalOpen(false);

@@ -6,5 +6,6 @@ export interface Cobranza {
   numero_cuota: number;
   monto_cuota: number;
   estado: CobranzaEstado;
+  fecha_vencimiento: string;
   created_at?: string;
 }

@@ -9,6 +9,7 @@ import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
 const { Text } = Typography;
 
@@ -31,6 +32,7 @@ interface ModalState {
 
 export function ProspectosPage() {
   const { data: prospectos, isLoading } = useProspectos();
+  const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -104,10 +106,15 @@ export function ProspectosPage() {
   };
 
   const handleCreate = async () => {
+    if (!empresaActual) {
+      messageApi.error("No se pudo determinar la empresa actual");
+      return;
+    }
+
     try {
       const values = await createForm.validateFields();
       const parsed = prospectoSchema.parse(values);
-      await container.createProspecto.execute({ ...parsed, id_empresa: 1, id_asesor: null, fecha_ultimo_seguimiento: null });
+      await container.createProspecto.execute({ ...parsed, id_empresa: empresaActual.id_empresa, id_asesor: null, fecha_ultimo_seguimiento: null });
       await refresh();
       messageApi.success("Prospecto creado");
       setCreateModalOpen(false);

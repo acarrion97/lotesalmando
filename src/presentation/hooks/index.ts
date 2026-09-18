@@ -24,3 +24,4 @@ export { useOportunidades } from "./useOportunidades";
 export { useActividades } from "./useActividades";
 export { useAsesores } from "./useAsesores";
 export { useOnlineStatus } from "./useOnlineStatus";
+export { useRoles } from "./useRoles";

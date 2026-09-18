@@ -39,6 +39,9 @@ import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { loteSchema } from "@/presentation/validations";
+
+const { Title, Text } = Typography;
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
@@ -224,7 +227,8 @@ export function LotesPage() {
 
     try {
       const values = await editForm.validateFields();
-      await container.updateLote.execute(modal.record.id_lote, values);
+      const parsed = loteSchema.partial().parse(values);
+      await container.updateLote.execute(modal.record.id_lote, parsed);
       await refreshLotes();
       messageApi.success("Lote actualizado correctamente");
       closeModal();
@@ -249,7 +253,8 @@ export function LotesPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createLote.execute(values);
+      const parsed = loteSchema.parse(values);
+      await container.createLote.execute(parsed);
       await refreshLotes();
       messageApi.success("Lote creado correctamente");
       setCreateModalOpen(false);

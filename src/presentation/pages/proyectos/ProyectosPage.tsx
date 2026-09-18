@@ -8,6 +8,9 @@ import type { Proyecto } from "@/domain/proyecto/entities/Proyecto";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+
+const { Title } = Typography;
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -17,6 +20,7 @@ interface ModalState {
 
 export function ProyectosPage() {
   const { data: proyectos, isLoading } = useProyectos();
+  const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -73,9 +77,14 @@ export function ProyectosPage() {
   };
 
   const handleCreate = async () => {
+    if (!empresaActual) {
+      messageApi.error("No se pudo determinar la empresa actual");
+      return;
+    }
+
     try {
       const values = await createForm.validateFields();
-      await container.createProyecto.execute({ ...values, id_empresa: 1 });
+      await container.createProyecto.execute({ ...values, id_empresa: empresaActual.id_empresa });
       await refreshProyectos();
       messageApi.success("Proyecto creado correctamente");
       setCreateModalOpen(false);

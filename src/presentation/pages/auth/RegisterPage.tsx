@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Form, Input, Button, Typography, Alert, message } from "antd";
 import { MailOutlined, LockOutlined, UserOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
+import { registroSchema } from "@/presentation/validations";
 
 const { Text } = Typography;
 
@@ -17,7 +18,14 @@ export function RegisterPage() {
     setLoading(true);
     setError(null);
 
-    const result = await register(values.email, values.password, values.nombres);
+    const parsed = registroSchema.safeParse(values);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Datos invalidos");
+      setLoading(false);
+      return;
+    }
+
+    const result = await register(parsed.data.email, parsed.data.password, parsed.data.nombres);
 
     if (!result.success) {
       setError(result.error || "Error al registrar");
@@ -137,6 +145,11 @@ export function RegisterPage() {
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Ya tienes cuenta? <Link to="/login">Inicia sesion</Link>
+          </Text>
+        </div>
+        <div style={{ textAlign: "center", marginTop: 8 }}>
+          <Text type="secondary" style={{ fontSize: 13 }}>
+            Tu empresa todavia no te invito? <Link to="/registro/empresa">Crea tu empresa</Link>
           </Text>
         </div>
       </div>

@@ -8,7 +8,8 @@ export class DetectarCuotasVencidasUseCase {
 
   async execute(): Promise<number> {
     const pendientes = await this.cobranzaRepo.getAll();
-    const vencidas = pendientes.filter((c) => c.estado === "pendiente");
+    const hoy = new Date();
+    const vencidas = pendientes.filter((c) => c.estado === "pendiente" && new Date(c.fecha_vencimiento) < hoy);
 
     let detectadas = 0;
     for (const cuota of vencidas) {

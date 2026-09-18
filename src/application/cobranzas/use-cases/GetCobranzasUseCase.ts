@@ -20,6 +20,7 @@ export class GetCobranzasUseCase {
       numero_cuota: cobranza.numero_cuota,
       monto_cuota: cobranza.monto_cuota,
       estado: cobranza.estado,
+      fecha_vencimiento: cobranza.fecha_vencimiento,
       created_at: cobranza.created_at,
     };
   }
