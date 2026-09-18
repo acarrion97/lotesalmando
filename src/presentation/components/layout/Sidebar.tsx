@@ -41,6 +41,8 @@ const menuItems: MenuItem[] = [
     type: "group",
     children: [
       { key: "/proyectos", icon: <ProjectOutlined />, label: "Proyectos" },
+      { key: "/etapas", icon: <ProjectOutlined />, label: "Etapas" },
+      { key: "/manzanas", icon: <EnvironmentOutlined />, label: "Manzanas" },
       { key: "/mapas", icon: <EnvironmentOutlined />, label: "Mapas" },
       { key: "/lotes", icon: <HomeOutlined />, label: "Lotes" },
       { key: "/inventario", icon: <InboxOutlined />, label: "Inventario" },

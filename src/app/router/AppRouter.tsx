@@ -6,6 +6,8 @@ import { RegisterPage } from "@/presentation/pages/auth/RegisterPage";
 import { RegisterEmpresaPage } from "@/presentation/pages/auth/RegisterEmpresaPage";
 import { DashboardPage } from "@/presentation/pages/dashboard";
 import { ProyectosPage } from "@/presentation/pages/proyectos";
+import { EtapasPage } from "@/presentation/pages/etapas";
+import { ManzanasPage } from "@/presentation/pages/manzanas";
 import { MapasPage } from "@/presentation/pages/mapas";
 import { LotesPage } from "@/presentation/pages/lotes";
 import { InventarioPage } from "@/presentation/pages/inventario";
@@ -37,6 +39,8 @@ export function AppRouter() {
         >
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/proyectos" element={<ProyectosPage />} />
+          <Route path="/etapas" element={<EtapasPage />} />
+          <Route path="/manzanas" element={<ManzanasPage />} />
           <Route path="/mapas" element={<MapasPage />} />
           <Route path="/lotes" element={<LotesPage />} />
           <Route path="/inventario" element={<InventarioPage />} />
