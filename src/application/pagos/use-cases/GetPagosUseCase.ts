@@ -8,8 +8,10 @@ export class GetPagosUseCase {
     this.pagoRepo = pagoRepo;
   }
 
-  async execute(): Promise<PagoDto[]> {
-    const pagos: Pago[] = await this.pagoRepo.getAll();
+  async execute(empresaId?: number): Promise<PagoDto[]> {
+    const pagos: Pago[] = empresaId
+      ? await this.pagoRepo.getByEmpresaId(empresaId)
+      : await this.pagoRepo.getAll();
     return pagos.map((p) => this.toDto(p));
   }
 

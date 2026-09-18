@@ -7,7 +7,10 @@ export class GetAllEtapasUseCase {
     this.repo = repo;
   }
 
-  async execute(): Promise<Etapa[]> {
+  async execute(empresaId?: number): Promise<Etapa[]> {
+    if (empresaId) {
+      return this.repo.getByEmpresaId(empresaId);
+    }
     return this.repo.getAll();
   }
 }

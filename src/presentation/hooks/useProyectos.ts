@@ -10,7 +10,7 @@ export function useProyectos() {
 
   return useQuery({
     queryKey: inventoryKeys.proyectos(empresaId),
-    queryFn: () => container.getProyectos.execute(),
+    queryFn: () => container.getProyectos.execute(empresaId),
     enabled: !!empresaId,
   });
 }

@@ -1,10 +1,19 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Venta } from "@/domain/venta/entities";
 import type { SaleRepository } from "@/domain/venta/repositories";
+import { getLoteIdsForEmpresa } from "./shared/empresaScope";
 
 export class SupabaseSaleRepository implements SaleRepository {
   async getAll(): Promise<Venta[]> {
     const { data, error } = await supabase.from("ventas").select("*");
+    if (error) throw error;
+    return (data ?? []) as Venta[];
+  }
+
+  async getByEmpresaId(empresaId: number): Promise<Venta[]> {
+    const loteIds = await getLoteIdsForEmpresa(empresaId);
+    if (loteIds.length === 0) return [];
+    const { data, error } = await supabase.from("ventas").select("*").in("id_lote", loteIds);
     if (error) throw error;
     return (data ?? []) as Venta[];
   }

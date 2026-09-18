@@ -8,7 +8,10 @@ export class GetInventarioUseCase {
     this.inventarioRepo = inventarioRepo;
   }
 
-  execute(): Promise<Inventario[]> {
+  async execute(empresaId?: number): Promise<Inventario[]> {
+    if (empresaId) {
+      return this.inventarioRepo.getByEmpresaId(empresaId);
+    }
     return this.inventarioRepo.getAll();
   }
 }

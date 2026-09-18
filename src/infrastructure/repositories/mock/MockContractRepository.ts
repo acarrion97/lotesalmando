@@ -9,6 +9,10 @@ export class MockContractRepository implements ContractRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Contrato[]> {
+    return [...this.data];
+  }
+
   async getById(id: number): Promise<Contrato | null> {
     return this.data.find((c) => c.id_contrato === id) ?? null;
   }

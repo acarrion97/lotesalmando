@@ -9,6 +9,10 @@ export class MockPagoRepository implements PagoRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Pago[]> {
+    return [...this.data];
+  }
+
   async getByCobranzaId(cobranzaId: number): Promise<Pago[]> {
     return this.data.filter((p) => p.id_cobranza === cobranzaId);
   }

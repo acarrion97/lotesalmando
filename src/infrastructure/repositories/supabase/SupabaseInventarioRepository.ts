@@ -9,6 +9,15 @@ export class SupabaseInventarioRepository implements InventarioRepository {
     return (data ?? []) as Inventario[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Inventario[]> {
+    const { data, error } = await supabase
+      .from("inventario")
+      .select("*, lotes!inner(manzana_bloque!inner(etapas!inner(proyectos!inner(id_empresa))))")
+      .eq("lotes.manzana_bloque.etapas.proyectos.id_empresa", empresaId);
+    if (error) throw error;
+    return (data ?? []) as unknown as Inventario[];
+  }
+
   async getByLoteId(loteId: number): Promise<Inventario[]> {
     const { data, error } = await supabase.from("inventario").select("*").eq("id_lote", loteId);
     if (error) throw error;

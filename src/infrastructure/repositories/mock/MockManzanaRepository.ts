@@ -9,6 +9,10 @@ export class MockManzanaRepository implements ManzanaRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Manzana[]> {
+    return [...this.data];
+  }
+
   async getByEtapaId(etapaId: number): Promise<Manzana[]> {
     return this.data.filter((m) => m.id_etapa === etapaId);
   }

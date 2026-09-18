@@ -10,7 +10,7 @@ export function useEtapas() {
 
   return useQuery({
     queryKey: inventoryKeys.etapas(empresaId),
-    queryFn: () => container.getAllEtapas.execute(),
+    queryFn: () => container.getAllEtapas.execute(empresaId),
     enabled: !!empresaId,
   });
 }

@@ -9,6 +9,15 @@ export class SupabaseContractRepository implements ContractRepository {
     return (data ?? []) as Contrato[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Contrato[]> {
+    const { data, error } = await supabase
+      .from("contratos")
+      .select("*, ventas!inner(usuario!inner(id_empresa))")
+      .eq("ventas.usuario.id_empresa", empresaId);
+    if (error) throw error;
+    return (data ?? []) as unknown as Contrato[];
+  }
+
   async getById(id: number): Promise<Contrato | null> {
     const { data, error } = await supabase.from("contratos").select("*").eq("id_contrato", id).single();
     if (error) return null;

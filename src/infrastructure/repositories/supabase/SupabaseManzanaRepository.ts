@@ -9,6 +9,15 @@ export class SupabaseManzanaRepository implements ManzanaRepository {
     return (data ?? []) as Manzana[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Manzana[]> {
+    const { data, error } = await supabase
+      .from("manzana_bloque")
+      .select("*, etapas!inner(id_proyecto, proyectos!inner(id_empresa))")
+      .eq("etapas.proyectos.id_empresa", empresaId);
+    if (error) throw error;
+    return (data ?? []) as unknown as Manzana[];
+  }
+
   async getByEtapaId(etapaId: number): Promise<Manzana[]> {
     const { data, error } = await supabase.from("manzana_bloque").select("*").eq("id_etapa", etapaId);
     if (error) throw error;

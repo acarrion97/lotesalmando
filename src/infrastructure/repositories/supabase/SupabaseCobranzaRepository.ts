@@ -1,10 +1,19 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Cobranza, CobranzaEstado } from "@/domain/cobranza/entities";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
+import { getContratoIdsForEmpresa } from "./shared/empresaScope";
 
 export class SupabaseCobranzaRepository implements CobranzaRepository {
   async getAll(): Promise<Cobranza[]> {
     const { data, error } = await supabase.from("cobranzas").select("*");
+    if (error) throw error;
+    return (data ?? []) as Cobranza[];
+  }
+
+  async getByEmpresaId(empresaId: number): Promise<Cobranza[]> {
+    const contratoIds = await getContratoIdsForEmpresa(empresaId);
+    if (contratoIds.length === 0) return [];
+    const { data, error } = await supabase.from("cobranzas").select("*").in("id_contrato", contratoIds);
     if (error) throw error;
     return (data ?? []) as Cobranza[];
   }

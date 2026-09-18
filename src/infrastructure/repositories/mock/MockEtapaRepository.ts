@@ -9,6 +9,10 @@ export class MockEtapaRepository implements EtapaRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Etapa[]> {
+    return [...this.data];
+  }
+
   async getByProyectoId(proyectoId: number): Promise<Etapa[]> {
     return this.data.filter((e) => e.id_proyecto === proyectoId);
   }

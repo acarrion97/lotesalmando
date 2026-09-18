@@ -10,7 +10,7 @@ export function useManzanas() {
 
   return useQuery({
     queryKey: inventoryKeys.manzanas(empresaId),
-    queryFn: () => container.getAllManzanas.execute(),
+    queryFn: () => container.getAllManzanas.execute(empresaId),
     enabled: !!empresaId,
   });
 }

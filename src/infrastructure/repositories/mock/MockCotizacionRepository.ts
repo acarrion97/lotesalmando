@@ -9,6 +9,10 @@ export class MockCotizacionRepository implements CotizacionRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Cotizacion[]> {
+    return [...this.data];
+  }
+
   async getById(id: number): Promise<Cotizacion | null> {
     return this.data.find((c) => c.id_cotizacion === id) ?? null;
   }

@@ -2,6 +2,7 @@ import type { Inventario } from "../entities";
 
 export interface InventarioRepository {
   getAll(): Promise<Inventario[]>;
+  getByEmpresaId(empresaId: number): Promise<Inventario[]>;
   getByLoteId(loteId: number): Promise<Inventario[]>;
   getById(id: number): Promise<Inventario | null>;
   create(data: Omit<Inventario, "id_inventario">): Promise<Inventario>;

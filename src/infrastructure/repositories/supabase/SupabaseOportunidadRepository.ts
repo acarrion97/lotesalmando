@@ -9,6 +9,12 @@ export class SupabaseOportunidadRepository implements OportunidadRepository {
     return (data ?? []) as Oportunidad[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Oportunidad[]> {
+    const { data, error } = await supabase.from("oportunidades").select("*").eq("id_empresa", empresaId).order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Oportunidad[];
+  }
+
   async getByProspectoId(prospectoId: number): Promise<Oportunidad[]> {
     const { data, error } = await supabase.from("oportunidades").select("*").eq("id_prospecto", prospectoId);
     if (error) throw error;

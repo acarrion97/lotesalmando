@@ -6,7 +6,7 @@ export class GetProspectosUseCase {
   constructor(repo: ProspectoRepository) {
     this.repo = repo;
   }
-  async execute(): Promise<Prospecto[]> {
-    return this.repo.getAll();
+  async execute(empresaId?: number): Promise<Prospecto[]> {
+    return empresaId ? this.repo.getByEmpresaId(empresaId) : this.repo.getAll();
   }
 }

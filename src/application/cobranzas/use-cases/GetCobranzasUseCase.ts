@@ -8,8 +8,10 @@ export class GetCobranzasUseCase {
     this.cobranzaRepo = cobranzaRepo;
   }
 
-  async execute(): Promise<CobranzaDto[]> {
-    const cobranzas: Cobranza[] = await this.cobranzaRepo.getAll();
+  async execute(empresaId?: number): Promise<CobranzaDto[]> {
+    const cobranzas: Cobranza[] = empresaId
+      ? await this.cobranzaRepo.getByEmpresaId(empresaId)
+      : await this.cobranzaRepo.getAll();
     return cobranzas.map((c) => this.toDto(c));
   }
 

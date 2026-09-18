@@ -19,18 +19,20 @@ import {
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useProyectos, useLotes, useVentas, useCobranzas, usePagos, useClientes, useAsesores, useOnlineStatus } from "@/presentation/hooks";
+import { useEmpresa } from "@/presentation/providers";
 import { formatCurrency } from "@/utils";
 
 const { Title, Text } = Typography;
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const { empresaActual } = useEmpresa();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: lotes, isLoading: loadingLotes } = useLotes();
   const { data: ventas, isLoading: loadingVentas } = useVentas();
   const { data: cobranzas, isLoading: loadingCobranzas } = useCobranzas();
   const { data: pagos, isLoading: loadingPagos } = usePagos();
-  const { data: clientes } = useClientes(1);
+  const { data: clientes } = useClientes(empresaActual?.id_empresa ?? 0);
   const { data: asesores } = useAsesores();
   const isOnline = useOnlineStatus();
 

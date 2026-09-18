@@ -9,6 +9,10 @@ export class MockInventarioRepository implements InventarioRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Inventario[]> {
+    return [...this.data];
+  }
+
   async getByLoteId(loteId: number): Promise<Inventario[]> {
     return this.data.filter((i) => i.id_lote === loteId);
   }

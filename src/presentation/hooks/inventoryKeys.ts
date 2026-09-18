@@ -1,8 +1,10 @@
 /**
- * Tenant-aware query key factory for inventory data (proyectos, etapas,
- * manzanas, lotes, mapa). `empresaId` is a required parameter so a key can
- * never be built without it — this is the structural guard that
- * `offline/tenant-isolation` depends on before persistence is added.
+ * Tenant-aware query key factory. `empresaId` is a required parameter so a
+ * key can never be built without it — this is the structural guard that
+ * `offline/tenant-isolation` depends on for the inventory domains
+ * (proyectos, etapas, manzanas, lotes) that are eligible for offline
+ * persistence; the other domains reuse the same shape purely so their
+ * query cache is correctly scoped per empresa.
  */
 export const inventoryKeys = {
   proyectos: (empresaId: number) => ["proyectos", empresaId] as const,
@@ -16,4 +18,8 @@ export const inventoryKeys = {
   lotesByManzana: (empresaId: number, manzanaId: number) =>
     ["lotes", empresaId, "manzana", manzanaId] as const,
   inventario: () => ["inventario"] as const,
+  ventas: (empresaId: number) => ["ventas", empresaId] as const,
+  cobranzas: (empresaId: number) => ["cobranzas", empresaId] as const,
+  pagos: (empresaId: number) => ["pagos", empresaId] as const,
+  asesores: (empresaId: number) => ["asesores", empresaId] as const,
 };

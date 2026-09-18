@@ -9,6 +9,15 @@ export class SupabaseCotizacionRepository implements CotizacionRepository {
     return (data ?? []) as Cotizacion[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Cotizacion[]> {
+    const { data, error } = await supabase
+      .from("cotizador")
+      .select("*, lotes!inner(manzana_bloque!inner(etapas!inner(proyectos!inner(id_empresa))))")
+      .eq("lotes.manzana_bloque.etapas.proyectos.id_empresa", empresaId);
+    if (error) throw error;
+    return (data ?? []) as unknown as Cotizacion[];
+  }
+
   async getById(id: number): Promise<Cotizacion | null> {
     const { data, error } = await supabase.from("cotizador").select("*").eq("id_cotizacion", id).single();
     if (error) return null;

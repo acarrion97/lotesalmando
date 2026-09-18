@@ -7,7 +7,10 @@ export class GetAllManzanasUseCase {
     this.repo = repo;
   }
 
-  async execute(): Promise<Manzana[]> {
+  async execute(empresaId?: number): Promise<Manzana[]> {
+    if (empresaId) {
+      return this.repo.getByEmpresaId(empresaId);
+    }
     return this.repo.getAll();
   }
 }

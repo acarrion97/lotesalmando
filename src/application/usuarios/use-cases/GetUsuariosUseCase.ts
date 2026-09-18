@@ -8,8 +8,10 @@ export class GetUsuariosUseCase {
     this.usuarioRepo = usuarioRepo;
   }
 
-  async execute(): Promise<UsuarioDto[]> {
-    const usuarios: Usuario[] = await this.usuarioRepo.getAll();
+  async execute(empresaId?: number): Promise<UsuarioDto[]> {
+    const usuarios: Usuario[] = empresaId
+      ? await this.usuarioRepo.getByEmpresaId(empresaId)
+      : await this.usuarioRepo.getAll();
     return usuarios.map((u) => this.toDto(u));
   }
 

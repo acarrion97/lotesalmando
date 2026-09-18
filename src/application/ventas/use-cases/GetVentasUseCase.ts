@@ -8,8 +8,10 @@ export class GetVentasUseCase {
     this.saleRepo = saleRepo;
   }
 
-  async execute(): Promise<VentaDto[]> {
-    const ventas: Venta[] = await this.saleRepo.getAll();
+  async execute(empresaId?: number): Promise<VentaDto[]> {
+    const ventas: Venta[] = empresaId
+      ? await this.saleRepo.getByEmpresaId(empresaId)
+      : await this.saleRepo.getAll();
     return ventas.map((v) => this.toDto(v));
   }
 

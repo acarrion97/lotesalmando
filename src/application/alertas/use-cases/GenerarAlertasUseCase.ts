@@ -30,11 +30,13 @@ export class GenerarAlertasUseCase {
     this.cobranzaRepo = cobranzaRepo;
   }
 
-  async execute(config: AlertasConfig = defaultConfig): Promise<Alerta[]> {
+  async execute(config: AlertasConfig = defaultConfig, empresaId?: number): Promise<Alerta[]> {
     const alertas: Alerta[] = [];
 
     // 1. Alertas de inventario
-    const lotes = await this.lotRepo.getAll();
+    const lotes = empresaId
+      ? await this.lotRepo.getByEmpresaId(empresaId)
+      : await this.lotRepo.getAll();
     const disponibles = lotes.filter((l) => l.estado === "disponible").length;
     if (disponibles < config.stockMinimo) {
       alertas.push({
@@ -50,7 +52,9 @@ export class GenerarAlertasUseCase {
     }
 
     // 2. Alertas de seguimiento
-    const prospectos = await this.prospectoRepo.getAll();
+    const prospectos = empresaId
+      ? await this.prospectoRepo.getByEmpresaId(empresaId)
+      : await this.prospectoRepo.getAll();
     const ahora = new Date();
     for (const p of prospectos) {
       if (!p.fecha_ultimo_seguimiento) continue;
@@ -72,7 +76,9 @@ export class GenerarAlertasUseCase {
     }
 
     // 3. Alertas de cartera por vencer
-    const cobranzas = await this.cobranzaRepo.getAll();
+    const cobranzas = empresaId
+      ? await this.cobranzaRepo.getByEmpresaId(empresaId)
+      : await this.cobranzaRepo.getAll();
     const hoy = new Date();
     const en7Dias = new Date(hoy.getTime() + config.diasCarteraVencer * 24 * 60 * 60 * 1000);
     const porVencer = cobranzas.filter((c) => {

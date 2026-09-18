@@ -1,10 +1,19 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Pago } from "@/domain/pago/entities";
 import type { PagoRepository } from "@/domain/pago/repositories";
+import { getCobranzaIdsForEmpresa } from "./shared/empresaScope";
 
 export class SupabasePagoRepository implements PagoRepository {
   async getAll(): Promise<Pago[]> {
     const { data, error } = await supabase.from("pagos").select("*");
+    if (error) throw error;
+    return (data ?? []) as Pago[];
+  }
+
+  async getByEmpresaId(empresaId: number): Promise<Pago[]> {
+    const cobranzaIds = await getCobranzaIdsForEmpresa(empresaId);
+    if (cobranzaIds.length === 0) return [];
+    const { data, error } = await supabase.from("pagos").select("*").in("id_cobranza", cobranzaIds);
     if (error) throw error;
     return (data ?? []) as Pago[];
   }

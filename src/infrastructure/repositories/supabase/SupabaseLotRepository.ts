@@ -1,10 +1,19 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Lote, LoteEstado } from "@/domain/lote/entities";
 import type { LotRepository } from "@/domain/lote/repositories";
+import { getLoteIdsForEmpresa } from "./shared/empresaScope";
 
 export class SupabaseLotRepository implements LotRepository {
   async getAll(): Promise<Lote[]> {
     const { data, error } = await supabase.from("lotes").select("*");
+    if (error) throw error;
+    return (data ?? []) as Lote[];
+  }
+
+  async getByEmpresaId(empresaId: number): Promise<Lote[]> {
+    const loteIds = await getLoteIdsForEmpresa(empresaId);
+    if (loteIds.length === 0) return [];
+    const { data, error } = await supabase.from("lotes").select("*").in("id_lote", loteIds);
     if (error) throw error;
     return (data ?? []) as Lote[];
   }

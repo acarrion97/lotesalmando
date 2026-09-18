@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
+import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -16,7 +17,9 @@ interface ModalState {
 }
 
 export function ClientesPage() {
-  const { data: clientes, isLoading } = useClientes(1);
+  const { empresaActual } = useEmpresa();
+  const empresaId = empresaActual?.id_empresa ?? 0;
+  const { data: clientes, isLoading } = useClientes(empresaId);
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -26,7 +29,7 @@ export function ClientesPage() {
   const queryClient = useQueryClient();
   const container = getContainer();
 
-  const refreshClientes = () => queryClient.invalidateQueries({ queryKey: ["clientes", 1] });
+  const refreshClientes = () => queryClient.invalidateQueries({ queryKey: ["clientes", empresaId] });
 
   const filteredData = useMemo(() => {
     if (!clientes) return [];

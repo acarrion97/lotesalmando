@@ -8,8 +8,10 @@ export class GetCotizacionesUseCase {
     this.cotizacionRepo = cotizacionRepo;
   }
 
-  async execute(): Promise<CotizacionDto[]> {
-    const cotizaciones: Cotizacion[] = await this.cotizacionRepo.getAll();
+  async execute(empresaId?: number): Promise<CotizacionDto[]> {
+    const cotizaciones: Cotizacion[] = empresaId
+      ? await this.cotizacionRepo.getByEmpresaId(empresaId)
+      : await this.cotizacionRepo.getAll();
     return cotizaciones.map((c) => this.toDto(c));
   }
 

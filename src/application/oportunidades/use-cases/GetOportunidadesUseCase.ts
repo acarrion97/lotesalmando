@@ -6,7 +6,7 @@ export class GetOportunidadesUseCase {
   constructor(repo: OportunidadRepository) {
     this.repo = repo;
   }
-  async execute(): Promise<Oportunidad[]> {
-    return this.repo.getAll();
+  async execute(empresaId?: number): Promise<Oportunidad[]> {
+    return empresaId ? this.repo.getByEmpresaId(empresaId) : this.repo.getAll();
   }
 }

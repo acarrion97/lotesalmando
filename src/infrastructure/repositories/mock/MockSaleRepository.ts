@@ -9,6 +9,10 @@ export class MockSaleRepository implements SaleRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Venta[]> {
+    return [...this.data];
+  }
+
   async getById(id: number): Promise<Venta | null> {
     return this.data.find((v) => v.id_venta === id) ?? null;
   }

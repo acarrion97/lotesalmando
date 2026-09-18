@@ -18,8 +18,10 @@ export class GetCarteraMetricasUseCase {
     this.cobranzaRepo = cobranzaRepo;
   }
 
-  async execute(): Promise<CarteraMetricas> {
-    const cobranzas = await this.cobranzaRepo.getAll();
+  async execute(empresaId?: number): Promise<CarteraMetricas> {
+    const cobranzas = empresaId
+      ? await this.cobranzaRepo.getByEmpresaId(empresaId)
+      : await this.cobranzaRepo.getAll();
 
     const pendientes = cobranzas.filter((c) => c.estado === "pendiente");
     const pagadas = cobranzas.filter((c) => c.estado === "pagada");

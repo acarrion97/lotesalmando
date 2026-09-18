@@ -18,6 +18,11 @@ export class MockLotRepository implements LotRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Lote[]> {
+    // Mock data is single-tenant demo data; every empresa sees the same set.
+    return [...this.data];
+  }
+
   async getByManzanaId(manzanaId: number): Promise<Lote[]> {
     return this.data.filter((l) => l.id_manzana === manzanaId);
   }

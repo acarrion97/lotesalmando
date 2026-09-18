@@ -9,6 +9,10 @@ export class MockCobranzaRepository implements CobranzaRepository {
     return [...this.data];
   }
 
+  async getByEmpresaId(_empresaId: number): Promise<Cobranza[]> {
+    return [...this.data];
+  }
+
   async getByContratoId(contratoId: number): Promise<Cobranza[]> {
     return this.data.filter((c) => c.id_contrato === contratoId);
   }

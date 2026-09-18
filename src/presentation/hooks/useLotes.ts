@@ -10,7 +10,7 @@ export function useLotes() {
 
   return useQuery({
     queryKey: inventoryKeys.lotes(empresaId),
-    queryFn: () => container.getLotes.execute(),
+    queryFn: () => container.getLotes.execute(empresaId),
     enabled: !!empresaId,
   });
 }

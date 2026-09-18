@@ -2,6 +2,7 @@ import type { Lote, LoteEstado } from "../entities";
 
 export interface LotRepository {
   getAll(): Promise<Lote[]>;
+  getByEmpresaId(empresaId: number): Promise<Lote[]>;
   getByManzanaId(manzanaId: number): Promise<Lote[]>;
   getAvailableByManzanaId(manzanaId: number): Promise<Lote[]>;
   getById(id: number): Promise<Lote | null>;

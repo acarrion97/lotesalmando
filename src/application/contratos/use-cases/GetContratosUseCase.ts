@@ -8,8 +8,10 @@ export class GetContratosUseCase {
     this.contractRepo = contractRepo;
   }
 
-  async execute(): Promise<ContratoDto[]> {
-    const contratos: Contrato[] = await this.contractRepo.getAll();
+  async execute(empresaId?: number): Promise<ContratoDto[]> {
+    const contratos: Contrato[] = empresaId
+      ? await this.contractRepo.getByEmpresaId(empresaId)
+      : await this.contractRepo.getAll();
     return contratos.map((c) => this.toDto(c));
   }
 

@@ -9,6 +9,15 @@ export class SupabaseEtapaRepository implements EtapaRepository {
     return (data ?? []) as Etapa[];
   }
 
+  async getByEmpresaId(empresaId: number): Promise<Etapa[]> {
+    const { data, error } = await supabase
+      .from("etapas")
+      .select("*, proyectos!inner(id_empresa)")
+      .eq("proyectos.id_empresa", empresaId);
+    if (error) throw error;
+    return (data ?? []) as unknown as Etapa[];
+  }
+
   async getByProyectoId(proyectoId: number): Promise<Etapa[]> {
     const { data, error } = await supabase.from("etapas").select("*").eq("id_proyecto", proyectoId);
     if (error) throw error;

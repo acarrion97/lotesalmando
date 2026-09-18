@@ -2,6 +2,7 @@ import type { Oportunidad } from "../entities";
 
 export interface OportunidadRepository {
   getAll(): Promise<Oportunidad[]>;
+  getByEmpresaId(empresaId: number): Promise<Oportunidad[]>;
   getByProspectoId(prospectoId: number): Promise<Oportunidad[]>;
   getById(id: number): Promise<Oportunidad | null>;
   create(data: Omit<Oportunidad, "id_oportunidad" | "created_at">): Promise<Oportunidad>;

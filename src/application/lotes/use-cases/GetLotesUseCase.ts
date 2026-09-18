@@ -8,8 +8,10 @@ export class GetLotesUseCase {
     this.lotRepository = lotRepository;
   }
 
-  async execute(): Promise<LoteDto[]> {
-    const lotes: Lote[] = await this.lotRepository.getAll();
+  async execute(empresaId?: number): Promise<LoteDto[]> {
+    const lotes: Lote[] = empresaId
+      ? await this.lotRepository.getByEmpresaId(empresaId)
+      : await this.lotRepository.getAll();
     return lotes.map((l) => this.toDto(l));
   }
 
