@@ -5,7 +5,7 @@ export const prospectoSchema = z.object({
   email: z.string().email("Email invalido"),
   telefono: z.string().min(8, "Minimo 8 caracteres").max(20),
   origen: z.string().min(1, "Requerido"),
-  estado: z.enum(["nuevo", "contactado", "interesado", "negociacion", "reserva", "perdido"]),
+  estado: z.enum(["nuevo", "contactado", "interesado", "negociacion", "reserva", "perdido"]).default("nuevo"),
   notas: z.string().max(1000).optional().default(""),
   id_asesor: z.number().nullable().optional(),
 });

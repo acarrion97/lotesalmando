@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, message, Row, Col, Statistic, Tooltip } from "antd";
+import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, Select, message, Row, Col, Statistic, Tooltip } from "antd";
 import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePagos, useOnlineStatus, useCobranzas, useLookup } from "@/presentation/hooks";
+import { usePagos, useOnlineStatus, useCobranzas, useContratos, useLookup } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { pagoSchema } from "@/presentation/validations";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -21,7 +21,9 @@ type PagoRow = {
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
   const { data: cobranzas } = useCobranzas();
+  const { data: contratos } = useContratos();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
+  const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
@@ -37,6 +39,17 @@ export function PagosPage() {
       montoTotal: pagos.reduce((sum, p) => sum + p.monto_pagado, 0),
     };
   }, [pagos]);
+
+  const cobranzaOptions = useMemo(
+    () =>
+      (cobranzas ?? [])
+        .filter((c) => c.estado !== "pagada")
+        .map((c) => ({
+          value: c.id_cobranza,
+          label: `${contratoMap[c.id_contrato] ?? `Contrato #${c.id_contrato}`} - Cuota ${c.numero_cuota} - $${c.monto_cuota.toLocaleString()} (vence ${new Date(c.fecha_vencimiento).toLocaleDateString()})`,
+        })),
+    [cobranzas, contratoMap]
+  );
 
   const filteredData = useMemo(() => {
     if (!pagos) return [];
@@ -168,8 +181,17 @@ export function PagosPage() {
       {/* Create Modal */}
       <Modal title="Registrar Pago" open={createModalOpen} onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }} onOk={handleCreate} okText="Registrar" cancelText="Cancelar">
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="id_cobranza" label="ID Cobranza" rules={[{ required: true, message: "Ingrese el ID de la cobranza" }]}>
-            <InputNumber style={{ width: "100%" }} min={1} placeholder="ID de la cobranza a pagar" />
+          <Form.Item name="id_cobranza" label="Cobranza" rules={[{ required: true, message: "Seleccione la cobranza" }]}>
+            <Select
+              showSearch
+              placeholder="Seleccione la cobranza a pagar"
+              optionFilterProp="label"
+              options={cobranzaOptions}
+              onChange={(id: number) => {
+                const cobranza = cobranzas?.find((c) => c.id_cobranza === id);
+                if (cobranza) createForm.setFieldValue("monto_pagado", cobranza.monto_cuota);
+              }}
+            />
           </Form.Item>
           <Form.Item name="monto_pagado" label="Monto a Pagar" rules={[{ required: true, message: "Ingrese el monto" }]}>
             <InputNumber style={{ width: "100%" }} min={0} step={100} prefix="$" />

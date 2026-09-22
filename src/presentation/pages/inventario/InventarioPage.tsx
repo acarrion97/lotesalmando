@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Modal, Form, message, Descriptions, Spin } from "antd";
+import { Button, Space, Input, Modal, Form, Select, message, Descriptions, Spin } from "antd";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import type { Inventario } from "@/domain/inventario/entities/Inventario";
@@ -9,6 +9,15 @@ import { useInventario, useLotes, useUsuarios, useLookup } from "@/presentation/
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
+
+const estadoOptions = [
+  { value: "disponible", label: "Disponible" },
+  { value: "reservado", label: "Reservado" },
+  { value: "en_negociacion", label: "En Negociacion" },
+  { value: "vendido", label: "Vendido" },
+  { value: "bloqueado", label: "Bloqueado" },
+  { value: "no_disponible", label: "No Disponible" },
+];
 
 type ModalType = "create" | "edit" | "view" | "delete" | null;
 
@@ -42,6 +51,21 @@ export function InventarioPage() {
         i.estado_nuevo.toLowerCase().includes(searchText.toLowerCase())
     );
   }, [inventario, searchText]);
+
+  const loteOptions = useMemo(
+    () => (lotes ?? []).map((l) => ({ value: l.id_lote, label: `Lote ${l.numero_lote}` })),
+    [lotes]
+  );
+  const usuarioOptions = useMemo(
+    () => (usuarios ?? []).map((u) => ({ value: u.id_usuario, label: u.nombres })),
+    [usuarios]
+  );
+
+  const handleCreateValuesChange = (changed: { id_lote?: number }) => {
+    if (changed.id_lote === undefined) return;
+    const lote = lotes?.find((l) => l.id_lote === changed.id_lote);
+    if (lote) createForm.setFieldsValue({ estado_anterior: lote.estado });
+  };
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: inventoryKeys.inventario() });
 
@@ -218,34 +242,44 @@ export function InventarioPage() {
         okText="Crear"
         cancelText="Cancelar"
       >
-        <Form form={createForm} layout="vertical">
+        <Form form={createForm} layout="vertical" onValuesChange={handleCreateValuesChange}>
           <Form.Item
             name="id_lote"
             label="Lote"
-            rules={[{ required: true, message: "Ingrese el ID del lote" }]}
+            rules={[{ required: true, message: "Seleccione el lote" }]}
           >
-            <Input type="number" placeholder="ID del lote" />
+            <Select
+              showSearch
+              placeholder="Seleccionar lote"
+              options={loteOptions}
+              optionFilterProp="label"
+            />
           </Form.Item>
           <Form.Item
             name="id_usuario"
             label="Usuario"
-            rules={[{ required: true, message: "Ingrese el ID del usuario" }]}
+            rules={[{ required: true, message: "Seleccione el usuario" }]}
           >
-            <Input type="number" placeholder="ID del usuario" />
+            <Select
+              showSearch
+              placeholder="Seleccionar usuario"
+              options={usuarioOptions}
+              optionFilterProp="label"
+            />
           </Form.Item>
           <Form.Item
             name="estado_anterior"
             label="Estado Anterior"
-            rules={[{ required: true, message: "Ingrese el estado anterior" }]}
+            rules={[{ required: true, message: "Seleccione el estado anterior" }]}
           >
-            <Input placeholder="Estado anterior" />
+            <Select placeholder="Seleccionar estado anterior" options={estadoOptions} />
           </Form.Item>
           <Form.Item
             name="estado_nuevo"
             label="Estado Nuevo"
-            rules={[{ required: true, message: "Ingrese el estado nuevo" }]}
+            rules={[{ required: true, message: "Seleccione el estado nuevo" }]}
           >
-            <Input placeholder="Estado nuevo" />
+            <Select placeholder="Seleccionar estado nuevo" options={estadoOptions} />
           </Form.Item>
         </Form>
       </Modal>
@@ -259,13 +293,21 @@ export function InventarioPage() {
         okText="Guardar"
         cancelText="Cancelar"
       >
+        {modal.record && (
+          <Descriptions bordered column={1} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions.Item label="Lote">{loteMap[modal.record.id_lote] ? `${loteMap[modal.record.id_lote]} #${modal.record.id_lote}` : `Lote #${modal.record.id_lote}`}</Descriptions.Item>
+            <Descriptions.Item label="Usuario">{usuarioMap[modal.record.id_usuario] ?? `Usuario #${modal.record.id_usuario}`}</Descriptions.Item>
+            <Descriptions.Item label="Estado Anterior">{modal.record.estado_anterior}</Descriptions.Item>
+            <Descriptions.Item label="Estado Nuevo actual">{modal.record.estado_nuevo}</Descriptions.Item>
+          </Descriptions>
+        )}
         <Form form={editForm} layout="vertical">
           <Form.Item
             name="estado_nuevo"
             label="Estado Nuevo"
-            rules={[{ required: true, message: "Ingrese el estado nuevo" }]}
+            rules={[{ required: true, message: "Seleccione el estado nuevo" }]}
           >
-            <Input placeholder="Estado nuevo" />
+            <Select placeholder="Seleccionar estado nuevo" options={estadoOptions} />
           </Form.Item>
         </Form>
       </Modal>

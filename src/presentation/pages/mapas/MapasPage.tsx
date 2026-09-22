@@ -20,8 +20,9 @@ import {
   MailOutlined,
   PhoneOutlined,
 } from "@ant-design/icons";
-import { useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus } from "@/presentation/hooks";
+import { useProyectos, useClientes, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus } from "@/presentation/hooks";
 import { useAuth } from "@/presentation/providers";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
@@ -96,6 +97,8 @@ export function MapasPage() {
   const createVentaMutation = useCreateVenta();
   const isOnline = useOnlineStatus();
 
+  const { empresaActual } = useEmpresa();
+  const { data: clientes, isLoading: loadingClientes } = useClientes(empresaActual?.id_empresa ?? 0);
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanasData, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
@@ -502,7 +505,20 @@ export function MapasPage() {
       >
         <Steps current={cotizacionStep} items={[{ title: "Cliente" }, { title: "Precio" }]} style={{ marginBottom: 24 }} />
         {cotizacionStep === 0 ? (
-          <Alert message="Seleccione el cliente para la cotizacion" type="info" showIcon style={{ marginBottom: 16 }} />
+          <>
+            <Alert message="Seleccione el cliente para la cotizacion" type="info" showIcon style={{ marginBottom: 16 }} />
+            <Select
+              style={{ width: "100%" }}
+              placeholder="Seleccionar cliente"
+              loading={loadingClientes}
+              showSearch
+              optionFilterProp="label"
+              value={selectedCliente}
+              onChange={setSelectedCliente}
+              notFoundContent="No hay clientes registrados"
+              options={clientes?.map((c) => ({ value: c.id_cliente, label: `${c.nombres} - ${c.cedula_ruc}` })) ?? []}
+            />
+          </>
         ) : (
           <Form form={cotizacionForm} layout="vertical">
             <Alert message={`Lote ${selectedLote?.numero_lote} - Precio lista: $${selectedLote?.precio_lista?.toLocaleString()}`} type="success" showIcon style={{ marginBottom: 16 }} />
