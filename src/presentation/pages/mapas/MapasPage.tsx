@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Typography, Tag, Button, Modal, Descriptions, Select, Row, Col, Card, Statistic, Form, InputNumber, Input, Steps, message, Timeline, Alert, Spin, Empty } from "antd";
-import type { Lote } from "@/domain/lote/entities/Lote";
+import { Typography, Tag, Button, Modal, Descriptions, Select, Row, Col, Card, Statistic, Form, InputNumber, Input, Steps, message, Timeline, Alert, Spin, Empty, Space } from "antd";
+import type { Lote, PuntoPlano } from "@/domain/lote/entities/Lote";
+import type { PlanoLote } from "@/domain/mapa/entities";
 import type { Etapa } from "@/domain/etapa/entities/Etapa";
 import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import {
@@ -19,12 +20,17 @@ import {
   UserOutlined,
   MailOutlined,
   PhoneOutlined,
+  EditOutlined,
+  UndoOutlined,
+  SaveOutlined,
+  LinkOutlined,
 } from "@ant-design/icons";
-import { useProyectos, useClientes, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus } from "@/presentation/hooks";
+import { useProyectos, useClientes, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus, useMapaByProyecto, useLotesPlano } from "@/presentation/hooks";
 import { useAuth } from "@/presentation/providers";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
+import { PlanoInteractivo, LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 
 async function findOrCreateCliente(nombres: string, cedula_ruc: string, email: string) {
@@ -73,7 +79,7 @@ export function MapasPage() {
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
   const [selectedEtapa, setSelectedEtapa] = useState<number | null>(null);
   const [selectedManzana, setSelectedManzana] = useState<number | null>(null);
-  const [selectedLote, setSelectedLote] = useState<PositionedLote | null>(null);
+  const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [cotizacionStep, setCotizacionStep] = useState(0);
   const [reservaStep, setReservaStep] = useState(0);
@@ -103,6 +109,12 @@ export function MapasPage() {
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanasData, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
   const { data: lotesData, isLoading: loadingLotes, dataUpdatedAt: lotesUpdatedAt } = useLotesByManzana(selectedManzana ?? 0);
+  const { data: mapaProyecto } = useMapaByProyecto(selectedProyecto ?? 0);
+
+  const urlPlano = mapaProyecto?.url_publica ?? null;
+  // Si la imagen no carga (URL vieja, objeto borrado), se cae al fondo de siempre.
+  const [planosConFallo, setPlanosConFallo] = useState<string[]>([]);
+  const hayPlano = !!urlPlano && !planosConFallo.includes(urlPlano);
 
   const currentProyecto = useMemo(() => {
     if (!proyectos || !selectedProyecto) return null;
@@ -116,6 +128,73 @@ export function MapasPage() {
       return { ...lote, ...pos };
     });
   }, [lotesData]);
+
+  // Sin plano: grilla genérica de la manzana sobre un fondo verde.
+  const estiloContenedor: CSSProperties = {
+    position: "relative",
+    width: "100%",
+    minHeight: 280,
+    paddingBottom: "min(60%, 520px)",
+    overflow: "hidden",
+    background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)",
+  };
+
+  // --- Con plano: todos los lotes del proyecto dibujados sobre la imagen ---
+  const { data: lotesPlano, isLoading: loadingLotesPlano } = useLotesPlano(hayPlano ? (selectedProyecto ?? 0) : 0);
+  const [dibujando, setDibujando] = useState<{ lote: PlanoLote; puntos: PuntoPlano[] } | null>(null);
+  const [guardandoPoligono, setGuardandoPoligono] = useState(false);
+  const [loteAUbicar, setLoteAUbicar] = useState<number | null>(null);
+
+  const lotesSinUbicar = useMemo(
+    () => (lotesPlano ?? []).filter((l) => !l.poligono || l.poligono.length < 3),
+    [lotesPlano],
+  );
+  const lotesUbicados = (lotesPlano?.length ?? 0) - lotesSinUbicar.length;
+
+  // Con una manzana elegida se resaltan sus lotes y se atenúa el resto.
+  const resaltados = useMemo(
+    () => (selectedManzana && lotesPlano
+      ? new Set(lotesPlano.filter((l) => l.id_manzana === selectedManzana).map((l) => l.id_lote))
+      : null),
+    [lotesPlano, selectedManzana],
+  );
+
+  const empezarDibujo = (loteId: number) => {
+    const lote = lotesPlano?.find((l) => l.id_lote === loteId);
+    if (!lote) return;
+    setModalType(null);
+    setSelectedLote(null);
+    setDibujando({ lote, puntos: [] });
+  };
+
+  const guardarPoligono = async (poligono: PuntoPlano[] | null) => {
+    const lote = dibujando?.lote ?? null;
+    if (!lote) return;
+    setGuardandoPoligono(true);
+    try {
+      await getContainer().guardarPoligonoLote.execute(lote.id_lote, poligono);
+      await queryClient.invalidateQueries({ queryKey: ["mapa"] });
+      message.success(poligono ? `${etiquetaLote(lote)} ubicado en el plano` : `${etiquetaLote(lote)} quitado del plano`);
+      setDibujando(null);
+      setLoteAUbicar(null);
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "No se pudo guardar el contorno");
+    } finally {
+      setGuardandoPoligono(false);
+    }
+  };
+
+  const abrirLoteDelPlano = (lote: PlanoLote) => {
+    setSelectedLote({
+      id_lote: lote.id_lote,
+      id_manzana: lote.id_manzana,
+      numero_lote: lote.numero_lote,
+      precio_lista: lote.precio_lista ?? 0,
+      estado: lote.estado,
+      poligono: lote.poligono,
+    });
+    openModal("detail");
+  };
 
   const stats = useMemo(() => {
     if (!lotesData) return { total: 0, disponibles: 0, reservados: 0, vendidos: 0 };
@@ -164,12 +243,21 @@ export function MapasPage() {
     setSelectedLote(null);
   };
 
-  const handleLoteClick = (lote: PositionedLote) => {
+  const handleLoteClick = (lote: Lote) => {
     setSelectedLote(lote);
     openModal("detail");
   };
 
   const navigateLote = (direction: "prev" | "next") => {
+    // Con plano se recorren los lotes ubicados (de la manzana elegida, si hay).
+    if (hayPlano && lotesPlano) {
+      const lista = lotesPlano.filter((l) => l.poligono && (!resaltados || resaltados.has(l.id_lote)));
+      if (!selectedLote || !lista.length) return;
+      const idx = lista.findIndex((l) => l.id_lote === selectedLote.id_lote);
+      const sig = direction === "next" ? (idx + 1) % lista.length : (idx - 1 + lista.length) % lista.length;
+      abrirLoteDelPlano(lista[sig]);
+      return;
+    }
     if (!selectedLote || !lotesConPosicion.length) return;
     const currentIndex = lotesConPosicion.findIndex((l: PositionedLote) => l.id_lote === selectedLote.id_lote);
     const newIndex = direction === "next"
@@ -341,14 +429,20 @@ export function MapasPage() {
         </Col>
       </Row>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {Object.entries(estadoConfig).map(([key, config]) => (
-          <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#fff", borderRadius: 6, border: "1px solid #f0f0f0", fontSize: 12 }}>
-            <div style={{ width: 14, height: 14, borderRadius: 4, background: config.bg, border: `2px solid ${config.border}` }} />
-            <span style={{ fontSize: 12 }}>{config.label}</span>
-          </div>
-        ))}
-      </div>
+      {hayPlano ? (
+        <div style={{ marginBottom: 16 }}>
+          <LeyendaPlano lotes={(lotesPlano ?? []).filter((l) => l.poligono)} />
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          {Object.entries(estadoConfig).map(([key, config]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#fff", borderRadius: 6, border: "1px solid #f0f0f0", fontSize: 12 }}>
+              <div style={{ width: 14, height: 14, borderRadius: 4, background: config.bg, border: `2px solid ${config.border}` }} />
+              <span style={{ fontSize: 12 }}>{config.label}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <Card style={{ borderRadius: 12, overflow: "hidden" }} styles={{ body: { padding: 0 } }}>
         <div style={{ padding: "12px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa" }}>
@@ -358,20 +452,89 @@ export function MapasPage() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             {selectedManzana && lotesData && <FreshnessBadge dataUpdatedAt={lotesUpdatedAt} />}
+            {hayPlano && mapaProyecto?.slug && (
+              <Button size="small" icon={<LinkOutlined />} href={`/mapa/${mapaProyecto.slug}`} target="_blank">
+                Mapa público
+              </Button>
+            )}
             <BookOutlined style={{ color: "#8c8c8c" }} />
           </div>
         </div>
 
-        {isLoading ? (
+        {hayPlano && lotesPlano && (
+          dibujando ? (
+            <div style={{ padding: "10px 20px", background: "#e6f4ff", borderBottom: "1px solid #91caff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <Text>
+                <EditOutlined style={{ marginRight: 8, color: "#1677ff" }} />
+                Dibujando <strong>{etiquetaLote(dibujando.lote)}</strong>: haga clic en cada esquina del lote
+                <Text type="secondary"> ({dibujando.puntos.length} {dibujando.puntos.length === 1 ? "punto" : "puntos"})</Text>
+              </Text>
+              <Space wrap size={8}>
+                <Button size="small" icon={<UndoOutlined />} disabled={!dibujando.puntos.length || guardandoPoligono} onClick={() => setDibujando({ ...dibujando, puntos: dibujando.puntos.slice(0, -1) })}>
+                  Deshacer
+                </Button>
+                {dibujando.lote.poligono && (
+                  <Button size="small" danger disabled={guardandoPoligono} onClick={() => guardarPoligono(null)}>
+                    Quitar del plano
+                  </Button>
+                )}
+                <Button size="small" disabled={guardandoPoligono} onClick={() => setDibujando(null)}>
+                  Cancelar
+                </Button>
+                <Button size="small" type="primary" icon={<SaveOutlined />} loading={guardandoPoligono} disabled={dibujando.puntos.length < 3} onClick={() => guardarPoligono(dibujando.puntos)}>
+                  Guardar contorno
+                </Button>
+              </Space>
+            </div>
+          ) : (
+            <div style={{ padding: "10px 20px", borderBottom: "1px solid #f0f0f0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <Text type="secondary" style={{ fontSize: 13 }}>
+                {lotesUbicados} de {lotesPlano.length} lotes ubicados en el plano
+              </Text>
+              <Space.Compact>
+                <Select
+                  showSearch
+                  placeholder={lotesSinUbicar.length ? `Ubicar lote (${lotesSinUbicar.length} sin ubicar)` : "Redibujar un lote"}
+                  style={{ width: 260 }}
+                  value={loteAUbicar}
+                  onChange={setLoteAUbicar}
+                  optionFilterProp="label"
+                  options={[...lotesPlano]
+                    .sort((a, b) => Number(!!a.poligono) - Number(!!b.poligono))
+                    .map((l) => ({ value: l.id_lote, label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}` }))}
+                />
+                <Button type="primary" icon={<EditOutlined />} disabled={!loteAUbicar} onClick={() => loteAUbicar && empezarDibujo(loteAUbicar)}>
+                  Dibujar
+                </Button>
+              </Space.Compact>
+            </div>
+          )
+        )}
+
+        {isLoading || (hayPlano && loadingLotesPlano) ? (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 400 }}>
             <Spin size="large" />
           </div>
+        ) : hayPlano && urlPlano ? (
+          <PlanoInteractivo
+            imagenUrl={urlPlano}
+            lotes={lotesPlano ?? []}
+            resaltados={resaltados}
+            mostrarPrecio
+            onLoteClick={abrirLoteDelPlano}
+            onImagenError={() => setPlanosConFallo((prev) => (prev.includes(urlPlano) ? prev : [...prev, urlPlano]))}
+            dibujo={dibujando && {
+              puntos: dibujando.puntos,
+              loteId: dibujando.lote.id_lote,
+              onAgregarPunto: (p) => setDibujando((d) => (d ? { ...d, puntos: [...d.puntos, p] } : d)),
+            }}
+          />
         ) : !selectedManzana ? (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 400 }}>
             <Empty description="Seleccione un proyecto, etapa y manzana para ver el mapa" />
           </div>
         ) : (
-          <div style={{ position: "relative", width: "100%", minHeight: 280, paddingBottom: "min(60%, 520px)", overflow: "hidden", background: "linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)" }}>
+          <div style={estiloContenedor}>
             {lotesConPosicion.map((lote: PositionedLote) => {
               const config = estadoConfig[lote.estado] ?? estadoConfig.disponible;
               return (
@@ -486,6 +649,11 @@ export function MapasPage() {
                 <Button type="primary" block size="large" icon={<DollarOutlined />} disabled={!!commercialActionBlockedReason} onClick={() => openModal("venta")}>Crear Venta</Button>
               )}
               <Button block icon={<HistoryOutlined />} onClick={() => openModal("historial")}>Ver historial</Button>
+              {hayPlano && lotesPlano?.some((l) => l.id_lote === selectedLote.id_lote) && (
+                <Button block icon={<EditOutlined />} onClick={() => empezarDibujo(selectedLote.id_lote)}>
+                  {selectedLote.poligono ? "Redibujar en el plano" : "Ubicar en el plano"}
+                </Button>
+              )}
             </div>
           </div>
         )}

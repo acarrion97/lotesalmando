@@ -22,4 +22,11 @@ export const inventoryKeys = {
   cobranzas: (empresaId: number) => ["cobranzas", empresaId] as const,
   pagos: (empresaId: number) => ["pagos", empresaId] as const,
   asesores: (empresaId: number) => ["asesores", empresaId] as const,
+  configuracion: (empresaId: number) => ["configuracion", empresaId] as const,
+  /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */
+  mapaByProyecto: (empresaId: number, proyectoId: number) =>
+    ["mapa", empresaId, proyectoId] as const,
+  /** Lotes del proyecto con su contorno sobre el plano. */
+  lotesPlano: (empresaId: number, proyectoId: number) =>
+    ["mapa", empresaId, proyectoId, "lotes"] as const,
 };

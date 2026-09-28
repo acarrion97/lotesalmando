@@ -5,6 +5,7 @@ import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePagos, useOnlineStatus, useCobranzas, useContratos, useLookup } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
+import { useAuth } from "@/presentation/providers";
 import { pagoSchema } from "@/presentation/validations";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -20,6 +21,7 @@ type PagoRow = {
 
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
+  const { user } = useAuth();
   const { data: cobranzas } = useCobranzas();
   const { data: contratos } = useContratos();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
@@ -66,13 +68,17 @@ export function PagosPage() {
       messageApi.error("Sin conexión: no se puede registrar un pago");
       return;
     }
+    if (!user?.id_usuario) {
+      messageApi.error("No se pudo identificar al usuario actual, vuelva a iniciar sesión");
+      return;
+    }
     try {
       const values = await createForm.validateFields();
       const parsed = pagoSchema.parse(values);
       const container = getContainer();
       await container.registerPago.execute({
         id_cobranza: parsed.id_cobranza,
-        id_usuario: 1,
+        id_usuario: user.id_usuario,
         monto_pagado: parsed.monto_pagado,
         fecha_pago: new Date().toISOString(),
       });

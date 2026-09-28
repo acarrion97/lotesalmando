@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Modal, Form, InputNumber, Descriptions, message } from "antd";
+import { Button, Space, Input, Modal, Form, InputNumber, Select, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
@@ -20,6 +20,7 @@ export function EtapasPage() {
   const { data: proyectos } = useProyectos();
   const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
@@ -30,16 +31,23 @@ export function EtapasPage() {
 
   const refreshEtapas = () => queryClient.invalidateQueries({ queryKey: ["etapas"] });
 
+  const proyectoOptions = useMemo(
+    () => (proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre })),
+    [proyectos]
+  );
+
   const filteredData = useMemo(() => {
     if (!etapas) return [];
-    return etapas.filter((e) =>
-      e.nombre.toLowerCase().includes(searchText.toLowerCase())
+    return etapas.filter(
+      (e) =>
+        (proyectoFilter === null || e.id_proyecto === proyectoFilter) &&
+        e.nombre.toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [etapas, searchText]);
+  }, [etapas, searchText, proyectoFilter]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Etapa) => {
     setModal({ type, visible: true, record });
-    if (type === "edit") editForm.setFieldsValue({ nombre: record.nombre, orden: record.orden });
+    if (type === "edit") editForm.setFieldsValue({ nombre: record.nombre, orden: record.orden, id_proyecto: record.id_proyecto });
   };
 
   const closeModal = () => {
@@ -75,7 +83,7 @@ export function EtapasPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createEtapa.execute({ ...values, id_proyecto: 1 });
+      await container.createEtapa.execute({ ...values, id_proyecto: Number(values.id_proyecto) });
       await refreshEtapas();
       messageApi.success("Etapa creada correctamente");
       setCreateModalOpen(false);
@@ -86,6 +94,16 @@ export function EtapasPage() {
   };
 
   const columns: TableColumnType<Etapa>[] = [
+    {
+      title: "Proyecto",
+      dataIndex: "id_proyecto",
+      key: "id_proyecto",
+      width: 180,
+      render: (id: number) => proyectoMap[id] ?? `Proyecto #${id}`,
+      filters: proyectoOptions.map((o) => ({ text: o.label, value: o.value })),
+      onFilter: (value, record) => record.id_proyecto === value,
+      sorter: (a, b) => a.id_proyecto - b.id_proyecto,
+    },
     {
       title: "Nombre",
       dataIndex: "nombre",
@@ -133,8 +151,18 @@ export function EtapasPage() {
       <PageToolbar
         title="Etapas"
         search={{ value: searchText, onChange: setSearchText }}
+        extra={
+          <Select
+            allowClear
+            placeholder="Todos los proyectos"
+            value={proyectoFilter}
+            onChange={(value) => setProyectoFilter(value ?? null)}
+            options={proyectoOptions}
+            style={{ minWidth: 220 }}
+          />
+        }
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.setFieldsValue({ id_proyecto: proyectoFilter ?? undefined }); setCreateModalOpen(true); }}>
             Nueva Etapa
           </Button>
         }
@@ -172,6 +200,9 @@ export function EtapasPage() {
         cancelText="Cancelar"
       >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="id_proyecto" label="Proyecto" rules={[{ required: true, message: "Seleccione el proyecto" }]}>
+            <Select options={proyectoOptions} placeholder="Seleccione un proyecto" showSearch optionFilterProp="label" />
+          </Form.Item>
           <Form.Item name="nombre" label="Nombre" rules={[{ required: true, message: "Ingrese el nombre de la etapa" }]}>
             <Input />
           </Form.Item>
@@ -191,6 +222,9 @@ export function EtapasPage() {
         cancelText="Cancelar"
       >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="id_proyecto" label="Proyecto" rules={[{ required: true, message: "Seleccione el proyecto" }]}>
+            <Select options={proyectoOptions} placeholder="Seleccione un proyecto" showSearch optionFilterProp="label" />
+          </Form.Item>
           <Form.Item name="nombre" label="Nombre" rules={[{ required: true, message: "Ingrese el nombre de la etapa" }]}>
             <Input />
           </Form.Item>

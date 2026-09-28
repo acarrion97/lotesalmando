@@ -16,6 +16,9 @@ import type { OportunidadRepository } from "@/domain/oportunidad/repositories";
 import type { ActividadRepository } from "@/domain/actividad/repositories";
 import type { AsesorRepository } from "@/domain/asesor/repositories";
 import type { RolRepository } from "@/domain/rol/repositories";
+import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
+import type { MapaRepository } from "@/domain/mapa/repositories";
+import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
 import type { Actividad } from "@/domain/actividad/entities";
@@ -35,6 +38,9 @@ import { MockInventarioRepository } from "@/infrastructure/repositories/mock/Moc
 import { MockEtapaRepository } from "@/infrastructure/repositories/mock/MockEtapaRepository";
 import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockManzanaRepository";
 import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
+import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/MockConfiguracionRepository";
+import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
+import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
@@ -54,6 +60,9 @@ import { SupabaseOportunidadRepository } from "@/infrastructure/repositories/sup
 import { SupabaseActividadRepository } from "@/infrastructure/repositories/supabase/SupabaseActividadRepository";
 import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase/SupabaseAsesorRepository";
 import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
+import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
+import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
+import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
@@ -74,6 +83,10 @@ export interface Repositories {
   actividadRepo: ActividadRepository;
   asesorRepo: AsesorRepository;
   rolRepo: RolRepository;
+  configuracionRepo: ConfiguracionRepository;
+  mapaRepo: MapaRepository;
+  /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
+  mapaImageStorage: MapaImageStorage;
 }
 
 function createMockRepositories(): Repositories {
@@ -178,6 +191,9 @@ function createMockRepositories(): Repositories {
     actividadRepo,
     asesorRepo,
     rolRepo: new MockRolRepository(),
+    configuracionRepo: new MockConfiguracionRepository(),
+    mapaRepo: new MockMapaRepository(),
+    mapaImageStorage: new MockMapaImageStorage(),
   };
 }
 
@@ -210,6 +226,9 @@ function createSupabaseRepositories(): Repositories {
     actividadRepo: new SupabaseActividadRepository(),
     asesorRepo: new SupabaseAsesorRepository(),
     rolRepo: new SupabaseRolRepository(),
+    configuracionRepo: new SupabaseConfiguracionRepository(),
+    mapaRepo: new SupabaseMapaRepository(),
+    mapaImageStorage: new SupabaseMapaImageStorage(),
   };
 }
 

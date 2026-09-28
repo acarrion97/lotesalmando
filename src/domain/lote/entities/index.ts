@@ -1,1 +1,1 @@
-export type { Lote, LoteEstado } from "./Lote";
+export type { Lote, LoteEstado, PuntoPlano } from "./Lote";

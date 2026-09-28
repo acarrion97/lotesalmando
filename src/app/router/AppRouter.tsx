@@ -9,6 +9,7 @@ import { ProyectosPage } from "@/presentation/pages/proyectos";
 import { EtapasPage } from "@/presentation/pages/etapas";
 import { ManzanasPage } from "@/presentation/pages/manzanas";
 import { MapasPage } from "@/presentation/pages/mapas";
+import { MapaPublicoPage } from "@/presentation/pages/mapa-publico";
 import { LotesPage } from "@/presentation/pages/lotes";
 import { InventarioPage } from "@/presentation/pages/inventario";
 import { ClientesPage } from "@/presentation/pages/clientes";
@@ -30,6 +31,7 @@ export function AppRouter() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/registro" element={<RegisterPage />} />
         <Route path="/registro/empresa" element={<RegisterEmpresaPage />} />
+        <Route path="/mapa/:slug" element={<MapaPublicoPage />} />
         <Route
           element={
             <ProtectedRoute>

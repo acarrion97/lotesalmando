@@ -33,7 +33,7 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useLotes, useManzanas, useLookup } from "@/presentation/hooks";
+import { useLotes, useManzanas, useEtapas, useProyectos, useLookup } from "@/presentation/hooks";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
@@ -86,7 +86,7 @@ interface ModalState {
   record: Lote | null;
 }
 
-function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" | "edit" | "delete", record: Lote) => void }) {
+function LoteGridCard({ lote, manzanaNombre, onAction }: { lote: Lote; manzanaNombre?: string; onAction: (type: "view" | "edit" | "delete", record: Lote) => void }) {
   const config = estadoConfig[lote.estado] ?? estadoConfig.disponible;
 
   return (
@@ -130,7 +130,7 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 18, color: "#1a1a1a" }}>{lote.numero_lote}</div>
-            <div style={{ color: "#8c8c8c", fontSize: 12 }}>Manzana {lote.id_manzana}</div>
+            <div style={{ color: "#8c8c8c", fontSize: 12 }}>{manzanaNombre ?? `Manzana ${lote.id_manzana}`}</div>
           </div>
         </div>
         <Tag
@@ -176,7 +176,11 @@ function LoteGridCard({ lote, onAction }: { lote: Lote; onAction: (type: "view" 
 export function LotesPage() {
   const { data: lotes, isLoading, dataUpdatedAt } = useLotes();
   const { data: manzanas } = useManzanas();
+  const { data: etapas } = useEtapas();
+  const { data: proyectos } = useProyectos();
   const manzanaMap = useLookup(manzanas, "id_manzana", "nombre_codigo", "Manzana");
+  const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
+  const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
@@ -188,6 +192,22 @@ export function LotesPage() {
   const container = getContainer();
 
   const refreshLotes = () => queryClient.invalidateQueries({ queryKey: ["lotes"] });
+
+  // Opciones de manzana agrupadas por "Proyecto · Etapa" para poder asignar sin escribir IDs.
+  const manzanaOptions = useMemo(() => {
+    const groups = new Map<string, { label: string; options: { label: string; value: number }[] }>();
+    for (const m of manzanas ?? []) {
+      const etapa = etapas?.find((e) => e.id_etapa === m.id_etapa);
+      const groupLabel =
+        [etapa ? proyectoMap[etapa.id_proyecto] : undefined, etapaMap[m.id_etapa]]
+          .filter(Boolean)
+          .join(" · ") || "Sin etapa";
+      const group = groups.get(groupLabel) ?? { label: groupLabel, options: [] };
+      group.options.push({ label: m.nombre_codigo || `Manzana ${m.id_manzana}`, value: m.id_manzana });
+      groups.set(groupLabel, group);
+    }
+    return Array.from(groups.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [manzanas, etapas, etapaMap, proyectoMap]);
 
   const stats = useMemo(() => {
     if (!lotes) return { total: 0, disponibles: 0, reservados: 0, vendidos: 0, valorTotal: 0 };
@@ -212,7 +232,7 @@ export function LotesPage() {
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ numero_lote: record.numero_lote, precio_lista: record.precio_lista, estado: record.estado });
+      editForm.setFieldsValue({ numero_lote: record.numero_lote, precio_lista: record.precio_lista, estado: record.estado, id_manzana: record.id_manzana });
     }
   };
 
@@ -226,7 +246,7 @@ export function LotesPage() {
 
     try {
       const values = await editForm.validateFields();
-      const parsed = loteSchema.partial().parse(values);
+      const parsed = loteSchema.partial().parse({ ...values, id_manzana: values.id_manzana !== undefined ? Number(values.id_manzana) : undefined });
       await container.updateLote.execute(modal.record.id_lote, parsed);
       await refreshLotes();
       messageApi.success("Lote actualizado correctamente");
@@ -252,7 +272,7 @@ export function LotesPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      const parsed = loteSchema.parse(values);
+      const parsed = loteSchema.parse({ ...values, id_manzana: Number(values.id_manzana) });
       await container.createLote.execute(parsed);
       await refreshLotes();
       messageApi.success("Lote creado correctamente");
@@ -537,7 +557,7 @@ export function LotesPage() {
               <Row gutter={[16, 16]}>
                 {filteredData.map((lote) => (
                   <Col key={lote.id_lote} xs={24} sm={12} md={8} lg={6}>
-                    <LoteGridCard lote={lote} onAction={openModal} />
+                    <LoteGridCard lote={lote} manzanaNombre={manzanaMap[lote.id_manzana] ?? `Manzana ${lote.id_manzana}`} onAction={openModal} />
                   </Col>
                 ))}
               </Row>
@@ -591,6 +611,19 @@ export function LotesPage() {
             <Input />
           </Form.Item>
           <Form.Item
+            name="id_manzana"
+            label="Manzana"
+            rules={[{ required: true, message: "Seleccione la manzana" }]}
+          >
+            <Select
+              options={manzanaOptions}
+              placeholder="Seleccione una manzana"
+              showSearch
+              optionFilterProp="label"
+              notFoundContent={manzanas?.length ? "Sin manzanas disponibles" : "Cargando manzanas..."}
+            />
+          </Form.Item>
+          <Form.Item
             name="precio_lista"
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
@@ -642,9 +675,15 @@ export function LotesPage() {
           <Form.Item
             name="id_manzana"
             label="Manzana"
-            rules={[{ required: true, message: "Ingrese la manzana" }]}
+            rules={[{ required: true, message: "Seleccione la manzana" }]}
           >
-            <InputNumber style={{ width: "100%" }} min={1} />
+            <Select
+              options={manzanaOptions}
+              placeholder="Seleccione una manzana"
+              showSearch
+              optionFilterProp="label"
+              notFoundContent={manzanas?.length ? "Sin manzanas disponibles" : "Cargando manzanas..."}
+            />
           </Form.Item>
           <Form.Item
             name="precio_lista"
