@@ -5,6 +5,7 @@ export { ventaSchema, type VentaFormData } from "./ventaSchema";
 export { pagoSchema, type PagoFormData } from "./pagoSchema";
 export { usuarioSchema, type UsuarioFormData } from "./usuarioSchema";
 export { loteSchema, type LoteFormData } from "./loteSchema";
+export { configuracionSchema, type ConfiguracionFormData } from "./configuracionSchema";
 export { loginSchema, type LoginFormData } from "./loginSchema";
 export { registroSchema, type RegistroFormData } from "./registroSchema";
 export { registroEmpresaSchema, type RegistroEmpresaFormData } from "./registroEmpresaSchema";

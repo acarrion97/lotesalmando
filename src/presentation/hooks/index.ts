@@ -26,4 +26,8 @@ export { useAsesores } from "./useAsesores";
 export { useInventario } from "./useInventario";
 export { useOnlineStatus } from "./useOnlineStatus";
 export { useRoles } from "./useRoles";
+export { useConfiguracion } from "./useConfiguracion";
+export { useMapaByProyecto } from "./useMapaByProyecto";
 export { useLookup } from "./useLookup";
+export { useLotesPlano } from "./useLotesPlano";
+export { useMapaPublico } from "./useMapaPublico";

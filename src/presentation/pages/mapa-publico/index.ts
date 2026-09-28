@@ -1,0 +1,1 @@
+export { MapaPublicoPage } from "./MapaPublicoPage";

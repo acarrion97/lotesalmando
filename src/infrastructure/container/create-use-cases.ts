@@ -65,6 +65,15 @@ import { GetInventarioUseCase } from "@/application/inventario/use-cases/GetInve
 import { CreateInventarioUseCase } from "@/application/inventario/use-cases/CreateInventarioUseCase";
 import { UpdateInventarioUseCase } from "@/application/inventario/use-cases/UpdateInventarioUseCase";
 import { DeleteInventarioUseCase } from "@/application/inventario/use-cases/DeleteInventarioUseCase";
+import { GetConfiguracionUseCase } from "@/application/configuracion/use-cases/GetConfiguracionUseCase";
+import { SaveConfiguracionUseCase } from "@/application/configuracion/use-cases/SaveConfiguracionUseCase";
+import { GetMapaByProyectoUseCase } from "@/application/mapas/use-cases/GetMapaByProyectoUseCase";
+import { SubirImagenMapaUseCase } from "@/application/mapas/use-cases/SubirImagenMapaUseCase";
+import { QuitarImagenMapaUseCase } from "@/application/mapas/use-cases/QuitarImagenMapaUseCase";
+import { GetLotesPlanoUseCase } from "@/application/mapas/use-cases/GetLotesPlanoUseCase";
+import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/GuardarPoligonoLoteUseCase";
+import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
+import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
@@ -131,6 +140,15 @@ export interface UseCases {
   createInventario: CreateInventarioUseCase;
   updateInventario: UpdateInventarioUseCase;
   deleteInventario: DeleteInventarioUseCase;
+  getConfiguracion: GetConfiguracionUseCase;
+  saveConfiguracion: SaveConfiguracionUseCase;
+  getMapaByProyecto: GetMapaByProyectoUseCase;
+  subirImagenMapa: SubirImagenMapaUseCase;
+  quitarImagenMapa: QuitarImagenMapaUseCase;
+  getLotesPlano: GetLotesPlanoUseCase;
+  guardarPoligonoLote: GuardarPoligonoLoteUseCase;
+  publicarMapa: PublicarMapaUseCase;
+  getMapaPublico: GetMapaPublicoUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
@@ -207,5 +225,14 @@ export function createUseCases(repos: Repositories): UseCases {
     createInventario: new CreateInventarioUseCase(repos.inventarioRepo),
     updateInventario: new UpdateInventarioUseCase(repos.inventarioRepo),
     deleteInventario: new DeleteInventarioUseCase(repos.inventarioRepo),
+    getConfiguracion: new GetConfiguracionUseCase(repos.configuracionRepo),
+    saveConfiguracion: new SaveConfiguracionUseCase(repos.configuracionRepo),
+    getMapaByProyecto: new GetMapaByProyectoUseCase(repos.mapaRepo),
+    subirImagenMapa: new SubirImagenMapaUseCase(repos.mapaRepo, repos.mapaImageStorage),
+    quitarImagenMapa: new QuitarImagenMapaUseCase(repos.mapaRepo, repos.mapaImageStorage),
+    getLotesPlano: new GetLotesPlanoUseCase(repos.mapaRepo),
+    guardarPoligonoLote: new GuardarPoligonoLoteUseCase(repos.mapaRepo),
+    publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
+    getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
   };
 }

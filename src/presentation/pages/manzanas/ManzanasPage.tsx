@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
+import { Button, Space, Input, Modal, Form, Select, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useManzanas, useEtapas, useLookup } from "@/presentation/hooks";
+import { useManzanas, useEtapas, useProyectos, useLookup } from "@/presentation/hooks";
 import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -18,8 +18,11 @@ interface ModalState {
 export function ManzanasPage() {
   const { data: manzanas, isLoading } = useManzanas();
   const { data: etapas } = useEtapas();
+  const { data: proyectos } = useProyectos();
   const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
+  const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
+  const [etapaFilter, setEtapaFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
@@ -30,16 +33,28 @@ export function ManzanasPage() {
 
   const refreshManzanas = () => queryClient.invalidateQueries({ queryKey: ["manzanas"] });
 
+  // Etiquetas con el proyecto delante para distinguir etapas homónimas de otro proyecto.
+  const etapaOptions = useMemo(
+    () =>
+      (etapas ?? []).map((e) => ({
+        value: e.id_etapa,
+        label: proyectoMap[e.id_proyecto] ? `${proyectoMap[e.id_proyecto]} · ${e.nombre}` : e.nombre,
+      })),
+    [etapas, proyectoMap]
+  );
+
   const filteredData = useMemo(() => {
     if (!manzanas) return [];
-    return manzanas.filter((m) =>
-      (m.nombre_codigo ?? "").toLowerCase().includes(searchText.toLowerCase())
+    return manzanas.filter(
+      (m) =>
+        (etapaFilter === null || m.id_etapa === etapaFilter) &&
+        (m.nombre_codigo ?? "").toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [manzanas, searchText]);
+  }, [manzanas, searchText, etapaFilter]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Manzana) => {
     setModal({ type, visible: true, record });
-    if (type === "edit") editForm.setFieldsValue({ nombre_codigo: record.nombre_codigo });
+    if (type === "edit") editForm.setFieldsValue({ nombre_codigo: record.nombre_codigo, id_etapa: record.id_etapa });
   };
 
   const closeModal = () => {
@@ -75,7 +90,7 @@ export function ManzanasPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createManzana.execute({ ...values, id_etapa: 1 });
+      await container.createManzana.execute({ ...values, id_etapa: Number(values.id_etapa) });
       await refreshManzanas();
       messageApi.success("Manzana creada correctamente");
       setCreateModalOpen(false);
@@ -113,6 +128,8 @@ export function ManzanasPage() {
       dataIndex: "id_etapa",
       key: "id_etapa",
       render: (id: number) => etapaMap[id] ?? `Etapa #${id}`,
+      filters: etapaOptions.map((o) => ({ text: o.label, value: o.value })),
+      onFilter: (value, record) => record.id_etapa === value,
       sorter: (a, b) => a.id_etapa - b.id_etapa,
     },
     {
@@ -134,8 +151,18 @@ export function ManzanasPage() {
       <PageToolbar
         title="Manzanas"
         search={{ value: searchText, onChange: setSearchText }}
+        extra={
+          <Select
+            allowClear
+            placeholder="Todas las etapas"
+            value={etapaFilter}
+            onChange={(value) => setEtapaFilter(value ?? null)}
+            options={etapaOptions}
+            style={{ minWidth: 240 }}
+          />
+        }
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.setFieldsValue({ id_etapa: etapaFilter ?? undefined }); setCreateModalOpen(true); }}>
             Nueva Manzana
           </Button>
         }
@@ -172,6 +199,9 @@ export function ManzanasPage() {
         cancelText="Cancelar"
       >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="id_etapa" label="Etapa" rules={[{ required: true, message: "Seleccione la etapa" }]}>
+            <Select options={etapaOptions} placeholder="Seleccione una etapa" showSearch optionFilterProp="label" />
+          </Form.Item>
           <Form.Item name="nombre_codigo" label="Codigo" rules={[{ required: true, message: "Ingrese el codigo de la manzana" }]}>
             <Input />
           </Form.Item>
@@ -188,6 +218,9 @@ export function ManzanasPage() {
         cancelText="Cancelar"
       >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item name="id_etapa" label="Etapa" rules={[{ required: true, message: "Seleccione la etapa" }]}>
+            <Select options={etapaOptions} placeholder="Seleccione una etapa" showSearch optionFilterProp="label" />
+          </Form.Item>
           <Form.Item name="nombre_codigo" label="Codigo" rules={[{ required: true, message: "Ingrese el codigo de la manzana" }]}>
             <Input />
           </Form.Item>
