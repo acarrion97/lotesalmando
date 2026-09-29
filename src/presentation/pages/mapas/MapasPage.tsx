@@ -25,17 +25,20 @@ import {
   SaveOutlined,
   LinkOutlined,
 } from "@ant-design/icons";
-import { useProyectos, useClientes, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus, useMapaByProyecto, useLotesPlano } from "@/presentation/hooks";
+import { useProyectos, useTodosClientes, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana, useReservarLote, useCreateVenta, useOnlineStatus, useMapaByProyecto, useLotesPlano } from "@/presentation/hooks";
 import { useAuth } from "@/presentation/providers";
-import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { PlanoInteractivo, LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 
+// The scoped client list (GetClientesUseCase) only contains clients with a
+// venta or cotizacion, so a client created here would never be found again.
+// Look through the full list instead, otherwise every reserva/venta creates
+// a duplicate row for the same cedula/email.
 async function findOrCreateCliente(nombres: string, cedula_ruc: string, email: string) {
   const container = getContainer();
-  const clientes = await container.getClientes.execute(0);
+  const clientes = await container.getAllClientes.execute();
   const existing = clientes.find((c) => c.email === email || c.cedula_ruc === cedula_ruc);
   if (existing) return existing;
   return container.createCliente.execute({ nombres, cedula_ruc, email });
@@ -103,8 +106,7 @@ export function MapasPage() {
   const createVentaMutation = useCreateVenta();
   const isOnline = useOnlineStatus();
 
-  const { empresaActual } = useEmpresa();
-  const { data: clientes, isLoading: loadingClientes } = useClientes(empresaActual?.id_empresa ?? 0);
+  const { data: clientes, isLoading: loadingClientes } = useTodosClientes();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanasData, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
@@ -270,12 +272,27 @@ export function MapasPage() {
     if (cotizacionStep === 0) {
       if (!selectedCliente) { message.warning("Seleccione un cliente"); return; }
       setCotizacionStep(1);
-    } else {
-      cotizacionForm.validateFields().then((values) => {
-        message.success(`Cotizacion $${values.precio_ofertado.toLocaleString()} creada para Lote ${selectedLote?.numero_lote}`);
-        closeModal();
-      });
+      return;
     }
+    if (!selectedLote || !selectedCliente) { message.error("Seleccione un cliente"); return; }
+    cotizacionForm
+      .validateFields()
+      .then(async (values) => {
+        try {
+          await getContainer().createCotizacion.execute({
+            id_cliente: selectedCliente,
+            id_lote: selectedLote.id_lote,
+            precio_ofertado: values.precio_ofertado,
+            estado: "borrador",
+          });
+          await queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+          message.success(`Cotizacion $${values.precio_ofertado.toLocaleString()} creada para Lote ${selectedLote.numero_lote}`);
+          closeModal();
+        } catch (err) {
+          message.error(err instanceof Error ? err.message : "Error al crear la cotizacion");
+        }
+      })
+      .catch(() => undefined);
   };
 
   const handleReservar = () => {
@@ -351,6 +368,9 @@ export function MapasPage() {
           closeModal();
         } catch (err) {
           message.error(err instanceof Error ? err.message : "Error al registrar la venta");
+          // the cotizacion may already be stored even if the venta failed
+          await queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+          await queryClient.invalidateQueries({ queryKey: ["clientes"] });
         } finally {
           setVentaSubmitting(false);
         }
@@ -699,9 +719,6 @@ export function MapasPage() {
                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
                 parser={(value) => Number(value?.replace(/,/g, "") || 0)}
               />
-            </Form.Item>
-            <Form.Item name="observaciones" label="Observaciones">
-              <Input.TextArea rows={3} placeholder="Notas adicionales..." />
             </Form.Item>
           </Form>
         )}

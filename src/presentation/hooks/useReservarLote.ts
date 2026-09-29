@@ -10,6 +10,8 @@ export function useReservarLote() {
       container.reservarLote.execute(loteId, usuarioId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
+      queryClient.invalidateQueries({ queryKey: ["inventario"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
     },
   });
 }

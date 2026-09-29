@@ -24,11 +24,12 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCotizaciones, useClientes, useLotes, useLookup } from "@/presentation/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCotizaciones, useTodosClientes, useLotes, useLookup } from "@/presentation/hooks";
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
-import { useEmpresa } from "@/presentation/providers";
+import { getContainer } from "@/infrastructure/container";
 
 const estadoConfig: Record<CotizacionEstado, { color: string; label: string }> = {
   borrador: { color: "default", label: "BORRADOR" },
@@ -44,16 +45,15 @@ interface ModalState {
 }
 
 export function CotizacionesPage() {
-  const { empresaActual } = useEmpresa();
-  const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: cotizaciones, isLoading } = useCotizaciones();
-  const { data: clientes } = useClientes(empresaId);
+  const { data: clientes } = useTodosClientes();
   const { data: lotes } = useLotes();
   const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
   const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
   const [searchText, setSearchText] = useState("");
   const [modalState, setModalState] = useState<ModalState>({ type: null, visible: false, record: null });
   const [form] = Form.useForm();
+  const queryClient = useQueryClient();
 
   const stats = useMemo(() => {
     if (!cotizaciones) return { total: 0, borrador: 0, enviada: 0, aceptada: 0, rechazada: 0 };
@@ -87,11 +87,36 @@ export function CotizacionesPage() {
     form.resetFields();
   };
 
-  const handleSubmit = () => {
-    form.validateFields().then(() => {
-      message.success("Cotizacion creada correctamente");
+  const handleSubmit = async () => {
+    const values = await form.validateFields().catch(() => null);
+    if (!values) return;
+
+    const container = getContainer();
+    try {
+      if (modalState.type === "edit" && modalState.record) {
+        await container.updateCotizacion.execute(modalState.record.id_cotizacion, {
+          id_cliente: values.id_cliente,
+          id_lote: values.id_lote,
+          precio_ofertado: values.precio_ofertado,
+          estado: values.estado,
+        });
+        message.success("Cotizacion actualizada correctamente");
+      } else {
+        await container.createCotizacion.execute({
+          id_cliente: values.id_cliente,
+          id_lote: values.id_lote,
+          precio_ofertado: values.precio_ofertado,
+          estado: values.estado ?? "borrador",
+        });
+        message.success("Cotizacion creada correctamente");
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+      await queryClient.invalidateQueries({ queryKey: ["clientes"] });
       closeModal();
-    });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "No se pudo guardar la cotizacion");
+    }
   };
 
   const columns: TableColumnType<Cotizacion>[] = [
@@ -228,10 +253,20 @@ export function CotizacionesPage() {
         ) : (
           <Form form={form} layout="vertical">
             <Form.Item name="id_cliente" label="Cliente" rules={[{ required: true, message: "Seleccione un cliente" }]}>
-              <Select placeholder="Seleccionar cliente" options={[{ value: 1, label: "Juan Perez" }, { value: 2, label: "Maria Garcia" }, { value: 3, label: "Carlos Lopez" }]} />
+              <Select
+                placeholder="Seleccionar cliente"
+                showSearch
+                optionFilterProp="label"
+                options={clientes?.map((c) => ({ value: c.id_cliente, label: `${c.nombres} - ${c.cedula_ruc}` })) ?? []}
+              />
             </Form.Item>
             <Form.Item name="id_lote" label="Lote" rules={[{ required: true, message: "Seleccione un lote" }]}>
-              <Select placeholder="Seleccionar lote" options={[{ value: 1, label: "Lote A-01" }, { value: 2, label: "Lote A-02" }, { value: 3, label: "Lote B-01" }]} />
+              <Select
+                placeholder="Seleccionar lote"
+                showSearch
+                optionFilterProp="label"
+                options={lotes?.map((l) => ({ value: l.id_lote, label: `Lote ${l.numero_lote}` })) ?? []}
+              />
             </Form.Item>
             <Form.Item name="precio_ofertado" label="Precio Ofertado" rules={[{ required: true, message: "Ingrese el precio" }]}>
               <InputNumber<number>
@@ -242,6 +277,14 @@ export function CotizacionesPage() {
                 parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
               />
             </Form.Item>
+            {modalState.type === "edit" && (
+              <Form.Item name="estado" label="Estado" rules={[{ required: true, message: "Seleccione el estado" }]}>
+                <Select
+                  placeholder="Seleccionar estado"
+                  options={Object.entries(estadoConfig).map(([value, { label }]) => ({ value, label }))}
+                />
+              </Form.Item>
+            )}
           </Form>
         )}
       </Modal>
