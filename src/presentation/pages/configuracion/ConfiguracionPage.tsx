@@ -24,6 +24,7 @@ import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 import { configuracionSchema } from "@/presentation/validations";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { EnlacePublicoMapa } from "./EnlacePublicoMapa";
+import { ExportacionWizard } from "./exportacion";
 
 const MONEDAS = [
   { value: "USD", label: "USD · Dólar estadounidense" },
@@ -337,6 +338,23 @@ export function ConfiguracionPage() {
           <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
             <Col span={24}>
               <Card
+                title="Importación y exportación de datos"
+                style={{ borderRadius: 12 }}
+                extra={
+                  <span style={{ color: "#8c8c8c", fontSize: 12 }}>
+                    Plantillas XLSX/CSV con las cabeceras de tus tablas, y carga de archivos a la
+                    base de datos
+                  </span>
+                }
+              >
+                <ExportacionWizard />
+              </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col span={24}>
+              <Card
                 title="Mapa del proyecto"
                 style={{ borderRadius: 12 }}
                 extra={
@@ -482,7 +500,8 @@ export function ConfiguracionPage() {
                           key={proyectoMapa}
                           proyectoId={proyectoMapa}
                           proyectoNombre={
-                            proyectosDelMapa?.find((p) => p.id_proyecto === proyectoMapa)?.nombre ?? ""
+                            proyectosDelMapa?.find((p) => p.id_proyecto === proyectoMapa)?.nombre ??
+                            ""
                           }
                           mapa={mapaProyecto}
                         />
