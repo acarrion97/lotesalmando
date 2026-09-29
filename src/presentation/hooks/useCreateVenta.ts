@@ -14,6 +14,9 @@ export function useCreateVenta() {
       queryClient.invalidateQueries({ queryKey: ["lotes"] });
       queryClient.invalidateQueries({ queryKey: ["contratos"] });
       queryClient.invalidateQueries({ queryKey: ["cobranzas"] });
+      // a venta is registered together with its cotizacion and cliente
+      queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+      queryClient.invalidateQueries({ queryKey: ["clientes"] });
     },
   });
 }

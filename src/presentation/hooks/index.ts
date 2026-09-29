@@ -7,6 +7,7 @@ export { useEtapasByProyecto } from "./useEtapasByProyecto";
 export { useManzanas } from "./useManzanas";
 export { useManzanasByEtapa } from "./useManzanasByEtapa";
 export { useClientes } from "./useClientes";
+export { useTodosClientes } from "./useTodosClientes";
 export { useCotizaciones } from "./useCotizaciones";
 export { useVentas } from "./useVentas";
 export { useContratos } from "./useContratos";

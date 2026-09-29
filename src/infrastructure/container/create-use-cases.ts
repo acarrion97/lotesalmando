@@ -15,11 +15,13 @@ import { DeleteLoteUseCase } from "@/application/lotes/use-cases/DeleteLoteUseCa
 import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
+import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
 import { UpdateClienteUseCase } from "@/application/clientes/use-cases/UpdateClienteUseCase";
 import { DeleteClienteUseCase } from "@/application/clientes/use-cases/DeleteClienteUseCase";
 import { GetCotizacionesUseCase } from "@/application/cotizaciones/use-cases/GetCotizacionesUseCase";
 import { CreateCotizacionUseCase } from "@/application/cotizaciones/use-cases/CreateCotizacionUseCase";
+import { UpdateCotizacionUseCase } from "@/application/cotizaciones/use-cases/UpdateCotizacionUseCase";
 import { GetVentasUseCase } from "@/application/ventas/use-cases/GetVentasUseCase";
 import { CreateVentaUseCase } from "@/application/ventas/use-cases/CreateVentaUseCase";
 import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContratosUseCase";
@@ -91,11 +93,13 @@ export interface UseCases {
   reservarLote: ReservarLoteUseCase;
   cancelarReserva: CancelarReservaUseCase;
   getClientes: GetClientesUseCase;
+  getAllClientes: GetAllClientesUseCase;
   createCliente: CreateClienteUseCase;
   updateCliente: UpdateClienteUseCase;
   deleteCliente: DeleteClienteUseCase;
   getCotizaciones: GetCotizacionesUseCase;
   createCotizacion: CreateCotizacionUseCase;
+  updateCotizacion: UpdateCotizacionUseCase;
   getVentas: GetVentasUseCase;
   createVenta: CreateVentaUseCase;
   getContratos: GetContratosUseCase;
@@ -176,11 +180,13 @@ export function createUseCases(repos: Repositories): UseCases {
     reservarLote: new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo),
     cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
     getClientes: new GetClientesUseCase(repos.clienteRepo),
+    getAllClientes: new GetAllClientesUseCase(repos.clienteRepo),
     createCliente: new CreateClienteUseCase(repos.clienteRepo),
     updateCliente: new UpdateClienteUseCase(repos.clienteRepo),
     deleteCliente: new DeleteClienteUseCase(repos.clienteRepo),
     getCotizaciones: new GetCotizacionesUseCase(repos.cotizacionRepo),
     createCotizacion: new CreateCotizacionUseCase(repos.cotizacionRepo),
+    updateCotizacion: new UpdateCotizacionUseCase(repos.cotizacionRepo),
     getVentas: new GetVentasUseCase(repos.saleRepo),
     createVenta: new CreateVentaUseCase(createSaleTransaction),
     getContratos: new GetContratosUseCase(repos.contractRepo),

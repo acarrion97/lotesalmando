@@ -1,15 +1,18 @@
 import { useState, useMemo } from "react";
 import { Row, Col, Card, Form, Select, InputNumber, Button, Typography, Divider, Descriptions, Steps, message } from "antd";
 import { ShoppingCartOutlined } from "@ant-design/icons";
-import { useClientes, useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana } from "@/presentation/hooks";
-import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTodosClientes, useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana } from "@/presentation/hooks";
+import { getContainer } from "@/infrastructure/container";
 import { formatCurrency } from "@/utils";
 
 const { Title, Text } = Typography;
 
 export function NuevaCotizacionPage() {
   const [form] = Form.useForm();
-  const { empresaActual } = useEmpresa();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(0);
 
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
@@ -19,7 +22,7 @@ export function NuevaCotizacionPage() {
   const [selectedLote, setSelectedLote] = useState<number | null>(null);
   const [precioOfertado, setPrecioOfertado] = useState<number>(0);
 
-  const { data: clientes, isLoading: loadingClientes } = useClientes(empresaActual?.id_empresa ?? 0);
+  const { data: clientes, isLoading: loadingClientes } = useTodosClientes();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanas, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
@@ -78,20 +81,34 @@ export function NuevaCotizacionPage() {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedLote || !selectedCliente) {
       message.error("Complete todos los campos requeridos");
       return;
     }
-    message.success("Cotizacion creada exitosamente");
-    form.resetFields();
-    setSelectedCliente(null);
-    setSelectedProyecto(null);
-    setSelectedEtapa(null);
-    setSelectedManzana(null);
-    setSelectedLote(null);
-    setPrecioOfertado(0);
-    setCurrentStep(0);
+
+    try {
+      await getContainer().createCotizacion.execute({
+        id_cliente: selectedCliente,
+        id_lote: selectedLote,
+        precio_ofertado: precioOfertado,
+        estado: "borrador",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
+      await queryClient.invalidateQueries({ queryKey: ["clientes"] });
+      message.success("Cotizacion creada exitosamente");
+      form.resetFields();
+      setSelectedCliente(null);
+      setSelectedProyecto(null);
+      setSelectedEtapa(null);
+      setSelectedManzana(null);
+      setSelectedLote(null);
+      setPrecioOfertado(0);
+      setCurrentStep(0);
+      navigate("/cotizaciones");
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : "No se pudo crear la cotizacion");
+    }
   };
 
   const steps = [
