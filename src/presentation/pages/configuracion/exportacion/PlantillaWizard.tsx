@@ -31,7 +31,7 @@ import {
   ejemploColumna,
   getTablaExport,
 } from "@/infrastructure/export/exportTableCatalog";
-import type { MapeoColumna } from "@/infrastructure/export/exportTableCatalog";
+import type { MapeoColumna, TablaExport } from "@/infrastructure/export/exportTableCatalog";
 import {
   generarPlantilla,
   hojasGeneradas,
@@ -42,13 +42,21 @@ import type {
   FormatoPlantilla,
   OpcionesPlantilla,
 } from "@/infrastructure/export/generarPlantillaExportacion";
-import { SelectorTabla } from "./SelectorTabla";
+import { SelectorTablas } from "./SelectorTablas";
 import { COLOR_TIPO, ETIQUETA_TIPO } from "./tiposColumna";
 
-const PASOS = ["Tabla destino", "Cabeceras", "Formato y hojas", "Descarga"];
+const PASOS = ["Tablas destino", "Cabeceras", "Formato y hojas", "Descarga"];
 
 interface FilaMapeo extends MapeoColumna {
   idx: number;
+}
+
+/** Fila del resumen que se muestra al descargar varias tablas. */
+interface FilaResumenTabla {
+  tabla: string;
+  etiqueta: string;
+  columnas: string[];
+  clave: string;
 }
 
 /** Wizard para generar la plantilla XLSX/CSV con las cabeceras de una tabla. */
@@ -56,7 +64,7 @@ export function PlantillaWizard() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [paso, setPaso] = useState(0);
-  const [tablaSel, setTablaSel] = useState<string | null>(null);
+  const [tablasSel, setTablasSel] = useState<string[]>([]);
   const [filas, setFilas] = useState<MapeoColumna[]>([]);
   const [porAgregar, setPorAgregar] = useState<string[]>([]);
 
@@ -68,13 +76,23 @@ export function PlantillaWizard() {
   const [separadorCsv, setSeparadorCsv] = useState(";");
   const [descargando, setDescargando] = useState(false);
 
-  const tabla = getTablaExport(tablaSel);
+  const tablas: TablaExport[] = useMemo(
+    () =>
+      tablasSel.map((nombre) => getTablaExport(nombre)).filter((t): t is TablaExport => Boolean(t)),
+    [tablasSel],
+  );
+  /** La única tabla elegida, cuando sólo hay una (permite editar sus columnas). */
+  const tabla = tablas.length === 1 ? tablas[0] : null;
+  /** Con varias tablas cada hoja usa las columnas por defecto de su tabla. */
+  const esMulti = tablas.length > 1;
 
   const opciones: OpcionesPlantilla | null = useMemo(() => {
-    if (!tabla) return null;
+    if (tablas.length === 0) return null;
     return {
-      tabla,
-      columnas: filas,
+      hojas: tablas.map((destino) => ({
+        tabla: destino,
+        columnas: esMulti ? columnasPorDefecto(destino) : filas,
+      })),
       formato,
       nombreHoja,
       incluirHojaGuia: formato === "xlsx" && incluirHojaGuia,
@@ -83,7 +101,8 @@ export function PlantillaWizard() {
       separadorCsv,
     };
   }, [
-    tabla,
+    tablas,
+    esMulti,
     filas,
     formato,
     nombreHoja,
@@ -105,10 +124,15 @@ export function PlantillaWizard() {
     return [...dup];
   }, [filas]);
 
-  const faltantes = tabla ? columnasObligatoriasFaltantes(tabla, filas) : [];
-  const columnasValidas = filas.length > 0 && !cabecerasVacias && repetidas.length === 0;
+  const faltantes = tabla && !esMulti ? columnasObligatoriasFaltantes(tabla, filas) : [];
+  const columnasValidas =
+    esMulti || (filas.length > 0 && !cabecerasVacias && repetidas.length === 0);
   const puedeAvanzar =
-    paso === 0 ? Boolean(tabla) : paso === 1 ? columnasValidas && faltantes.length === 0 : true;
+    paso === 0
+      ? tablasSel.length > 0
+      : paso === 1
+        ? columnasValidas && faltantes.length === 0
+        : true;
 
   const disponibles = useMemo(() => {
     if (!tabla) return [];
@@ -116,12 +140,13 @@ export function PlantillaWizard() {
     return tabla.columnas.filter((col) => !elegidas.has(col.key));
   }, [tabla, filas]);
 
-  const seleccionarTabla = (valor: string | null) => {
-    setTablaSel(valor);
-    const siguiente = getTablaExport(valor);
-    setFilas(siguiente ? columnasPorDefecto(siguiente) : []);
+  const seleccionarTablas = (valores: string[]) => {
+    setTablasSel(valores);
+    const unica = valores.length === 1 ? getTablaExport(valores[0]) : null;
+    setFilas(unica ? columnasPorDefecto(unica) : []);
     setPorAgregar([]);
-    setNombreHoja(siguiente?.tabla ?? "Datos");
+    setNombreHoja(unica?.tabla ?? "Datos");
+    if (valores.length > 1) setFormato("xlsx");
     setPaso(0);
   };
 
@@ -151,7 +176,7 @@ export function PlantillaWizard() {
 
   const reiniciar = () => {
     setPaso(0);
-    setTablaSel(null);
+    setTablasSel([]);
     setFilas([]);
     setPorAgregar([]);
     setFormato("xlsx");
@@ -291,6 +316,55 @@ export function PlantillaWizard() {
     })),
   ];
 
+  // Resumen por tabla cuando el archivo trae varias hojas.
+  const resumenTablas: FilaResumenTabla[] = tablas.map((destino) => ({
+    tabla: destino.tabla,
+    etiqueta: destino.etiqueta,
+    columnas: columnasPorDefecto(destino).map((col) => col.cabecera),
+    clave: destino.claveNatural?.length ? destino.claveNatural.join(" / ") : "id numérico",
+  }));
+
+  const columnasResumen: TableColumnsType<FilaResumenTabla> = [
+    {
+      title: "Tabla",
+      key: "tabla",
+      width: 240,
+      render: (_, fila) => (
+        <>
+          <Tag>{fila.tabla}</Tag> {fila.etiqueta}
+        </>
+      ),
+    },
+    {
+      title: "Hoja del archivo",
+      dataIndex: "tabla",
+      key: "hoja",
+      width: 180,
+      render: (valor: string) => <Typography.Text code>{valor}</Typography.Text>,
+    },
+    {
+      title: "Columnas (cabecera de cada celda)",
+      dataIndex: "columnas",
+      key: "columnas",
+      render: (columnas: string[]) => (
+        <Space size={4} wrap>
+          {columnas.map((columna) => (
+            <Tag key={columna} style={{ marginBottom: 2 }}>
+              {columna}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    {
+      title: "Se identifica por",
+      dataIndex: "clave",
+      key: "clave",
+      width: 220,
+      render: (valor: string) => <Typography.Text code>{valor}</Typography.Text>,
+    },
+  ];
+
   return (
     <div>
       {contextHolder}
@@ -299,15 +373,15 @@ export function PlantillaWizard() {
 
       <div style={{ marginTop: 24 }}>
         {paso === 0 && (
-          <SelectorTabla
-            value={tablaSel}
-            onChange={seleccionarTabla}
-            titulo="Seleccioná la tabla de la base de datos destino"
-            descripcion="Por defecto las cabeceras del archivo serán los nombres exactos de las columnas de esa tabla, tal como están en la base de datos."
+          <SelectorTablas
+            value={tablasSel}
+            onChange={seleccionarTablas}
+            titulo="Seleccioná las tablas de la base de datos destino"
+            descripcion="Por defecto las cabeceras del archivo serán los nombres exactos de las columnas de cada tabla, tal como están en la base de datos. Con varias tablas se genera un XLSX con una hoja por tabla."
           />
         )}
 
-        {paso === 1 && tabla && (
+        {paso === 1 && tabla && !esMulti && (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Row>
               <Col span={12}>
@@ -378,6 +452,38 @@ export function PlantillaWizard() {
           </Space>
         )}
 
+        {paso === 1 && esMulti && (
+          <Space direction="vertical" size={16} style={{ width: "100%" }}>
+            <Alert
+              type="info"
+              showIcon
+              message={`${tablas.length} tablas en un solo archivo`}
+              description="Cada tabla genera una hoja con su nombre (proyectos, etapas, lotes…), para que el importador la asigne sola. Las referencias (etapa, manzana, cliente…) se completan con la clave natural de la tabla padre. Para personalizar las columnas, elegí una sola tabla."
+            />
+
+            {tablas.map((destino) => (
+              <div key={destino.tabla}>
+                <Typography.Text strong>
+                  {destino.etiqueta} <Tag>{destino.tabla}</Tag>
+                  {destino.claveNatural && destino.claveNatural.length > 0 && (
+                    <span style={{ color: "#8c8c8c", fontSize: 12, fontWeight: "normal" }}>
+                      {" · se identifica por "}
+                      <Typography.Text code>{destino.claveNatural.join(" / ")}</Typography.Text>
+                    </span>
+                  )}
+                </Typography.Text>
+                <div style={{ marginTop: 6 }}>
+                  {columnasPorDefecto(destino).map((col) => (
+                    <Tag key={col.columna} style={{ marginBottom: 4 }}>
+                      {col.cabecera}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </Space>
+        )}
+
         {paso === 2 && (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <div>
@@ -390,9 +496,14 @@ export function PlantillaWizard() {
                   buttonStyle="solid"
                   options={[
                     { label: "XLSX (Excel)", value: "xlsx" },
-                    { label: "CSV (texto)", value: "csv" },
+                    { label: "CSV (texto)", value: "csv", disabled: esMulti },
                   ]}
                 />
+                {esMulti && (
+                  <div style={{ color: "#8c8c8c", fontSize: 12, marginTop: 4 }}>
+                    Varias tablas necesitan un XLSX: el CSV sólo admite una hoja.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -404,14 +515,21 @@ export function PlantillaWizard() {
                   onChange={(e) => setNombreHoja(e.target.value)}
                   placeholder="Nombre de la hoja"
                   style={{ maxWidth: 360 }}
-                  disabled={formato === "csv"}
+                  disabled={formato === "csv" || esMulti}
                   addonBefore="Hoja"
                 />
               </div>
-              {formato === "csv" && (
+              {esMulti ? (
                 <div style={{ color: "#8c8c8c", fontSize: 12, marginTop: 4 }}>
-                  El CSV no admite hojas: se genera un único archivo con la hoja de datos.
+                  Con varias tablas cada hoja se llama como su tabla (proyectos, etapas, lotes…),
+                  que es como el importador las reconoce.
                 </div>
+              ) : (
+                formato === "csv" && (
+                  <div style={{ color: "#8c8c8c", fontSize: 12, marginTop: 4 }}>
+                    El CSV no admite hojas: se genera un único archivo con la hoja de datos.
+                  </div>
+                )
               )}
             </div>
 
@@ -475,21 +593,29 @@ export function PlantillaWizard() {
           </Space>
         )}
 
-        {paso === 3 && tabla && opciones && (
+        {paso === 3 && opciones && (
           <Space direction="vertical" size={16} style={{ width: "100%" }}>
             <Alert
               type="success"
               showIcon
               icon={<FileExcelOutlined />}
-              message={`Plantilla para ${tabla.etiqueta}`}
+              message={`Plantilla para ${tabla ? tabla.etiqueta : `${tablas.length} tablas`}`}
               description={
                 <Space direction="vertical" size={4} style={{ width: "100%" }}>
                   <span>
                     Archivo: <Typography.Text code>{nombreArchivo(opciones)}</Typography.Text>
                   </span>
                   <span>
-                    Tabla destino: <Typography.Text code>{tabla.tabla}</Typography.Text> ·{" "}
-                    {filas.length} columna{filas.length === 1 ? "" : "s"} · {formato.toUpperCase()}
+                    {tabla ? "Tabla destino: " : "Tablas destino: "}
+                    <Space size={4} wrap>
+                      {tablas.map((destino) => (
+                        <Tag key={destino.tabla}>{destino.tabla}</Tag>
+                      ))}
+                    </Space>
+                    {" · "}
+                    {tabla
+                      ? `${filas.length} columna${filas.length === 1 ? "" : "s"} · ${formato.toUpperCase()}`
+                      : "XLSX con una hoja por tabla"}
                   </span>
                   <span>
                     Hojas:{" "}
@@ -506,14 +632,25 @@ export function PlantillaWizard() {
               }
             />
 
-            <Table
-              size="small"
-              rowKey="clave"
-              pagination={false}
-              dataSource={filasVista}
-              columns={columnasVista}
-              scroll={{ x: true }}
-            />
+            {tabla ? (
+              <Table
+                size="small"
+                rowKey="clave"
+                pagination={false}
+                dataSource={filasVista}
+                columns={columnasVista}
+                scroll={{ x: true }}
+              />
+            ) : (
+              <Table<FilaResumenTabla>
+                size="small"
+                rowKey="tabla"
+                pagination={false}
+                dataSource={resumenTablas}
+                columns={columnasResumen}
+                scroll={{ x: true }}
+              />
+            )}
 
             <div style={{ color: "#8c8c8c", fontSize: 12 }}>
               La fila 1 es obligatoria: respeta esos nombres exactos al llenar el archivo. Podés
@@ -564,8 +701,9 @@ export function PlantillaWizard() {
 
       <div style={{ marginTop: 8, color: "#8c8c8c", fontSize: 12 }}>
         Paso {paso + 1} de {PASOS.length} · {PASOS[paso]}
-        {tabla ? ` · ${tabla.tabla}` : ""}
-        {!puedeAvanzar && paso === 0 ? " · Elegí una tabla para continuar" : ""}
+        {tablas.length === 1 && tabla ? ` · ${tabla.tabla}` : ""}
+        {tablas.length > 1 ? ` · ${tablas.length} tablas` : ""}
+        {!puedeAvanzar && paso === 0 ? " · Elegí al menos una tabla para continuar" : ""}
         {!puedeAvanzar && paso === 1 ? " · Revisá las cabeceras y las columnas obligatorias" : ""}
       </div>
     </div>
