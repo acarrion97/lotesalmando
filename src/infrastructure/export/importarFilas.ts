@@ -1,7 +1,17 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { PostgrestError } from "@supabase/supabase-js";
+import {
+  SEPARADOR_CLAVE,
+  definicionTabla,
+  getTablaExport,
+  normalizarClave,
+  ordenarPorDependencia,
+  tablasReferenciadas,
+} from "./exportTableCatalog";
 import type { ColumnaExport, TablaExport } from "./exportTableCatalog";
-import type { ColumnaArchivo } from "./leerArchivoImportacion";
+import type { ColumnaArchivo, FilaCruda } from "./leerArchivoImportacion";
+import { cargarMapasClaves, refrescarMapa, resolverReferencia } from "./resolverReferencias";
+import type { MapasClaves } from "./resolverReferencias";
 
 /** Fila del archivo ya normalizada y validada contra la tabla destino. */
 export interface FilaImportacion {
@@ -12,13 +22,36 @@ export interface FilaImportacion {
   /** Extracto de la fila para reconocerla en la tabla de resultados. */
   resumen: string;
   errores: string[];
+  /** Clave natural propia de la tabla (si la tiene) una vez resueltas las FK. */
+  clave?: string;
 }
 
 export interface ResultadoFila {
   numero: number;
   resumen: string;
-  estado: "ok" | "error";
+  /** `existente` = el registro ya estaba en la base con esa clave: se omite. */
+  estado: "ok" | "existente" | "error";
   mensaje: string;
+}
+
+/** Datos de una tabla dentro del archivo (una hoja o un grupo de filas). */
+export interface BloqueImportacion {
+  tabla: string;
+  /** Hoja de origen, para el reporte. */
+  hoja: string;
+  columnas: ColumnaArchivo[];
+  filas: FilaCruda[];
+}
+
+/** Resultado de importar una tabla completa. */
+export interface ResultadoTabla {
+  tabla: string;
+  hoja: string;
+  filas: number;
+  insertadas: number;
+  existentes: number;
+  errores: number;
+  resultados: ResultadoFila[];
 }
 
 export type ProgresoImportacion = (procesadas: number, total: number) => void;
@@ -121,6 +154,10 @@ function normalizarFecha(bruto: unknown): string | null {
 function normalizarValor(meta: ColumnaExport, bruto: unknown): { valor: unknown; error?: string } {
   if (bruto === null || bruto === undefined) return { valor: null };
   if (typeof bruto === "string" && bruto.trim() === "") return { valor: null };
+
+  // Las claves foráneas vienen como código o nombre: se resuelven contra la
+  // base después (aceptan también el id numérico, que sólo debe ser de respaldo).
+  if (meta.fk) return { valor: String(bruto).trim() };
 
   if (meta.tipo === "entero" || meta.tipo === "numero" || meta.tipo === "moneda") {
     const numero = normalizarNumero(bruto);
@@ -274,5 +311,177 @@ export async function insertarFilas(
   }
 
   resultados.sort((a, b) => a.numero - b.numero);
+  return resultados;
+}
+
+/**
+ * Prepara un bloque del archivo (una hoja o un grupo de filas de una tabla):
+ * aplica el mapeo, normaliza tipos y conserva el número de fila original del
+ * archivo para poder señalarlo en el reporte.
+ */
+export function prepararBloque(
+  tabla: TablaExport,
+  bloque: BloqueImportacion,
+  empresaId: number | null,
+): FilaImportacion[] {
+  const preparadas = prepararFilas(
+    tabla,
+    bloque.columnas,
+    bloque.filas.map((fila) => fila.celdas),
+    empresaId,
+  );
+  preparadas.forEach((fila, indice) => {
+    fila.numero = bloque.filas[indice]?.numero ?? fila.numero;
+  });
+  return preparadas;
+}
+
+/**
+ * Clave natural de una fila: une las columnas de la clave de la tabla; cuando
+ * la columna es foránea se usa la clave del registro padre ya resuelta.
+ */
+export function componerClave(
+  tabla: TablaExport,
+  valores: Record<string, unknown>,
+  clavesPadres: Record<string, string>,
+): string {
+  const partes = (tabla.claveNatural ?? []).map((key) => {
+    const col = tabla.columnas.find((c) => c.key === key);
+    const valor = col?.fk ? clavesPadres[key] : valores[key];
+    if (valor === null || valor === undefined) return "";
+    return String(valor).trim();
+  });
+  return partes.filter((p) => p !== "").join(SEPARADOR_CLAVE);
+}
+
+/**
+ * Importa todas las tablas del archivo de una sola pasada:
+ *
+ * 1. las ordena de padre a hijo (proyectos -> etapas -> manzanas -> lotes...);
+ * 2. resuelve cada clave foránea por la clave natural del registro (código o
+ *    nombre), con el id numérico como respaldo;
+ * 3. omite las filas cuya clave ya existe en la base ("ya existía");
+ * 4. inserta y refresca el índice para que las tablas hijas encuentren las
+ *    filas recién creadas (inserción masiva entre hojas).
+ */
+export async function importarBloques(
+  bloques: BloqueImportacion[],
+  empresaId: number | null,
+  onProgreso: ProgresoImportacion = () => {},
+): Promise<ResultadoTabla[]> {
+  // Une los bloques que apuntan a la misma tabla (una hoja por tabla, o
+  // varios grupos de filas).
+  const porTabla = new Map<string, BloqueImportacion>();
+  for (const bloque of bloques) {
+    const previo = porTabla.get(bloque.tabla);
+    if (!previo) {
+      porTabla.set(bloque.tabla, { ...bloque, filas: [...bloque.filas] });
+      continue;
+    }
+    previo.filas.push(...bloque.filas);
+    if (!previo.hoja.includes(bloque.hoja)) previo.hoja = `${previo.hoja} · ${bloque.hoja}`;
+  }
+
+  const tablas = ordenarPorDependencia([...porTabla.keys()]);
+  const necesarias = [...new Set([...tablas, ...tablasReferenciadas(tablas)])].filter(
+    (nombre) => definicionTabla(nombre) !== null,
+  );
+  const mapas: MapasClaves = await cargarMapasClaves(necesarias);
+
+  const total = [...porTabla.values()].reduce((suma, bloque) => suma + bloque.filas.length, 0);
+  const resultados: ResultadoTabla[] = [];
+  let procesadas = 0;
+
+  for (const nombre of tablas) {
+    const bloque = porTabla.get(nombre);
+    const tabla = getTablaExport(nombre);
+    if (!bloque || !tabla) continue;
+
+    const preparadas = prepararBloque(tabla, bloque, empresaId);
+
+    const pendientes: FilaImportacion[] = [];
+    const resultadosFila: ResultadoFila[] = [];
+    const clavesVistas = new Set<string>();
+    const mapaClaves = mapas.get(nombre);
+
+    for (const fila of preparadas) {
+      const clavesPadres: Record<string, string> = {};
+
+      if (fila.errores.length === 0) {
+        for (const meta of tabla.columnas) {
+          if (!meta.fk) continue;
+          const bruto = fila.valores[meta.key];
+          if (bruto === undefined || bruto === null || bruto === "") continue;
+
+          const resolucion = resolverReferencia(mapas, meta.fk, bruto);
+          if ("error" in resolucion) {
+            fila.errores.push(`${meta.key}: ${resolucion.error}`);
+          } else {
+            clavesPadres[meta.key] = resolucion.clave;
+            fila.valores[meta.key] = resolucion.id;
+          }
+        }
+      }
+
+      if (fila.errores.length === 0 && (tabla.claveNatural?.length ?? 0) > 0) {
+        fila.clave = componerClave(tabla, fila.valores, clavesPadres);
+        const claveNormalizada = normalizarClave(fila.clave);
+        if (claveNormalizada) {
+          const repetida =
+            clavesVistas.has(claveNormalizada) ||
+            mapaClaves?.compuestas.has(claveNormalizada) === true;
+          if (repetida) {
+            resultadosFila.push({
+              numero: fila.numero,
+              resumen: fila.resumen,
+              estado: "existente",
+              mensaje: "Ya existía en la base de datos (misma clave): se omite",
+            });
+            continue;
+          }
+          clavesVistas.add(claveNormalizada);
+        }
+      }
+
+      if (fila.errores.length > 0) {
+        resultadosFila.push({
+          numero: fila.numero,
+          resumen: fila.resumen,
+          estado: "error",
+          mensaje: fila.errores.join(" · "),
+        });
+        continue;
+      }
+
+      pendientes.push(fila);
+    }
+
+    const base = resultadosFila.length;
+    onProgreso(procesadas + base, total);
+
+    const insertadas = await insertarFilas(nombre, pendientes, (hechas) =>
+      onProgreso(procesadas + base + hechas, total),
+    );
+    resultadosFila.push(...insertadas);
+
+    const nuevas = insertadas.filter((r) => r.estado === "ok").length;
+    // Se refresca el índice para que las tablas hijas encuentren estas filas.
+    if (nuevas > 0) await refrescarMapa(mapas, nombre);
+
+    resultadosFila.sort((a, b) => a.numero - b.numero);
+    resultados.push({
+      tabla: nombre,
+      hoja: bloque.hoja,
+      filas: preparadas.length,
+      insertadas: nuevas,
+      existentes: resultadosFila.filter((r) => r.estado === "existente").length,
+      errores: resultadosFila.filter((r) => r.estado === "error").length,
+      resultados: resultadosFila,
+    });
+
+    procesadas += preparadas.length;
+    onProgreso(procesadas, total);
+  }
+
   return resultados;
 }
