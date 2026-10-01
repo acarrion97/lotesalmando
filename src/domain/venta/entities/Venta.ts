@@ -9,4 +9,6 @@ export interface Venta {
   precio_final: number;
   estado: VentaEstado;
   created_at?: string;
+  /** Asesor heredado de la cotización; null cuando la venta no la registró un asesor. */
+  id_asesor: number | null;
 }

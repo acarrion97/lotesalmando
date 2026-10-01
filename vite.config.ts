@@ -17,6 +17,10 @@ export default defineConfig({
       // separate (see openspec/changes/pwa-offline-support/specs/offline/app-shell).
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webmanifest}"],
+        // El bundle principal (~2,1 MB desde el cambio aceptar-cotizacion-genera-venta)
+        // supera el default de workbox de 2 MiB; sin esto el service worker no
+        // genera la precarga y se pierde el arranque sin conexión.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
       },
       manifest: {
         name: "Lotes al Mando",

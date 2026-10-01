@@ -94,6 +94,19 @@ export class SupabaseMapaRepository implements MapaRepository {
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const { data, error } = await supabase.rpc("mapa_publico", { p_slug: slug });
     if (error) throw error;
-    return (data as MapaPublico | null) ?? null;
+    if (!data) return null;
+
+    // El RPC devuelve JSON: se normaliza para que la página pública no se
+    // rompa si un campo opcional viene ausente (p. ej. migración 011 sin
+    // aplicar todavía).
+    const crudo = data as Partial<MapaPublico> & Record<string, unknown>;
+    return {
+      proyecto: crudo.proyecto ?? "",
+      url_publica: crudo.url_publica ?? null,
+      moneda: crudo.moneda ?? "USD",
+      medios: Array.isArray(crudo.medios) ? crudo.medios : [],
+      estadisticas: crudo.estadisticas ?? undefined,
+      lotes: Array.isArray(crudo.lotes) ? crudo.lotes : [],
+    };
   }
 }

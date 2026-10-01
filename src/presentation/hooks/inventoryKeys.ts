@@ -29,4 +29,7 @@ export const inventoryKeys = {
   /** Lotes del proyecto con su contorno sobre el plano. */
   lotesPlano: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId, "lotes"] as const,
+  /** Fotos y videos del proyecto (galería pública). */
+  mediosProyecto: (empresaId: number, proyectoId: number) =>
+    ["medios", empresaId, proyectoId] as const,
 };

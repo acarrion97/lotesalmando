@@ -22,8 +22,8 @@ import { DeleteClienteUseCase } from "@/application/clientes/use-cases/DeleteCli
 import { GetCotizacionesUseCase } from "@/application/cotizaciones/use-cases/GetCotizacionesUseCase";
 import { CreateCotizacionUseCase } from "@/application/cotizaciones/use-cases/CreateCotizacionUseCase";
 import { UpdateCotizacionUseCase } from "@/application/cotizaciones/use-cases/UpdateCotizacionUseCase";
+import { AceptarCotizacionUseCase } from "@/application/cotizaciones/use-cases/AceptarCotizacionUseCase";
 import { GetVentasUseCase } from "@/application/ventas/use-cases/GetVentasUseCase";
-import { CreateVentaUseCase } from "@/application/ventas/use-cases/CreateVentaUseCase";
 import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContratosUseCase";
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
@@ -62,7 +62,6 @@ import { GetRolesUseCase } from "@/application/roles/use-cases/GetRolesUseCase";
 import { GetRolesByUsuarioUseCase } from "@/application/roles/use-cases/GetRolesByUsuarioUseCase";
 import { AssignRolUseCase } from "@/application/roles/use-cases/AssignRolUseCase";
 import { RemoveRolUseCase } from "@/application/roles/use-cases/RemoveRolUseCase";
-import { SupabaseCreateSaleTransaction } from "@/infrastructure/transactions/SupabaseCreateSaleTransaction";
 import { GetInventarioUseCase } from "@/application/inventario/use-cases/GetInventarioUseCase";
 import { CreateInventarioUseCase } from "@/application/inventario/use-cases/CreateInventarioUseCase";
 import { UpdateInventarioUseCase } from "@/application/inventario/use-cases/UpdateInventarioUseCase";
@@ -76,6 +75,9 @@ import { GetLotesPlanoUseCase } from "@/application/mapas/use-cases/GetLotesPlan
 import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/GuardarPoligonoLoteUseCase";
 import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
 import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
+import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
+import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
+import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/QuitarMedioProyectoUseCase";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
@@ -101,7 +103,7 @@ export interface UseCases {
   createCotizacion: CreateCotizacionUseCase;
   updateCotizacion: UpdateCotizacionUseCase;
   getVentas: GetVentasUseCase;
-  createVenta: CreateVentaUseCase;
+  aceptarCotizacion: AceptarCotizacionUseCase;
   getContratos: GetContratosUseCase;
   getCobranzas: GetCobranzasUseCase;
   getPagos: GetPagosUseCase;
@@ -153,17 +155,12 @@ export interface UseCases {
   guardarPoligonoLote: GuardarPoligonoLoteUseCase;
   publicarMapa: PublicarMapaUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
+  getMediosProyecto: GetMediosProyectoUseCase;
+  subirMedioProyecto: SubirMedioProyectoUseCase;
+  quitarMedioProyecto: QuitarMedioProyectoUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
-  const createSaleTransaction = new SupabaseCreateSaleTransaction(
-    repos.lotRepository,
-    repos.saleRepo,
-    repos.inventarioRepo,
-    repos.contractRepo,
-    repos.cobranzaRepo,
-  );
-
   return {
     getEmpresas: new GetEmpresasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
@@ -188,14 +185,18 @@ export function createUseCases(repos: Repositories): UseCases {
     createCotizacion: new CreateCotizacionUseCase(repos.cotizacionRepo),
     updateCotizacion: new UpdateCotizacionUseCase(repos.cotizacionRepo),
     getVentas: new GetVentasUseCase(repos.saleRepo),
-    createVenta: new CreateVentaUseCase(createSaleTransaction),
+    aceptarCotizacion: new AceptarCotizacionUseCase(repos.aceptarCotizacion),
     getContratos: new GetContratosUseCase(repos.contractRepo),
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
     detectarCuotasVencidas: new DetectarCuotasVencidasUseCase(repos.cobranzaRepo),
-    generarAlertas: new GenerarAlertasUseCase(repos.lotRepository, repos.prospectoRepo, repos.cobranzaRepo),
+    generarAlertas: new GenerarAlertasUseCase(
+      repos.lotRepository,
+      repos.prospectoRepo,
+      repos.cobranzaRepo,
+    ),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
@@ -240,5 +241,14 @@ export function createUseCases(repos: Repositories): UseCases {
     guardarPoligonoLote: new GuardarPoligonoLoteUseCase(repos.mapaRepo),
     publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
     getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
+    getMediosProyecto: new GetMediosProyectoUseCase(repos.proyectoMedioRepo),
+    subirMedioProyecto: new SubirMedioProyectoUseCase(
+      repos.proyectoMedioRepo,
+      repos.proyectoMedioStorage,
+    ),
+    quitarMedioProyecto: new QuitarMedioProyectoUseCase(
+      repos.proyectoMedioRepo,
+      repos.proyectoMedioStorage,
+    ),
   };
 }

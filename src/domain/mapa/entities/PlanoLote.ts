@@ -8,14 +8,11 @@ export interface PlanoLote {
   estado: LoteEstado;
   /** Nombre/código de la manzana, para mostrar "Manzana X - Lote Y". */
   manzana: string;
-  /** No se expone en el mapa público. */
+  /**
+   * Precio de lista. En el mapa público NO se muestra en los tooltips: solo
+   * aparece en la ficha del lote y en la calculadora de financiamiento.
+   */
   precio_lista?: number;
+  /** Contorno sobre el plano; `null` si el lote todavía no está ubicado. */
   poligono: PuntoPlano[] | null;
-}
-
-/** Lo que ve cualquier visitante en `/mapa/:slug` (sin datos sensibles). */
-export interface MapaPublico {
-  proyecto: string;
-  url_publica: string | null;
-  lotes: PlanoLote[];
 }

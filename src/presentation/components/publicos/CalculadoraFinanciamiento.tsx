@@ -1,0 +1,316 @@
+import { useState } from "react";
+import { Alert, Col, InputNumber, Row, Select, Tag, Typography } from "antd";
+import {
+  CalculatorOutlined,
+  EnvironmentOutlined,
+  InfoCircleOutlined,
+  WarningOutlined,
+} from "@ant-design/icons";
+import type { PlanoLote } from "@/domain/mapa/entities";
+import { ESTILO_ESTADO_PLANO, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import {
+  RANGOS_FINANCIAMIENTO,
+  calcularFinanciamiento,
+  formatCurrency,
+  validarFinanciamiento,
+} from "@/utils";
+
+const { Text, Title } = Typography;
+
+interface CalculadoraFinanciamientoProps {
+  /** Todos los lotes del proyecto; el visitante elige con cuál simular. */
+  lotes: PlanoLote[];
+  moneda: string;
+  /** Lote elegido (controlado por la página, para compartirlo con la ficha). */
+  lote: PlanoLote | null;
+  onLoteChange?: (lote: PlanoLote | null) => void;
+  /** Cambia a la pestaña Mapa y abre la ficha de ese lote. */
+  onVerEnMapa?: (lote: PlanoLote) => void;
+  /**
+   * Modo "solo este lote": sin selector de lotes (la calculadora se queda con
+   * el lote recibido). Se usa en el modal de financiamiento que abre la ficha.
+   */
+  soloLote?: boolean;
+}
+
+function dato(etiqueta: string, valor: string, destacado = false) {
+  return (
+    <div
+      style={{
+        flex: "1 1 170px",
+        borderRadius: 10,
+        border: destacado ? "2px solid #1677ff" : "1px solid #f0f0f0",
+        background: destacado ? "#e6f4ff" : "#fff",
+        padding: "12px 14px",
+      }}
+    >
+      <div style={{ fontSize: 12, color: "#8c8c8c", marginBottom: 4 }}>{etiqueta}</div>
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: destacado ? 22 : 17,
+          color: destacado ? "#1677ff" : "#1f1f1f",
+        }}
+      >
+        {valor}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Calculadora de financiamiento de un lote: enganche, plazo y tasa sobre el
+ * precio que trae el lote elegido (editable). El precio solo se conoce aquí
+ * y en la ficha del lote, nunca en los tooltips del plano.
+ */
+export function CalculadoraFinanciamiento({
+  lotes,
+  moneda,
+  lote,
+  onLoteChange,
+  onVerEnMapa,
+  soloLote = false,
+}: CalculadoraFinanciamientoProps) {
+  const [enganche, setEnganche] = useState<number | null>(30);
+  const [plazo, setPlazo] = useState<number | null>(60);
+  const [tasa, setTasa] = useState<number | null>(12);
+
+  /**
+   * Precio escrito a mano, junto con el lote al que pertenece. Se guarda en
+   * vez de "sincronizar con un efecto": si el visitante cambia de lote, la
+   * edición vieja deja de aplicar y el precio vuelve al del lote nuevo (así
+   * el campo siempre refleja el lote elegido, ya sea prellenado desde la
+   * ficha del mapa o escrito a mano).
+   */
+  const [edicionPrecio, setEdicionPrecio] = useState<{
+    loteId: number | null;
+    valor: number;
+  } | null>(null);
+
+  const loteIdActual = lote?.id_lote ?? null;
+  const precioManual = edicionPrecio !== null && edicionPrecio.loteId === loteIdActual;
+  const precio =
+    edicionPrecio && edicionPrecio.loteId === loteIdActual
+      ? edicionPrecio.valor
+      : (lote?.precio_lista ?? 0);
+
+  const money = (valor: number) => {
+    try {
+      return formatCurrency(valor, moneda || "USD");
+    } catch {
+      return formatCurrency(valor, "USD");
+    }
+  };
+
+  const entrada = {
+    precio,
+    enganchePorcentaje: enganche ?? 0,
+    plazoMeses: plazo ?? 0,
+    tasaAnualPorcentaje: tasa ?? 0,
+  };
+  const problema = validarFinanciamiento(entrada);
+  const resultado = problema ? null : calcularFinanciamiento(entrada);
+
+  const precioDeLista = lote?.precio_lista ?? null;
+  const desalineado = !!lote && precioManual && precioDeLista != null && precio !== precioDeLista;
+
+  const opcionesLotes = lotes.map((l) => {
+    const estilo = ESTILO_ESTADO_PLANO[l.estado] ?? ESTILO_ESTADO_PLANO.disponible;
+    return {
+      value: l.id_lote,
+      label: `${etiquetaLote(l)} · ${estilo.label}${l.precio_lista != null ? ` · ${money(l.precio_lista)}` : ""}`,
+    };
+  });
+
+  return (
+    <div style={{ maxWidth: 940, margin: "0 auto" }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <Title level={4} style={{ marginBottom: 4 }}>
+          <CalculatorOutlined style={{ marginRight: 8, color: "#1677ff" }} />
+          Calculadora de financiamiento
+        </Title>
+        <Text type="secondary">
+          {soloLote
+            ? "Simulá las cuotas de este lote: ajustá el enganche, el plazo y la tasa."
+            : "Simulá las cuotas de un lote: elegí uno de la lista o escribí un precio de referencia."}
+        </Text>
+      </div>
+
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            {soloLote ? (
+              "Lote"
+            ) : (
+              <>
+                Lote a financiar <span style={{ color: "#ff4d4f" }}>*</span>
+              </>
+            )}
+          </label>
+          {soloLote ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
+                minHeight: 32,
+              }}
+            >
+              {lote ? (
+                <>
+                  <Tag
+                    color={
+                      (ESTILO_ESTADO_PLANO[lote.estado] ?? ESTILO_ESTADO_PLANO.disponible).color
+                    }
+                    style={{ margin: 0 }}
+                  >
+                    {(ESTILO_ESTADO_PLANO[lote.estado] ?? ESTILO_ESTADO_PLANO.disponible).label}
+                  </Tag>
+                  <Text strong>{etiquetaLote(lote)}</Text>
+                  {onVerEnMapa && (
+                    <a onClick={() => onVerEnMapa(lote)}>
+                      <EnvironmentOutlined /> Ver en el mapa
+                    </a>
+                  )}
+                </>
+              ) : (
+                <Text type="secondary">Sin lote seleccionado</Text>
+              )}
+            </div>
+          ) : (
+            <>
+              <Select
+                style={{ width: "100%" }}
+                placeholder="Seleccionar un lote del proyecto"
+                showSearch
+                optionFilterProp="label"
+                allowClear
+                value={lote?.id_lote ?? null}
+                onChange={(valor) => onLoteChange?.(lotes.find((l) => l.id_lote === valor) ?? null)}
+                options={opcionesLotes}
+                notFoundContent="No hay lotes cargados"
+              />
+              {lote && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
+                  <Tag
+                    color={
+                      (ESTILO_ESTADO_PLANO[lote.estado] ?? ESTILO_ESTADO_PLANO.disponible).color
+                    }
+                    style={{ margin: 0 }}
+                  >
+                    {(ESTILO_ESTADO_PLANO[lote.estado] ?? ESTILO_ESTADO_PLANO.disponible).label}
+                  </Tag>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {etiquetaLote(lote)}
+                  </Text>
+                  {onVerEnMapa && (
+                    <a onClick={() => onVerEnMapa(lote)}>
+                      <EnvironmentOutlined /> Ver en el mapa
+                    </a>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </Col>
+
+        <Col xs={24} md={12}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            Precio del lote <span style={{ color: "#ff4d4f" }}>*</span>
+          </label>
+          <InputNumber<number>
+            style={{ width: "100%" }}
+            min={0}
+            step={1000}
+            value={precio}
+            formatter={(value) =>
+              value == null ? "" : `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+            }
+            parser={(value) => Number(value?.replace(/,/g, "") || 0)}
+            onChange={(value) => setEdicionPrecio({ loteId: loteIdActual, valor: value ?? 0 })}
+          />
+          {!lote && (
+            <Text type="secondary" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+              Todavía no elegiste un lote: escribí un precio de referencia.
+            </Text>
+          )}
+          {desalineado && (
+            <Text type="warning" style={{ fontSize: 12, display: "block", marginTop: 4 }}>
+              Este precio no coincide con el precio de lista ({money(precioDeLista ?? 0)}).
+            </Text>
+          )}
+        </Col>
+
+        <Col xs={24} sm={8}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>Enganche (%)</label>
+          <InputNumber<number>
+            style={{ width: "100%" }}
+            min={RANGOS_FINANCIAMIENTO.engancheMin}
+            max={RANGOS_FINANCIAMIENTO.engancheMax}
+            value={enganche}
+            formatter={(value) =>
+              value == null ? "" : `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+            }
+            parser={(value) => Number(value?.replace(/,/g, "") || 0)}
+            onChange={setEnganche}
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            Plazo (meses)
+          </label>
+          <InputNumber<number>
+            style={{ width: "100%" }}
+            min={RANGOS_FINANCIAMIENTO.plazoMin}
+            max={RANGOS_FINANCIAMIENTO.plazoMax}
+            value={plazo}
+            onChange={setPlazo}
+          />
+        </Col>
+        <Col xs={24} sm={8}>
+          <label style={{ display: "block", fontWeight: 600, marginBottom: 4 }}>
+            Tasa de interés anual (%)
+          </label>
+          <InputNumber<number>
+            style={{ width: "100%" }}
+            min={RANGOS_FINANCIAMIENTO.tasaMin}
+            max={100}
+            step={0.5}
+            value={tasa}
+            onChange={setTasa}
+          />
+        </Col>
+      </Row>
+
+      <div style={{ marginTop: 16 }}>
+        {problema ? (
+          <Alert
+            type="warning"
+            showIcon
+            icon={<WarningOutlined />}
+            message="Falta información para calcular"
+            description={problema}
+          />
+        ) : resultado ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {dato("Cuota mensual", money(resultado.cuotaMensual), true)}
+            {dato("Enganche", money(resultado.enganche))}
+            {dato("Monto financiado", money(resultado.montoFinanciado))}
+            {dato("Intereses totales", money(resultado.interesesTotales))}
+            {dato("Total a pagar", money(resultado.totalAPagar))}
+          </div>
+        ) : null}
+      </div>
+
+      <Alert
+        type="info"
+        showIcon
+        icon={<InfoCircleOutlined />}
+        style={{ marginTop: 16 }}
+        message="Simulación referencial"
+        description="Los valores son estimados con interés fijo y cuota fija; no constituyen una oferta ni una aprobación de crédito. Confirmá la cuota final con el asesor."
+      />
+    </div>
+  );
+}
