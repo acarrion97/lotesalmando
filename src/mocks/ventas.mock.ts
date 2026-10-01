@@ -6,6 +6,8 @@ export interface Venta {
   id_usuario: number;
   precio_final: number;
   estado: "pendiente" | "completada" | "cancelada";
+  created_at: string;
+  id_asesor: number | null;
 }
 
 export const ventas: Venta[] = [
@@ -17,6 +19,8 @@ export const ventas: Venta[] = [
     id_usuario: 1,
     precio_final: 35000,
     estado: "completada",
+    created_at: "2026-08-05T15:00:00.000-05:00",
+    id_asesor: 1,
   },
   {
     id_venta: 2,
@@ -26,6 +30,8 @@ export const ventas: Venta[] = [
     id_usuario: 2,
     precio_final: 44000,
     estado: "completada",
+    created_at: "2026-09-12T10:30:00.000-05:00",
+    id_asesor: 1,
   },
   {
     id_venta: 3,
@@ -35,5 +41,7 @@ export const ventas: Venta[] = [
     id_usuario: 3,
     precio_final: 45000,
     estado: "completada",
+    created_at: "2026-09-28T18:45:00.000-05:00",
+    id_asesor: null,
   },
 ];

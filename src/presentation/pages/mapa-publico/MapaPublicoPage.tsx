@@ -1,24 +1,103 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { Empty, Result, Spin, Typography } from "antd";
-import { EnvironmentOutlined } from "@ant-design/icons";
+import { useSearchParams, useParams } from "react-router-dom";
+import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
+import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
+import type { PlanoLote } from "@/domain/mapa/entities";
 import { useMapaPublico } from "@/presentation/hooks";
-import { LeyendaPlano, PlanoInteractivo } from "@/presentation/components/maps/PlanoInteractivo";
+import {
+  LeyendaPlano,
+  PlanoInteractivo,
+  etiquetaLote,
+} from "@/presentation/components/maps/PlanoInteractivo";
+import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
+import { CalculadoraFinanciamiento } from "@/presentation/components/publicos/CalculadoraFinanciamiento";
+import { FichaLotePublico } from "@/presentation/components/publicos/FichaLotePublico";
 
 const { Title, Text } = Typography;
 
+const CLAVES_TAB = ["galeria", "mapa", "financiamiento"] as const;
+type TabClave = (typeof CLAVES_TAB)[number];
+
+const RESUMEN_ESTADOS = [
+  { clave: "total" as const, etiqueta: "Lotes", color: "#1677ff" },
+  { clave: "disponibles" as const, etiqueta: "Disponibles", color: "#52c41a" },
+  { clave: "reservados" as const, etiqueta: "Reservados", color: "#faad14" },
+  { clave: "vendidos" as const, etiqueta: "Vendidos", color: "#8b1a1a" },
+];
+
 /**
- * Mapa de disponibilidad público (`/mapa/:slug`): se comparte con clientes
- * y no requiere sesión. Solo muestra estado, manzana y número de cada lote.
+ * Enlace público `/mapa/:slug` (sin sesión): galería con visor de recursos,
+ * plano con ficha de lote y calculadora de financiamiento, en pestañas de la
+ * misma URL (`?tab=`). Los tooltips del plano no muestran precio: el precio
+ * recién aparece en la ficha del lote y en la calculadora.
  */
 export function MapaPublicoPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const { data: mapa, isLoading, isError } = useMapaPublico(slug);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [imagenFallida, setImagenFallida] = useState(false);
+  const [loteFicha, setLoteFicha] = useState<PlanoLote | null>(null);
+  const [loteCalculadora, setLoteCalculadora] = useState<PlanoLote | null>(null);
+  /** Lote del que se muestra el modal de financiamiento (abierto desde la ficha). */
+  const [loteSimulador, setLoteSimulador] = useState<PlanoLote | null>(null);
 
   useEffect(() => {
     document.title = mapa ? `${mapa.proyecto} - Mapa de disponibilidad` : "Mapa de disponibilidad";
   }, [mapa]);
+
+  const moneda = mapa?.moneda ?? "USD";
+  const medios = mapa?.medios ?? [];
+
+  /** Estadísticas del RPC; si la migración 011 no corre, se calculan en cliente. */
+  const estadisticas = mapa?.estadisticas ?? (mapa ? contarEstados(mapa.lotes) : null);
+
+  /** Pestaña activa: `?tab=` si es válida, si no Galería (con medios) o Mapa. */
+  const tabParametro = searchParams.get("tab");
+  const tabActivo: TabClave =
+    mapa && CLAVES_TAB.includes(tabParametro as TabClave)
+      ? (tabParametro as TabClave)
+      : medios.length > 0
+        ? "galeria"
+        : "mapa";
+
+  const cambiarTab = (clave: string) => {
+    setSearchParams({ tab: clave }, { replace: true });
+  };
+
+  /** Cambio hecho por el visitante: además se cierra la ficha que quede abierta. */
+  const alCambiarTab = (clave: string) => {
+    setLoteFicha(null);
+    cambiarTab(clave);
+  };
+
+  /** Lotes con contorno: son los que se dibujan y por los que se navega. */
+  const lotesDibujados = (mapa?.lotes ?? []).filter((l) => l.poligono);
+
+  const abrirFicha = (lote: PlanoLote) => {
+    setLoteFicha(lote);
+    // Abrir la ficha también prellena la calculadora con el precio del lote.
+    setLoteCalculadora(lote);
+  };
+
+  const navegarFicha = (delta: number) => {
+    if (!loteFicha || !lotesDibujados.length) return;
+    const i = lotesDibujados.findIndex((l) => l.id_lote === loteFicha.id_lote);
+    const base = i === -1 ? 0 : i;
+    const total = lotesDibujados.length;
+    setLoteFicha(lotesDibujados[(((base + delta) % total) + total) % total]);
+  };
+
+  const simularFinanciamiento = (lote: PlanoLote) => {
+    // En vez de saltar a la pestaña Financiamiento, se abre un modal que muestra
+    // el financiamiento únicamente de ese lote (spec public-map-gallery-financing).
+    setLoteFicha(null);
+    setLoteSimulador(lote);
+  };
+
+  const verEnMapa = (lote: PlanoLote) => {
+    setLoteFicha(lote);
+    cambiarTab("mapa");
+  };
 
   let contenido: React.ReactNode;
   if (isLoading) {
@@ -29,34 +108,189 @@ export function MapaPublicoPage() {
     );
   } else if (isError) {
     contenido = (
-      <Result status="warning" title="No se pudo cargar el mapa" subTitle="Intente de nuevo en unos minutos." />
+      <Result
+        status="warning"
+        title="No se pudo cargar el mapa"
+        subTitle="Intente de nuevo en unos minutos."
+      />
     );
   } else if (!mapa) {
     contenido = (
-      <Result status="404" title="Mapa no encontrado" subTitle="El enlace no existe o ya no está publicado." />
+      <Result
+        status="404"
+        title="Mapa no encontrado"
+        subTitle="El enlace no existe o ya no está publicado."
+      />
     );
-  } else if (!mapa.url_publica || imagenFallida) {
-    contenido = <Empty style={{ padding: 120 }} description="Este proyecto todavía no tiene plano" />;
   } else {
     contenido = (
       <>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px" }}>
-          <LeyendaPlano lotes={mapa.lotes} />
+        {estadisticas && (
+          <div
+            style={{
+              maxWidth: 1280,
+              margin: "0 auto",
+              padding: "14px 16px 0",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+            }}
+          >
+            {RESUMEN_ESTADOS.map((d) => (
+              <div
+                key={d.clave}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "#fff",
+                  border: "1px solid #f0f0f0",
+                  borderRadius: 10,
+                  padding: "8px 14px",
+                }}
+              >
+                <span
+                  style={{ width: 9, height: 9, borderRadius: "50%", background: d.color }}
+                  aria-hidden
+                />
+                <Text style={{ fontSize: 13, color: "#595959" }}>{d.etiqueta}</Text>
+                <Text strong style={{ fontSize: 15 }}>
+                  {estadisticas[d.clave]}
+                </Text>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "8px 16px 0", width: "100%" }}>
+          <Tabs
+            activeKey={tabActivo}
+            onChange={alCambiarTab}
+            centered
+            items={[
+              {
+                key: "galeria",
+                label: "Galería",
+                icon: <PictureOutlined />,
+                destroyOnHidden: true,
+                children: (
+                  <div style={{ padding: "16px 0" }}>
+                    <CarruselMedios medios={medios} alt={`Recurso de ${mapa.proyecto}`} />
+                  </div>
+                ),
+              },
+              {
+                key: "mapa",
+                label: "Mapa",
+                icon: <EnvironmentOutlined />,
+                destroyOnHidden: true,
+                children: (
+                  <div>
+                    {!mapa.url_publica || imagenFallida ? (
+                      <Empty
+                        style={{ padding: "80px 0" }}
+                        description="Este proyecto todavía no tiene plano"
+                      />
+                    ) : (
+                      <>
+                        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px" }}>
+                          <LeyendaPlano lotes={lotesDibujados} />
+                        </div>
+                        <PlanoInteractivo
+                          imagenUrl={mapa.url_publica}
+                          lotes={mapa.lotes}
+                          onLoteClick={abrirFicha}
+                          onImagenError={() => setImagenFallida(true)}
+                          alturaMaxima={Math.max(360, window.innerHeight - 260)}
+                        />
+                        <FichaLotePublico
+                          lote={loteFicha}
+                          moneda={moneda}
+                          onCerrar={() => setLoteFicha(null)}
+                          onAnterior={() => navegarFicha(-1)}
+                          onSiguiente={() => navegarFicha(1)}
+                          onSimular={simularFinanciamiento}
+                        />
+                      </>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: "financiamiento",
+                label: "Financiamiento",
+                icon: <CalculatorOutlined />,
+                destroyOnHidden: true,
+                children: (
+                  <div style={{ padding: "24px 16px 40px" }}>
+                    <CalculadoraFinanciamiento
+                      lotes={mapa.lotes}
+                      moneda={moneda}
+                      lote={loteCalculadora}
+                      onLoteChange={setLoteCalculadora}
+                      onVerEnMapa={verEnMapa}
+                    />
+                  </div>
+                ),
+              },
+            ]}
+          />
         </div>
-        <PlanoInteractivo
-          imagenUrl={mapa.url_publica}
-          lotes={mapa.lotes}
-          onImagenError={() => setImagenFallida(true)}
-          alturaMaxima={Math.max(360, window.innerHeight - 190)}
-        />
+
+        <Modal
+          open={!!loteSimulador}
+          onCancel={() => setLoteSimulador(null)}
+          footer={null}
+          width={940}
+          title={
+            loteSimulador
+              ? `Financiamiento de ${etiquetaLote(loteSimulador)}`
+              : "Financiamiento del lote"
+          }
+        >
+          {loteSimulador && (
+            <CalculadoraFinanciamiento
+              lotes={mapa.lotes}
+              moneda={moneda}
+              lote={loteSimulador}
+              soloLote
+              onVerEnMapa={(l) => {
+                setLoteSimulador(null);
+                verEnMapa(l);
+              }}
+            />
+          )}
+        </Modal>
       </>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#fafafa" }}>
-      <header style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "14px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        background: "#fafafa",
+      }}
+    >
+      <header
+        style={{
+          background: "#fff",
+          borderBottom: "1px solid #f0f0f0",
+          boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1280,
+            margin: "0 auto",
+            padding: "14px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
           <div
             style={{
               width: 40,
@@ -78,7 +312,7 @@ export function MapaPublicoPage() {
               {mapa?.proyecto ?? "Mapa de disponibilidad"}
             </Title>
             <Text type="secondary" style={{ fontSize: 13 }}>
-              Mapa de disponibilidad
+              Galería, plano y simulador de financiamiento
             </Text>
           </div>
         </div>
@@ -86,11 +320,28 @@ export function MapaPublicoPage() {
 
       <main style={{ flex: 1 }}>{contenido}</main>
 
-      <footer style={{ borderTop: "1px solid #f0f0f0", background: "#fff", padding: "10px 16px", textAlign: "center" }}>
+      <footer
+        style={{
+          borderTop: "1px solid #f0f0f0",
+          background: "#fff",
+          padding: "10px 16px",
+          textAlign: "center",
+        }}
+      >
         <Text type="secondary" style={{ fontSize: 12 }}>
           Powered by <strong>Lotes al Mando</strong> · Sistema de gestión de lotes
         </Text>
       </footer>
     </div>
   );
+}
+
+/** Conteo por estado en cliente, por si el RPC todavía no trae `estadisticas`. */
+function contarEstados(lotes: PlanoLote[]) {
+  return {
+    total: lotes.length,
+    disponibles: lotes.filter((l) => l.estado === "disponible").length,
+    reservados: lotes.filter((l) => l.estado === "reservado").length,
+    vendidos: lotes.filter((l) => l.estado === "vendido").length,
+  };
 }

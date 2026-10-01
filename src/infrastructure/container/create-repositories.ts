@@ -18,7 +18,10 @@ import type { AsesorRepository } from "@/domain/asesor/repositories";
 import type { RolRepository } from "@/domain/rol/repositories";
 import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
 import type { MapaRepository } from "@/domain/mapa/repositories";
+import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
+import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
+import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
 import type { Actividad } from "@/domain/actividad/entities";
@@ -40,7 +43,11 @@ import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockMa
 import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
 import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/MockConfiguracionRepository";
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
+import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
+import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
+import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
+import { SupabaseAceptarCotizacion } from "@/infrastructure/transactions/SupabaseAceptarCotizacion";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
@@ -62,7 +69,9 @@ import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase
 import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
 import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
+import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
+import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
@@ -87,9 +96,30 @@ export interface Repositories {
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
+  /** Fotos y videos del proyecto que alimentan la galería pública. */
+  proyectoMedioRepo: ProyectoMedioRepository;
+  /** Puerto de infraestructura: subida de fotos/videos a Storage. */
+  proyectoMedioStorage: ProyectoMedioStorage;
+  /** Puerto de infraestructura: aceptación atómica de una cotización (RPC en Supabase). */
+  aceptarCotizacion: AceptarCotizacionPort;
 }
 
 function createMockRepositories(): Repositories {
+  const cotizacionRepo = new MockCotizacionRepository();
+  const lotRepository = new MockLotRepository();
+  const saleRepo = new MockSaleRepository();
+  const contractRepo = new MockContractRepository();
+  const cobranzaRepo = new MockCobranzaRepository();
+  const inventarioRepo = new MockInventarioRepository();
+  const aceptarCotizacion = new MockAceptarCotizacion(
+    cotizacionRepo,
+    lotRepository,
+    saleRepo,
+    inventarioRepo,
+    contractRepo,
+    cobranzaRepo,
+  );
+
   const prospectoRepo: ProspectoRepository = {
     getAll: async () => [],
     getByEmpresaId: async () => [],
@@ -121,7 +151,9 @@ function createMockRepositories(): Repositories {
     getByEmpresaId: async () => [],
     getByProspectoId: async () => [],
     getById: async () => null,
-    create: async (data: Omit<Oportunidad, "id_oportunidad" | "created_at">): Promise<Oportunidad> => ({
+    create: async (
+      data: Omit<Oportunidad, "id_oportunidad" | "created_at">,
+    ): Promise<Oportunidad> => ({
       ...data,
       id_oportunidad: 1,
       created_at: "",
@@ -177,13 +209,14 @@ function createMockRepositories(): Repositories {
     proyectoRepo: new MockProyectoRepository(),
     lotRepository: new MockLotRepository(),
     clienteRepo: new MockClienteRepository(),
-    cotizacionRepo: new MockCotizacionRepository(),
-    saleRepo: new MockSaleRepository(),
-    contractRepo: new MockContractRepository(),
-    cobranzaRepo: new MockCobranzaRepository(),
+    cotizacionRepo,
+    saleRepo,
+    contractRepo,
+    cobranzaRepo,
+    inventarioRepo,
     pagoRepo: new MockPagoRepository(),
     usuarioRepo: new MockUsuarioRepository(),
-    inventarioRepo: new MockInventarioRepository(),
+    aceptarCotizacion,
     etapaRepo: new MockEtapaRepository(),
     manzanaRepo: new MockManzanaRepository(),
     prospectoRepo,
@@ -194,6 +227,8 @@ function createMockRepositories(): Repositories {
     configuracionRepo: new MockConfiguracionRepository(),
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
+    proyectoMedioRepo: new MockProyectoMedioRepository(),
+    proyectoMedioStorage: new MockProyectoMedioStorage(),
   };
 }
 
@@ -203,7 +238,7 @@ function createSupabaseRepositories(): Repositories {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      "Supabase provider selected but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required."
+      "Supabase provider selected but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required.",
     );
   }
 
@@ -229,6 +264,9 @@ function createSupabaseRepositories(): Repositories {
     configuracionRepo: new SupabaseConfiguracionRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
+    proyectoMedioRepo: new SupabaseProyectoMedioRepository(),
+    proyectoMedioStorage: new SupabaseProyectoMedioStorage(),
+    aceptarCotizacion: new SupabaseAceptarCotizacion(),
   };
 }
 
@@ -245,9 +283,7 @@ function resolveDataProvider(): "mock" | "supabase" {
     return "mock";
   }
 
-  throw new Error(
-    `Unsupported VITE_DATA_PROVIDER "${provider}". Expected "supabase" or "mock".`
-  );
+  throw new Error(`Unsupported VITE_DATA_PROVIDER "${provider}". Expected "supabase" or "mock".`);
 }
 
 export function createRepositories(): Repositories {

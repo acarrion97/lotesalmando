@@ -24,6 +24,7 @@ import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 import { configuracionSchema } from "@/presentation/validations";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { EnlacePublicoMapa } from "./EnlacePublicoMapa";
+import { GaleriaProyectoCard } from "./GaleriaProyectoCard";
 import { ExportacionWizard } from "./exportacion";
 
 const MONEDAS = [
@@ -359,7 +360,7 @@ export function ConfiguracionPage() {
                 style={{ borderRadius: 12 }}
                 extra={
                   <span style={{ color: "#8c8c8c", fontSize: 12 }}>
-                    Plano sobre el que se dibujan los lotes (pantalla Mapas y mapa público)
+                    Plano de la pestaña Mapa del enlace público, donde se dibujan y abren los lotes
                   </span>
                 }
               >
@@ -530,6 +531,8 @@ export function ConfiguracionPage() {
               </Card>
             </Col>
           </Row>
+
+          <GaleriaProyectoCard />
         </>
       )}
     </div>

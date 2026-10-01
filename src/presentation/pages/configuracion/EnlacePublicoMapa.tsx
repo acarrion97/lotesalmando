@@ -60,7 +60,9 @@ export function EnlacePublicoMapa({ proyectoId, proyectoNombre, mapa }: EnlacePu
         {mapa.slug ? <Tag color="green">Publicado</Tag> : <Tag>No publicado</Tag>}
       </div>
       <Text type="secondary" style={{ fontSize: 12, display: "block", marginBottom: 8 }}>
-        Cualquiera con el enlace ve el plano con el estado de cada lote (sin precios ni clientes).
+        Cualquiera con el enlace ve la galería del proyecto, el plano con el estado de cada lote y
+        la calculadora de financiamiento. El precio de un lote aparece al abrir su ficha o al
+        elegirlo en la calculadora; nunca se muestran clientes ni datos internos.
       </Text>
 
       <Space.Compact style={{ width: "100%" }}>

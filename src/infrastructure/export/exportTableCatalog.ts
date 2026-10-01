@@ -192,7 +192,23 @@ export const EXPORT_TABLES: TablaExport[] = [
         requerida: true,
         ejemplo: "14500",
       }),
-      c("estado", "Estado", "texto", { ejemplo: "Pendiente" }),
+      c("id_asesor", "Asesor", "entero", {
+        fk: "asesores",
+        ejemplo: "1",
+        nota: "Vacío si la cotización no la registró un asesor.",
+      }),
+      c("monto_entrada", "Entrada", "moneda", {
+        ejemplo: "10000",
+        nota: "Debe ser menor al precio ofertado.",
+      }),
+      c("num_cuotas", "Número de cuotas", "entero", {
+        ejemplo: "12",
+        nota: "Mínimo 1; el plan de cuotas se genera al aceptar.",
+      }),
+      c("estado", "Estado", "texto", {
+        ejemplo: "Pendiente",
+        nota: 'No se puede importar como "aceptada": la aceptación crea la venta.',
+      }),
     ],
   },
   {
@@ -212,6 +228,12 @@ export const EXPORT_TABLES: TablaExport[] = [
       }),
       c("precio_final", "Precio final", "moneda", { requerida: true, ejemplo: "15000" }),
       c("estado", "Estado", "texto", { ejemplo: "Confirmada" }),
+      c("id_asesor", "Asesor", "entero", {
+        fk: "asesores",
+        ejemplo: "1",
+        nota: "Se hereda de la cotización que originó la venta.",
+      }),
+      c("created_at", "Creado el", "fecha", { sistema: true }),
     ],
   },
   {
@@ -226,6 +248,7 @@ export const EXPORT_TABLES: TablaExport[] = [
         ejemplo: "CT-2026-001",
       }),
       c("monto_total", "Monto total", "moneda", { requerida: true, ejemplo: "45000" }),
+      c("created_at", "Creado el", "fecha", { sistema: true }),
     ],
   },
   {

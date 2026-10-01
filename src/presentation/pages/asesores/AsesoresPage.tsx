@@ -1,12 +1,37 @@
 import { useState, useMemo } from "react";
-import { Card, Button, Space, Input, Tag, Modal, Form, InputNumber, Select, Descriptions, message, Row, Col, Statistic, Progress, Tooltip } from "antd";
+import {
+  Card,
+  Button,
+  Space,
+  Input,
+  Tag,
+  Modal,
+  Form,
+  InputNumber,
+  Select,
+  Descriptions,
+  message,
+  Row,
+  Col,
+  Statistic,
+  Progress,
+  Tooltip,
+} from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, TrophyOutlined, UserOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+  TrophyOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useAsesores, useVentas } from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
+import { dentroDelRango, rangoDelPreset } from "@/utils";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
@@ -39,9 +64,10 @@ export function AsesoresPage() {
 
   const filteredData = useMemo(() => {
     if (!asesores) return [];
-    return asesores.filter((a) =>
-      a.nombre_comercial.toLowerCase().includes(searchText.toLowerCase()) ||
-      a.codigo.toLowerCase().includes(searchText.toLowerCase())
+    return asesores.filter(
+      (a) =>
+        a.nombre_comercial.toLowerCase().includes(searchText.toLowerCase()) ||
+        a.codigo.toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [asesores, searchText]);
 
@@ -57,15 +83,29 @@ export function AsesoresPage() {
 
   const getVentasMes = (asesorId: number) => {
     if (!ventas) return 0;
-    return ventas.filter((v) => v.id_usuario === asesorId).reduce((sum, v) => sum + v.precio_final, 0);
+    // Meta mensual: solo las ventas del mes en curso (reloj de la empresa) y
+    // registradas por este asesor, no por el usuario que abrió la venta.
+    const mesActual = rangoDelPreset("mes-actual");
+    return ventas
+      .filter((v) => v.id_asesor === asesorId && dentroDelRango(v.created_at, mesActual))
+      .reduce((sum, v) => sum + v.precio_final, 0);
   };
 
   const openModal = (type: "view" | "edit" | "delete", record: Asesor) => {
     setModal({ type, visible: true, record });
-    if (type === "edit") editForm.setFieldsValue({ codigo: record.codigo, nombre_comercial: record.nombre_comercial, meta_ventas_mensual: record.meta_ventas_mensual, estado: record.estado });
+    if (type === "edit")
+      editForm.setFieldsValue({
+        codigo: record.codigo,
+        nombre_comercial: record.nombre_comercial,
+        meta_ventas_mensual: record.meta_ventas_mensual,
+        estado: record.estado,
+      });
   };
 
-  const closeModal = () => { setModal({ type: null, visible: false, record: null }); editForm.resetFields(); };
+  const closeModal = () => {
+    setModal({ type: null, visible: false, record: null });
+    editForm.resetFields();
+  };
 
   const handleEdit = async () => {
     if (!modal.record) return;
@@ -104,7 +144,11 @@ export function AsesoresPage() {
     try {
       const values = await createForm.validateFields();
       const parsed = asesorSchema.parse(values);
-      await container.createAsesor.execute({ ...parsed, id_empresa: empresaActual.id_empresa, id_usuario: null });
+      await container.createAsesor.execute({
+        ...parsed,
+        id_empresa: empresaActual.id_empresa,
+        id_usuario: null,
+      });
       await refresh();
       messageApi.success("Asesor creado");
       setCreateModalOpen(false);
@@ -121,7 +165,11 @@ export function AsesoresPage() {
       dataIndex: "codigo",
       key: "codigo",
       sorter: (a, b) => a.codigo.localeCompare(b.codigo),
-      render: (text: string) => <Tag color="blue" style={{ fontWeight: 600 }}>{text}</Tag>,
+      render: (text: string) => (
+        <Tag color="blue" style={{ fontWeight: 600 }}>
+          {text}
+        </Tag>
+      ),
     },
     {
       title: "Nombre",
@@ -147,7 +195,12 @@ export function AsesoresPage() {
         const color = porcentaje >= 80 ? "#52c41a" : porcentaje >= 50 ? "#faad14" : "#ff4d4f";
         return (
           <Tooltip title={`$${ventasMes.toLocaleString()} / $${meta.toLocaleString()}`}>
-            <Progress percent={porcentaje} size="small" strokeColor={color} format={() => `${porcentaje}%`} />
+            <Progress
+              percent={porcentaje}
+              size="small"
+              strokeColor={color}
+              format={() => `${porcentaje}%`}
+            />
           </Tooltip>
         );
       },
@@ -169,9 +222,30 @@ export function AsesoresPage() {
       width: 150,
       render: (_: unknown, record: Asesor) => (
         <Space size={4}>
-          <Tooltip title="Ver"><Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => openModal("view", record)} /></Tooltip>
-          <Tooltip title="Editar"><Button type="text" icon={<EditOutlined />} style={{ color: "#faad14" }} onClick={() => openModal("edit", record)} /></Tooltip>
-          <Tooltip title="Eliminar"><Button type="text" icon={<DeleteOutlined />} style={{ color: "#ff4d4f" }} onClick={() => openModal("delete", record)} /></Tooltip>
+          <Tooltip title="Ver">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              style={{ color: "#1677ff" }}
+              onClick={() => openModal("view", record)}
+            />
+          </Tooltip>
+          <Tooltip title="Editar">
+            <Button
+              type="text"
+              icon={<EditOutlined />}
+              style={{ color: "#faad14" }}
+              onClick={() => openModal("edit", record)}
+            />
+          </Tooltip>
+          <Tooltip title="Eliminar">
+            <Button
+              type="text"
+              icon={<DeleteOutlined />}
+              style={{ color: "#ff4d4f" }}
+              onClick={() => openModal("delete", record)}
+            />
+          </Tooltip>
         </Space>
       ),
     },
@@ -194,22 +268,41 @@ export function AsesoresPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total</span>} value={stats.total} valueStyle={{ fontWeight: 700, fontSize: 22 }} prefix={<UserOutlined style={{ color: "#1677ff" }} />} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Total</span>}
+              value={stats.total}
+              valueStyle={{ fontWeight: 700, fontSize: 22 }}
+              prefix={<UserOutlined style={{ color: "#1677ff" }} />}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Activos</span>} value={stats.activos} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Activos</span>}
+              value={stats.activos}
+              valueStyle={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffccc7" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Inactivos</span>} value={stats.inactivos} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#ff4d4f" }} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Inactivos</span>}
+              value={stats.inactivos}
+              valueStyle={{ fontWeight: 700, fontSize: 18, color: "#ff4d4f" }}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffe58f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Meta Total</span>} value={stats.metaTotal} valueStyle={{ fontWeight: 700, fontSize: 18, color: "#faad14" }} prefix={<TrophyOutlined />} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Meta Total</span>}
+              value={stats.metaTotal}
+              valueStyle={{ fontWeight: 700, fontSize: 18, color: "#faad14" }}
+              prefix={<TrophyOutlined />}
+              formatter={(val) => `$${(val as number).toLocaleString()}`}
+            />
           </Card>
         </Col>
       </Row>
@@ -222,47 +315,118 @@ export function AsesoresPage() {
       />
 
       {/* View Modal */}
-      <Modal title="Detalle del Asesor" open={modal.visible && modal.type === "view"} onCancel={closeModal} footer={[<Button key="close" onClick={closeModal}>Cerrar</Button>]} width={500}>
+      <Modal
+        title="Detalle del Asesor"
+        open={modal.visible && modal.type === "view"}
+        onCancel={closeModal}
+        footer={[
+          <Button key="close" onClick={closeModal}>
+            Cerrar
+          </Button>,
+        ]}
+        width={500}
+      >
         {modal.record && (
           <Descriptions bordered column={2} size="small">
-            <Descriptions.Item label="Codigo"><Tag color="blue">{modal.record.codigo}</Tag></Descriptions.Item>
-            <Descriptions.Item label="Estado"><Tag color={estadoConfig[modal.record.estado]?.color}>{estadoConfig[modal.record.estado]?.label}</Tag></Descriptions.Item>
-            <Descriptions.Item label="Nombre" span={2}>{modal.record.nombre_comercial}</Descriptions.Item>
-            <Descriptions.Item label="Meta Mensual" span={2}>${(modal.record.meta_ventas_mensual ?? 0).toLocaleString()}</Descriptions.Item>
+            <Descriptions.Item label="Codigo">
+              <Tag color="blue">{modal.record.codigo}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Estado">
+              <Tag color={estadoConfig[modal.record.estado]?.color}>
+                {estadoConfig[modal.record.estado]?.label}
+              </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Nombre" span={2}>
+              {modal.record.nombre_comercial}
+            </Descriptions.Item>
+            <Descriptions.Item label="Meta Mensual" span={2}>
+              ${(modal.record.meta_ventas_mensual ?? 0).toLocaleString()}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
 
       {/* Edit Modal */}
-      <Modal title="Editar Asesor" open={modal.visible && modal.type === "edit"} onCancel={closeModal} onOk={handleEdit} okText="Guardar" cancelText="Cancelar">
+      <Modal
+        title="Editar Asesor"
+        open={modal.visible && modal.type === "edit"}
+        onCancel={closeModal}
+        onOk={handleEdit}
+        okText="Guardar"
+        cancelText="Cancelar"
+      >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="codigo" label="Codigo" rules={[{ required: true, message: "Ingrese el codigo" }]}>
+          <Form.Item
+            name="codigo"
+            label="Codigo"
+            rules={[{ required: true, message: "Ingrese el codigo" }]}
+          >
             <Input placeholder="Ej: AS-001" />
           </Form.Item>
-          <Form.Item name="nombre_comercial" label="Nombre" rules={[{ required: true, message: "Ingrese el nombre" }]}>
+          <Form.Item
+            name="nombre_comercial"
+            label="Nombre"
+            rules={[{ required: true, message: "Ingrese el nombre" }]}
+          >
             <Input />
           </Form.Item>
           <Form.Item name="meta_ventas_mensual" label="Meta Ventas Mensual">
             <InputNumber style={{ width: "100%" }} min={0} step={100} prefix="$" />
           </Form.Item>
           <Form.Item name="estado" label="Estado">
-            <Select options={[{ value: "activo", label: "Activo" }, { value: "inactivo", label: "Inactivo" }]} />
+            <Select
+              options={[
+                { value: "activo", label: "Activo" },
+                { value: "inactivo", label: "Inactivo" },
+              ]}
+            />
           </Form.Item>
         </Form>
       </Modal>
 
       {/* Delete Modal */}
-      <Modal title="Eliminar Asesor" open={modal.visible && modal.type === "delete"} onCancel={closeModal} onOk={handleDelete} okText="Eliminar" cancelText="Cancelar" okButtonProps={{ danger: true }}>
-        <p style={{ marginTop: 16 }}>¿Eliminar asesor <strong>{modal.record?.nombre_comercial}</strong>?</p>
+      <Modal
+        title="Eliminar Asesor"
+        open={modal.visible && modal.type === "delete"}
+        onCancel={closeModal}
+        onOk={handleDelete}
+        okText="Eliminar"
+        cancelText="Cancelar"
+        okButtonProps={{ danger: true }}
+      >
+        <p style={{ marginTop: 16 }}>
+          ¿Eliminar asesor <strong>{modal.record?.nombre_comercial}</strong>?
+        </p>
       </Modal>
 
       {/* Create Modal */}
-      <Modal title="Nuevo Asesor" open={createModalOpen} onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }} onOk={handleCreate} okText="Crear" cancelText="Cancelar">
+      <Modal
+        title="Nuevo Asesor"
+        open={createModalOpen}
+        onCancel={() => {
+          setCreateModalOpen(false);
+          createForm.resetFields();
+        }}
+        onOk={handleCreate}
+        okText="Crear"
+        cancelText="Cancelar"
+      >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="codigo" label="Codigo" rules={[{ required: true, message: "Ingrese el codigo" }, { pattern: /^[A-Z]{2}-\d{3}$/, message: "Formato: AS-001" }]}>
+          <Form.Item
+            name="codigo"
+            label="Codigo"
+            rules={[
+              { required: true, message: "Ingrese el codigo" },
+              { pattern: /^[A-Z]{2}-\d{3}$/, message: "Formato: AS-001" },
+            ]}
+          >
             <Input placeholder="AS-001" style={{ textTransform: "uppercase" }} />
           </Form.Item>
-          <Form.Item name="nombre_comercial" label="Nombre" rules={[{ required: true, message: "Ingrese el nombre" }]}>
+          <Form.Item
+            name="nombre_comercial"
+            label="Nombre"
+            rules={[{ required: true, message: "Ingrese el nombre" }]}
+          >
             <Input placeholder="Nombre del asesor" />
           </Form.Item>
           <Form.Item name="meta_ventas_mensual" label="Meta Ventas Mensual" initialValue={0}>

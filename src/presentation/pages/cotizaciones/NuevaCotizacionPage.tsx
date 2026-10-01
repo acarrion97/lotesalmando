@@ -1,9 +1,32 @@
 import { useState, useMemo } from "react";
-import { Row, Col, Card, Form, Select, InputNumber, Button, Typography, Divider, Descriptions, Steps, message } from "antd";
+import {
+  Row,
+  Col,
+  Card,
+  Form,
+  Select,
+  InputNumber,
+  Button,
+  Typography,
+  Divider,
+  Descriptions,
+  Steps,
+  message,
+  Alert,
+} from "antd";
 import { ShoppingCartOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { useTodosClientes, useProyectos, useEtapasByProyecto, useManzanasByEtapa, useLotesByManzana } from "@/presentation/hooks";
+import {
+  useTodosClientes,
+  useProyectos,
+  useEtapasByProyecto,
+  useManzanasByEtapa,
+  useLotesByManzana,
+  useAsesores,
+} from "@/presentation/hooks";
+import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
+import { useAuth } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { formatCurrency } from "@/utils";
 
@@ -21,8 +44,22 @@ export function NuevaCotizacionPage() {
   const [selectedManzana, setSelectedManzana] = useState<number | null>(null);
   const [selectedLote, setSelectedLote] = useState<number | null>(null);
   const [precioOfertado, setPrecioOfertado] = useState<number>(0);
+  // Condiciones de financiamiento (spec cotizaciones/plan-de-pago)
+  const [montoEntrada, setMontoEntrada] = useState<number>(0);
+  const [numCuotas, setNumCuotas] = useState<number>(12);
 
   const { data: clientes, isLoading: loadingClientes } = useTodosClientes();
+  const { data: asesores, isLoading: loadingAsesores } = useAsesores();
+  // Spec plan-de-pago: la cotización que crea un asesor con sesión activa guarda
+  // ese asesor por defecto. `undefined` = sin tocar (se usa el de la sesión),
+  // `null` = vaciado a mano por el usuario.
+  const { user } = useAuth();
+  const asesorDeSesion = asesores?.find(
+    (a) => a.id_usuario === user?.id_usuario && a.estado === "activo",
+  );
+  const [idAsesorInput, setIdAsesorInput] = useState<number | null | undefined>(undefined);
+  const idAsesor =
+    idAsesorInput === undefined ? (asesorDeSesion?.id_asesor ?? null) : idAsesorInput;
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanas, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
@@ -49,7 +86,12 @@ export function NuevaCotizacionPage() {
     setSelectedEtapa(null);
     setSelectedManzana(null);
     setSelectedLote(null);
-    form.setFieldsValue({ proyecto: undefined, etapa: undefined, manzana: undefined, lote: undefined });
+    form.setFieldsValue({
+      proyecto: undefined,
+      etapa: undefined,
+      manzana: undefined,
+      lote: undefined,
+    });
   };
 
   const handleProyectoChange = (value: number) => {
@@ -81,9 +123,27 @@ export function NuevaCotizacionPage() {
     }
   };
 
+  const condicionesValidas =
+    precioOfertado > 0 &&
+    montoEntrada >= 0 &&
+    montoEntrada < precioOfertado &&
+    Number.isInteger(numCuotas) &&
+    numCuotas >= 1;
+
+  const nombreAsesor =
+    idAsesor == null
+      ? null
+      : (asesores?.find((a) => a.id_asesor === idAsesor)?.nombre_comercial ?? null);
+
   const handleSubmit = async () => {
     if (!selectedLote || !selectedCliente) {
       message.error("Complete todos los campos requeridos");
+      return;
+    }
+    if (!condicionesValidas) {
+      message.error(
+        "Revise la entrada y el número de cuotas: la entrada debe ser menor al precio ofertado",
+      );
       return;
     }
 
@@ -93,6 +153,9 @@ export function NuevaCotizacionPage() {
         id_lote: selectedLote,
         precio_ofertado: precioOfertado,
         estado: "borrador",
+        id_asesor: idAsesor,
+        monto_entrada: montoEntrada,
+        num_cuotas: numCuotas,
       });
       await queryClient.invalidateQueries({ queryKey: ["cotizaciones"] });
       await queryClient.invalidateQueries({ queryKey: ["clientes"] });
@@ -104,6 +167,9 @@ export function NuevaCotizacionPage() {
       setSelectedManzana(null);
       setSelectedLote(null);
       setPrecioOfertado(0);
+      setIdAsesorInput(undefined);
+      setMontoEntrada(0);
+      setNumCuotas(12);
       setCurrentStep(0);
       navigate("/cotizaciones");
     } catch (error) {
@@ -124,21 +190,12 @@ export function NuevaCotizacionPage() {
         Nueva Cotizacion
       </Title>
 
-      <Steps
-        current={currentStep}
-        items={steps}
-        style={{ marginBottom: 24 }}
-        responsive
-      />
+      <Steps current={currentStep} items={steps} style={{ marginBottom: 24 }} responsive />
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={14}>
           <Card title="Datos de la Cotizacion">
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={handleSubmit}
-            >
+            <Form form={form} layout="vertical" onFinish={handleSubmit}>
               <Form.Item
                 label="Cliente"
                 name="cliente"
@@ -254,11 +311,80 @@ export function NuevaCotizacionPage() {
                   min={0}
                   step={100}
                   formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                  parser={(value) => Number(value?.replace(/\$\s?|(,*)/g, "") ?? 0) as unknown as number}
+                  parser={(value) =>
+                    Number(value?.replace(/\$\s?|(,*)/g, "") ?? 0) as unknown as number
+                  }
                   value={precioOfertado}
                   onChange={(value) => setPrecioOfertado(value ?? 0)}
                 />
               </Form.Item>
+
+              <Form.Item
+                label="Asesor"
+                extra="Puede quedar sin asesor si la cotización no la registra uno."
+              >
+                <Select
+                  placeholder="Seleccionar asesor"
+                  allowClear
+                  loading={loadingAsesores}
+                  showSearch
+                  optionFilterProp="label"
+                  value={idAsesor ?? undefined}
+                  onChange={(value) => setIdAsesorInput(value ?? null)}
+                  options={[
+                    { value: 0, label: "Sin asesor" },
+                    ...(asesores ?? [])
+                      .filter((a) => a.estado === "activo")
+                      .map((a) => ({ value: a.id_asesor, label: a.nombre_comercial })),
+                  ]}
+                />
+              </Form.Item>
+
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    label="Entrada"
+                    extra={
+                      precioOfertado > 0
+                        ? `Máximo ${formatCurrency(Math.max(0, precioOfertado - 1))}`
+                        : undefined
+                    }
+                  >
+                    <InputNumber
+                      style={{ width: "100%" }}
+                      min={0}
+                      max={Math.max(0, precioOfertado - 1)}
+                      step={100}
+                      formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                      parser={(value) =>
+                        Number(value?.replace(/\$\s?|(,*)/g, "") ?? 0) as unknown as number
+                      }
+                      value={montoEntrada}
+                      onChange={(value) => setMontoEntrada(value ?? 0)}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item label="Número de cuotas">
+                    <InputNumber
+                      style={{ width: "100%" }}
+                      min={1}
+                      max={360}
+                      value={numCuotas}
+                      onChange={(value) => setNumCuotas(value ?? 1)}
+                    />
+                  </Form.Item>
+                </Col>
+              </Row>
+
+              {!condicionesValidas && precioOfertado > 0 && (
+                <Alert
+                  type="error"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message="La entrada debe ser menor al precio ofertado y las cuotas al menos 1"
+                />
+              )}
 
               <Form.Item>
                 <Button
@@ -266,7 +392,7 @@ export function NuevaCotizacionPage() {
                   htmlType="submit"
                   block
                   size="large"
-                  disabled={!selectedLote || !selectedCliente}
+                  disabled={!selectedLote || !selectedCliente || !condicionesValidas}
                 >
                   Crear Cotizacion
                 </Button>
@@ -279,7 +405,11 @@ export function NuevaCotizacionPage() {
           <Card title="Resumen de la Cotizacion" style={{ position: "sticky", top: 80 }}>
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="Cliente">
-                {selectedClienteData ? `${selectedClienteData.nombres}` : <Text type="secondary">Sin seleccionar</Text>}
+                {selectedClienteData ? (
+                  `${selectedClienteData.nombres}`
+                ) : (
+                  <Text type="secondary">Sin seleccionar</Text>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Cedula/RUC">
                 {selectedClienteData?.cedula_ruc ?? <Text type="secondary">-</Text>}
@@ -293,13 +423,21 @@ export function NuevaCotizacionPage() {
                 {selectedProyectoData?.nombre ?? <Text type="secondary">Sin seleccionar</Text>}
               </Descriptions.Item>
               <Descriptions.Item label="Etapa">
-                {etapas?.find((e) => e.id_etapa === selectedEtapa)?.nombre ?? <Text type="secondary">-</Text>}
+                {etapas?.find((e) => e.id_etapa === selectedEtapa)?.nombre ?? (
+                  <Text type="secondary">-</Text>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Manzana">
-                {manzanas?.find((m) => m.id_manzana === selectedManzana)?.nombre_codigo ?? <Text type="secondary">-</Text>}
+                {manzanas?.find((m) => m.id_manzana === selectedManzana)?.nombre_codigo ?? (
+                  <Text type="secondary">-</Text>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Lote">
-                {selectedLoteData ? `Lote ${selectedLoteData.numero_lote}` : <Text type="secondary">-</Text>}
+                {selectedLoteData ? (
+                  `Lote ${selectedLoteData.numero_lote}`
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Estado Lote">
                 {selectedLoteData?.estado?.toUpperCase() ?? <Text type="secondary">-</Text>}
@@ -310,14 +448,33 @@ export function NuevaCotizacionPage() {
 
             <Descriptions column={1} bordered size="small">
               <Descriptions.Item label="Precio Lista">
-                {selectedLoteData ? formatCurrency(selectedLoteData.precio_lista) : <Text type="secondary">-</Text>}
+                {selectedLoteData ? (
+                  formatCurrency(selectedLoteData.precio_lista)
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
               </Descriptions.Item>
               <Descriptions.Item label="Precio Ofertado">
-                {precioOfertado > 0 ? formatCurrency(precioOfertado) : <Text type="secondary">-</Text>}
+                {precioOfertado > 0 ? (
+                  formatCurrency(precioOfertado)
+                ) : (
+                  <Text type="secondary">-</Text>
+                )}
               </Descriptions.Item>
+              <Descriptions.Item label="Asesor">
+                {idAsesor == null ? (
+                  <Text type="secondary">Sin asesor</Text>
+                ) : (
+                  (nombreAsesor ?? <Text type="secondary">-</Text>)
+                )}
+              </Descriptions.Item>
+              <Descriptions.Item label="Entrada">{formatCurrency(montoEntrada)}</Descriptions.Item>
+              <Descriptions.Item label="Número de cuotas">{numCuotas}</Descriptions.Item>
               <Descriptions.Item label="Diferencia">
                 {selectedLoteData && precioOfertado > 0 ? (
-                  <Text type={precioOfertado < selectedLoteData.precio_lista ? "danger" : "success"}>
+                  <Text
+                    type={precioOfertado < selectedLoteData.precio_lista ? "danger" : "success"}
+                  >
                     {formatCurrency(precioOfertado - selectedLoteData.precio_lista)}
                   </Text>
                 ) : (
@@ -325,6 +482,17 @@ export function NuevaCotizacionPage() {
                 )}
               </Descriptions.Item>
             </Descriptions>
+
+            <Divider />
+            <Text strong>Plan de cuotas</Text>
+            <div style={{ marginTop: 8 }}>
+              <TablaPlanCuotas
+                precio_ofertado={precioOfertado}
+                monto_entrada={montoEntrada}
+                num_cuotas={numCuotas}
+                scrollY={260}
+              />
+            </div>
           </Card>
         </Col>
       </Row>

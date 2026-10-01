@@ -191,6 +191,20 @@ export function prepararFilas(
       }
     });
 
+    // Una cotización solo llega a "aceptada" por el flujo de aceptación, que
+    // crea la venta en la misma transacción; importarla así dejaría la fila
+    // huérfana (lo rechaza también el trigger de la base de datos).
+    if (
+      tabla.tabla === "cotizador" &&
+      String(valores.estado ?? "")
+        .trim()
+        .toLowerCase() === "aceptada"
+    ) {
+      errores.push(
+        'estado: no se puede importar como "aceptada"; importala como "enviada" y usá el botón Aceptar',
+      );
+    }
+
     if (errores.length === 0 && Object.keys(valores).length === 0) {
       errores.push("La fila no tiene ningún valor para importar");
     }

@@ -5,6 +5,7 @@ import { lotes } from "@/mocks/lotes.mock";
 import { manzanas } from "@/mocks/manzanas.mock";
 import { etapas } from "@/mocks/etapas.mock";
 import { proyectos } from "@/mocks/proyectos.mock";
+import { mediosProyecto } from "@/mocks/medios.mock";
 
 /** Un plano por proyecto, en memoria (solo sirve para `VITE_DATA_PROVIDER=mock`). */
 const registros = new Map<number, Mapa>();
@@ -74,13 +75,25 @@ export class MockMapaRepository implements MapaRepository {
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const mapa = [...registros.values()].find((m) => m.slug === slug);
     if (!mapa) return null;
-    const lotesPlano = await this.getLotesPlano(mapa.id_proyecto);
+    const lotes = await this.getLotesPlano(mapa.id_proyecto);
+    const medios = mediosProyecto
+      .filter((m) => m.id_proyecto === mapa.id_proyecto)
+      .sort((a, b) => b.orden - a.orden || b.id_proyecto_medio - a.id_proyecto_medio)
+      .map(({ url, tipo }) => ({ url, tipo }));
+
     return {
       proyecto: proyectos.find((p) => p.id_proyecto === mapa.id_proyecto)?.nombre ?? "Proyecto",
       url_publica: mapa.url_publica,
-      lotes: lotesPlano
-        .filter((l) => l.poligono)
-        .map(({ precio_lista: _precio, ...lote }) => lote),
+      // El mock no tiene configuración de empresa persistida: se usa USD.
+      moneda: "USD",
+      medios,
+      estadisticas: {
+        total: lotes.length,
+        disponibles: lotes.filter((l) => l.estado === "disponible").length,
+        reservados: lotes.filter((l) => l.estado === "reservado").length,
+        vendidos: lotes.filter((l) => l.estado === "vendido").length,
+      },
+      lotes,
     };
   }
 }

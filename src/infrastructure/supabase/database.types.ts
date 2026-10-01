@@ -216,6 +216,9 @@ export interface Database {
           id_lote: number;
           precio_ofertado: number;
           estado: string | null;
+          id_asesor: number | null;
+          monto_entrada: number;
+          num_cuotas: number;
         };
         Insert: {
           id_cotizacion?: number;
@@ -223,6 +226,9 @@ export interface Database {
           id_lote: number;
           precio_ofertado: number;
           estado?: string | null;
+          id_asesor?: number | null;
+          monto_entrada?: number;
+          num_cuotas?: number;
         };
         Update: {
           id_cotizacion?: number;
@@ -230,6 +236,9 @@ export interface Database {
           id_lote?: number;
           precio_ofertado?: number;
           estado?: string | null;
+          id_asesor?: number | null;
+          monto_entrada?: number;
+          num_cuotas?: number;
         };
       };
       ventas: {
@@ -241,6 +250,8 @@ export interface Database {
           id_usuario: number;
           precio_final: number;
           estado: string | null;
+          created_at: string | null;
+          id_asesor: number | null;
         };
         Insert: {
           id_venta?: number;
@@ -250,6 +261,8 @@ export interface Database {
           id_usuario: number;
           precio_final: number;
           estado?: string | null;
+          created_at?: string | null;
+          id_asesor?: number | null;
         };
         Update: {
           id_venta?: number;
@@ -259,6 +272,8 @@ export interface Database {
           id_usuario?: number;
           precio_final?: number;
           estado?: string | null;
+          created_at?: string | null;
+          id_asesor?: number | null;
         };
       };
       contratos: {
@@ -267,18 +282,21 @@ export interface Database {
           id_venta: number;
           numero_contrato: string;
           monto_total: number;
+          created_at: string | null;
         };
         Insert: {
           id_contrato?: number;
           id_venta: number;
           numero_contrato: string;
           monto_total: number;
+          created_at?: string | null;
         };
         Update: {
           id_contrato?: number;
           id_venta?: number;
           numero_contrato?: string;
           monto_total?: number;
+          created_at?: string | null;
         };
       };
       cobranzas: {
