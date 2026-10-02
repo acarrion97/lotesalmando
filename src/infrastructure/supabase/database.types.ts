@@ -127,6 +127,9 @@ export interface Database {
           numero_lote: string;
           precio_lista: number | null;
           estado: string | null;
+          superficie_m2: number | null;
+          codigo_catastral: string | null;
+          medidas: string | null;
         };
         Insert: {
           id_lote?: number;
@@ -134,6 +137,9 @@ export interface Database {
           numero_lote: string;
           precio_lista?: number | null;
           estado?: string | null;
+          superficie_m2?: number | null;
+          codigo_catastral?: string | null;
+          medidas?: string | null;
         };
         Update: {
           id_lote?: number;
@@ -141,6 +147,9 @@ export interface Database {
           numero_lote?: string;
           precio_lista?: number | null;
           estado?: string | null;
+          superficie_m2?: number | null;
+          codigo_catastral?: string | null;
+          medidas?: string | null;
         };
       };
       usuario: {

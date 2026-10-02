@@ -13,6 +13,8 @@ export interface PlanoLote {
    * aparece en la ficha del lote y en la calculadora de financiamiento.
    */
   precio_lista?: number;
+  superficie_m2?: number | null;
+  medidas?: string | null;
   /** Contorno sobre el plano; `null` si el lote todavía no está ubicado. */
   poligono: PuntoPlano[] | null;
 }
