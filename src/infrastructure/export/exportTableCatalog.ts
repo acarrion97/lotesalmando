@@ -132,6 +132,12 @@ export const EXPORT_TABLES: TablaExport[] = [
         ejemplo: "Disponible",
         nota: "Ej.: Disponible, Reservado, Vendido.",
       }),
+      c("superficie_m2", "Superficie (m²)", "numero", { ejemplo: "144" }),
+      c("codigo_catastral", "Código catastral", "texto", {
+        ejemplo: "17659",
+        nota: "Único en todo el proyecto.",
+      }),
+      c("medidas", "Medidas", "texto", { ejemplo: "8,00 x 18,00" }),
     ],
   },
   {

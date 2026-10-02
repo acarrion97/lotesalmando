@@ -225,6 +225,7 @@ export function LotesPage() {
     return lotes.filter(
       (l) =>
         l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
+        (l.codigo_catastral ?? "").includes(searchText) ||
         l.estado.toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [lotes, searchText]);
@@ -232,7 +233,15 @@ export function LotesPage() {
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ numero_lote: record.numero_lote, precio_lista: record.precio_lista, estado: record.estado, id_manzana: record.id_manzana });
+      editForm.setFieldsValue({
+        numero_lote: record.numero_lote,
+        precio_lista: record.precio_lista,
+        estado: record.estado,
+        id_manzana: record.id_manzana,
+        superficie_m2: record.superficie_m2 ?? null,
+        codigo_catastral: record.codigo_catastral ?? null,
+        medidas: record.medidas ?? null,
+      });
     }
   };
 
@@ -332,6 +341,21 @@ export function LotesPage() {
       render: (precio: number) => (
         <span style={{ fontWeight: 600, color: "#1a1a1a" }}>${precio.toLocaleString()}</span>
       ),
+    },
+    {
+      title: "Superficie",
+      dataIndex: "superficie_m2",
+      key: "superficie_m2",
+      sorter: (a, b) => (a.superficie_m2 ?? 0) - (b.superficie_m2 ?? 0),
+      render: (m2: number | null | undefined) =>
+        m2 != null ? `${m2.toLocaleString("es")} m²` : <span style={{ color: "#bfbfbf" }}>—</span>,
+    },
+    {
+      title: "Cód. catastral",
+      dataIndex: "codigo_catastral",
+      key: "codigo_catastral",
+      render: (codigo: string | null | undefined) =>
+        codigo || <span style={{ color: "#bfbfbf" }}>—</span>,
     },
     {
       title: "Estado",
@@ -584,6 +608,11 @@ export function LotesPage() {
             <Descriptions.Item label="Precio de Lista">
               ${modal.record.precio_lista.toLocaleString()}
             </Descriptions.Item>
+            <Descriptions.Item label="Superficie">
+              {modal.record.superficie_m2 != null ? `${modal.record.superficie_m2.toLocaleString("es")} m²` : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Código catastral">{modal.record.codigo_catastral || "—"}</Descriptions.Item>
+            <Descriptions.Item label="Medidas">{modal.record.medidas || "—"}</Descriptions.Item>
             <Descriptions.Item label="Estado">
               <Tag color={(estadoConfig[modal.record.estado] ?? estadoConfig.disponible).color}>
                 {(modal.record.estado ?? "sin estado").toUpperCase()}
@@ -635,6 +664,15 @@ export function LotesPage() {
               formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
               parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
             />
+          </Form.Item>
+          <Form.Item name="superficie_m2" label="Superficie (m²)">
+            <InputNumber<number> style={{ width: "100%" }} min={0} step={0.01} decimalSeparator="," />
+          </Form.Item>
+          <Form.Item name="codigo_catastral" label="Código catastral">
+            <Input maxLength={50} />
+          </Form.Item>
+          <Form.Item name="medidas" label="Medidas" extra="Lados del lote, p. ej. 8,00 x 18,00">
+            <Input maxLength={255} />
           </Form.Item>
           <Form.Item
             name="estado"
@@ -697,6 +735,15 @@ export function LotesPage() {
               formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
               parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
             />
+          </Form.Item>
+          <Form.Item name="superficie_m2" label="Superficie (m²)">
+            <InputNumber<number> style={{ width: "100%" }} min={0} step={0.01} decimalSeparator="," />
+          </Form.Item>
+          <Form.Item name="codigo_catastral" label="Código catastral">
+            <Input maxLength={50} />
+          </Form.Item>
+          <Form.Item name="medidas" label="Medidas" extra="Lados del lote, p. ej. 8,00 x 18,00">
+            <Input maxLength={255} />
           </Form.Item>
           <Form.Item
             name="estado"

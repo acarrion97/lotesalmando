@@ -52,6 +52,8 @@ export default defineConfig({
       },
     }),
   ],
+  // ffmpeg.wasm arranca su propio worker: el pre-bundle de Vite lo rompe.
+  optimizeDeps: { exclude: ["@ffmpeg/ffmpeg", "@ffmpeg/util"] },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

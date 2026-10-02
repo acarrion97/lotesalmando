@@ -9,6 +9,8 @@ interface LotePlanoRow {
   numero_lote: string;
   estado: LoteEstado;
   precio_lista: number | null;
+  superficie_m2: number | null;
+  medidas: string | null;
   poligono: PuntoPlano[] | null;
   manzana_bloque: { nombre_codigo: string | null } | null;
 }
@@ -56,7 +58,7 @@ export class SupabaseMapaRepository implements MapaRepository {
     const { data, error } = await supabase
       .from("lotes")
       .select(
-        "id_lote, id_manzana, numero_lote, estado, precio_lista, poligono, manzana_bloque!inner(nombre_codigo, etapas!inner(id_proyecto))",
+        "id_lote, id_manzana, numero_lote, estado, precio_lista, superficie_m2, medidas, poligono, manzana_bloque!inner(nombre_codigo, etapas!inner(id_proyecto))",
       )
       .eq("manzana_bloque.etapas.id_proyecto", proyectoId);
     if (error) throw error;
@@ -67,6 +69,8 @@ export class SupabaseMapaRepository implements MapaRepository {
       numero_lote: row.numero_lote,
       estado: row.estado,
       precio_lista: row.precio_lista ?? undefined,
+      superficie_m2: row.superficie_m2,
+      medidas: row.medidas,
       poligono: row.poligono,
       manzana: row.manzana_bloque?.nombre_codigo ?? `${row.id_manzana}`,
     }));
