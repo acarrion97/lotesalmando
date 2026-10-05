@@ -42,6 +42,32 @@ const estadoConfig: Record<VentaEstado, { color: string; label: string; icon: Re
   cancelada: { color: "error", label: "CANCELADA", icon: <StopOutlined /> },
 };
 
+type EstadoConfig = (typeof estadoConfig)[VentaEstado];
+
+/**
+ * `ventas.estado` es VARCHAR(50) sin CHECK en la BD y la importación de
+ * archivos acepta texto libre, así que puede llegar un valor fuera del catálogo
+ * (ej. "Confirmada") o null. Se normaliza a minúsculas y, si no está en el
+ * catálogo, se muestra el valor crudo en lugar de romper el render.
+ */
+function configDeEstado(estado?: string | null): EstadoConfig {
+  const clave = (estado ?? "").trim().toLowerCase() as VentaEstado;
+  const conocida = estadoConfig[clave];
+  if (conocida) return conocida;
+
+  const crudo = (estado ?? "").trim();
+  return {
+    color: "default",
+    label: crudo ? crudo.toUpperCase() : "SIN ESTADO",
+    icon: <InfoCircleOutlined />,
+  };
+}
+
+/** Clave canónica del estado, para búsqueda, filtros y conteos. */
+function claveEstado(estado?: string | null): string {
+  return (estado ?? "").trim().toLowerCase();
+}
+
 interface ModalState {
   type: "view" | "info" | null;
   visible: boolean;
@@ -75,7 +101,7 @@ export function VentasPage() {
       (v) =>
         dentroDelRango(v.created_at, filtroFechas.rango) &&
         (texto === "" ||
-          v.estado.toLowerCase().includes(texto) ||
+          claveEstado(v.estado).includes(texto) ||
           String(v.precio_final).includes(texto)),
     );
   }, [ventas, searchText, filtroFechas]);
@@ -84,9 +110,9 @@ export function VentasPage() {
   const stats = useMemo(() => {
     return {
       total: filteredData.length,
-      pendiente: filteredData.filter((v) => v.estado === "pendiente").length,
-      completada: filteredData.filter((v) => v.estado === "completada").length,
-      cancelada: filteredData.filter((v) => v.estado === "cancelada").length,
+      pendiente: filteredData.filter((v) => claveEstado(v.estado) === "pendiente").length,
+      completada: filteredData.filter((v) => claveEstado(v.estado) === "completada").length,
+      cancelada: filteredData.filter((v) => claveEstado(v.estado) === "cancelada").length,
       valorTotal: filteredData.reduce((sum, v) => sum + v.precio_final, 0),
     };
   }, [filteredData]);
@@ -138,9 +164,9 @@ export function VentasPage() {
       dataIndex: "estado",
       key: "estado",
       filters: Object.entries(estadoConfig).map(([value, { label }]) => ({ text: label, value })),
-      onFilter: (value, record) => record.estado === value,
-      render: (estado: VentaEstado) => {
-        const config = estadoConfig[estado];
+      onFilter: (value, record) => claveEstado(record.estado) === value,
+      render: (estado?: string) => {
+        const config = configDeEstado(estado);
         return (
           <Tag
             color={config.color}
@@ -292,8 +318,8 @@ export function VentasPage() {
               ${modalState.record.precio_final.toLocaleString()}
             </Descriptions.Item>
             <Descriptions.Item label="Estado">
-              <Tag color={estadoConfig[modalState.record.estado]?.color}>
-                {estadoConfig[modalState.record.estado]?.label}
+              <Tag color={configDeEstado(modalState.record.estado).color}>
+                {configDeEstado(modalState.record.estado).label}
               </Tag>
             </Descriptions.Item>
           </Descriptions>
