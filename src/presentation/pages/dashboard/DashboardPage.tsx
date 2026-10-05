@@ -66,10 +66,18 @@ export function DashboardPage() {
     return fecha.getMonth() === lastMonth && fecha.getFullYear() === lastMonthYear;
   }) ?? [];
 
-  const ventasCountMesActual = ventasMesActual.filter((v) => v.estado === "completada").length;
-  const ventasCountMesAnterior = ventasMesAnterior.filter((v) => v.estado === "completada").length;
+  // Una venta cuenta como realizada tanto si esta completada (todo pagado) como
+  // pendiente (con cuotas por cobrar); solo las canceladas quedan fuera.
+  const esVentaRealizada = (estado?: string | null) => {
+    const e = (estado ?? "").trim().toLowerCase();
+    return e === "completada" || e === "pendiente";
+  };
+  const ventasCountMesActual = ventasMesActual.filter((v) => esVentaRealizada(v.estado)).length;
+  const ventasCountMesAnterior = ventasMesAnterior.filter((v) => esVentaRealizada(v.estado)).length;
 
-  const valorVendido = ventas?.filter((v) => v.estado === "completada").reduce((sum, v) => sum + v.precio_final, 0) ?? 0;
+  // En centavos enteros para que los flotantes no ensucien el total.
+  const valorVendido =
+    (ventas?.filter((v) => esVentaRealizada(v.estado)).reduce((sum, v) => sum + Math.round(v.precio_final * 100), 0) ?? 0) / 100;
 
   const cobranzaPendiente = cobranzas?.filter((c) => c.estado === "pendiente").reduce((sum, c) => sum + c.monto_cuota, 0) ?? 0;
   const cobranzaVencida = cobranzas?.filter((c) => c.estado === "vencida").reduce((sum, c) => sum + c.monto_cuota, 0) ?? 0;

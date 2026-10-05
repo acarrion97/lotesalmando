@@ -40,6 +40,7 @@ import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { loteSchema } from "@/presentation/validations";
+import { compararNumeroLote } from "@/utils";
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
@@ -222,11 +223,13 @@ export function LotesPage() {
 
   const filteredData = useMemo(() => {
     if (!lotes) return [];
-    return lotes.filter(
-      (l) =>
-        l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
-        l.estado.toLowerCase().includes(searchText.toLowerCase()),
-    );
+    return lotes
+      .filter(
+        (l) =>
+          l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
+          l.estado.toLowerCase().includes(searchText.toLowerCase()),
+      )
+      .sort(compararNumeroLote);
   }, [lotes, searchText]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
@@ -288,7 +291,7 @@ export function LotesPage() {
       title: "Numero",
       dataIndex: "numero_lote",
       key: "numero_lote",
-      sorter: (a, b) => a.numero_lote.localeCompare(b.numero_lote),
+      sorter: compararNumeroLote,
       render: (text: string) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div

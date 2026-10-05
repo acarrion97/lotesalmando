@@ -21,3 +21,4 @@ export type {
   EntradaFinanciamiento,
   ResultadoFinanciamiento,
 } from "./financiamiento/calcularFinanciamiento";
+export { compararNumeroLote } from "./lotes/compararNumeroLote";

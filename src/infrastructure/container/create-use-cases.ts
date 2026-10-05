@@ -26,6 +26,7 @@ import { AceptarCotizacionUseCase } from "@/application/cotizaciones/use-cases/A
 import { GetVentasUseCase } from "@/application/ventas/use-cases/GetVentasUseCase";
 import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContratosUseCase";
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
+import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
@@ -106,6 +107,7 @@ export interface UseCases {
   aceptarCotizacion: AceptarCotizacionUseCase;
   getContratos: GetContratosUseCase;
   getCobranzas: GetCobranzasUseCase;
+  getCobranzasByContrato: GetCobranzasByContratoUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
@@ -188,6 +190,7 @@ export function createUseCases(repos: Repositories): UseCases {
     aceptarCotizacion: new AceptarCotizacionUseCase(repos.aceptarCotizacion),
     getContratos: new GetContratosUseCase(repos.contractRepo),
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
+    getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
@@ -196,6 +199,9 @@ export function createUseCases(repos: Repositories): UseCases {
       repos.lotRepository,
       repos.prospectoRepo,
       repos.cobranzaRepo,
+      repos.contractRepo,
+      repos.saleRepo,
+      repos.clienteRepo,
     ),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
