@@ -7,6 +7,8 @@ export interface Alerta {
   prioridad: AlertaPrioridad;
   titulo: string;
   descripcion: string;
+  /** Lineas de detalle opcionales (ej. un cliente por linea). */
+  detalle?: string[];
   entidad_tipo?: string;
   entidad_id?: number;
   created_at: string;

@@ -1,6 +1,10 @@
 import type { LotRepository } from "@/domain/lote/repositories";
 import type { ProspectoRepository } from "@/domain/prospecto/repositories";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
+import type { ContractRepository } from "@/domain/contrato/repositories";
+import type { SaleRepository } from "@/domain/venta/repositories";
+import type { ClienteRepository } from "@/domain/cliente/repositories";
+import type { Cobranza } from "@/domain/cobranza/entities";
 import type { Alerta } from "@/domain/alerta/entities";
 
 export interface AlertasConfig {
@@ -19,15 +23,56 @@ export class GenerarAlertasUseCase {
   private lotRepo: LotRepository;
   private prospectoRepo: ProspectoRepository;
   private cobranzaRepo: CobranzaRepository;
+  private contractRepo: ContractRepository;
+  private saleRepo: SaleRepository;
+  private clienteRepo: ClienteRepository;
 
   constructor(
     lotRepo: LotRepository,
     prospectoRepo: ProspectoRepository,
     cobranzaRepo: CobranzaRepository,
+    contractRepo: ContractRepository,
+    saleRepo: SaleRepository,
+    clienteRepo: ClienteRepository,
   ) {
     this.lotRepo = lotRepo;
     this.prospectoRepo = prospectoRepo;
     this.cobranzaRepo = cobranzaRepo;
+    this.contractRepo = contractRepo;
+    this.saleRepo = saleRepo;
+    this.clienteRepo = clienteRepo;
+  }
+
+  /**
+   * Agrupa cuotas por cliente (cuota -> contrato -> venta -> cliente) y devuelve
+   * una linea por cliente, de mayor a menor monto adeudado.
+   */
+  private async detalleCuotasPorCliente(cuotas: Cobranza[], empresaId?: number): Promise<string[]> {
+    if (cuotas.length === 0) return [];
+    const [contratos, ventas, clientes] = await Promise.all([
+      empresaId ? this.contractRepo.getByEmpresaId(empresaId) : this.contractRepo.getAll(),
+      empresaId ? this.saleRepo.getByEmpresaId(empresaId) : this.saleRepo.getAll(),
+      empresaId ? this.clienteRepo.getByEmpresaId(empresaId) : this.clienteRepo.getAll(),
+    ]);
+    const ventaDeContrato = new Map(contratos.map((c) => [c.id_contrato, c.id_venta]));
+    const clienteDeVenta = new Map(ventas.map((v) => [v.id_venta, v.id_cliente]));
+    const nombreCliente = new Map(clientes.map((c) => [c.id_cliente, c.nombres.trim()]));
+
+    const porCliente = new Map<string, { cuotas: number; centavos: number }>();
+    for (const c of cuotas) {
+      const idCliente = clienteDeVenta.get(ventaDeContrato.get(c.id_contrato) ?? -1);
+      const nombre = (idCliente !== undefined && nombreCliente.get(idCliente)) || "Cliente sin identificar";
+      const acc = porCliente.get(nombre) ?? { cuotas: 0, centavos: 0 };
+      acc.cuotas += 1;
+      acc.centavos += Math.round(c.monto_cuota * 100);
+      porCliente.set(nombre, acc);
+    }
+
+    return [...porCliente.entries()]
+      .sort((a, b) => b[1].centavos - a[1].centavos)
+      .map(([nombre, { cuotas: n, centavos }]) =>
+        `${nombre}: ${n} ${n === 1 ? "cuota" : "cuotas"} por $${(centavos / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      );
   }
 
   async execute(config: AlertasConfig = defaultConfig, empresaId?: number): Promise<Alerta[]> {
@@ -93,6 +138,7 @@ export class GenerarAlertasUseCase {
         prioridad: "media",
         titulo: "Cuotas por vencer",
         descripcion: `${porVencer.length} cuotas vencen en los proximos ${config.diasCarteraVencer} dias`,
+        detalle: await this.detalleCuotasPorCliente(porVencer, empresaId),
         entidad_tipo: "cobranza",
         created_at: new Date().toISOString(),
         leida: false,
@@ -102,13 +148,14 @@ export class GenerarAlertasUseCase {
     // 4. Alertas de morosidad
     const vencidas = cobranzas.filter((c) => c.estado === "vencida");
     if (vencidas.length > 0) {
-      const montoVencido = vencidas.reduce((sum, c) => sum + c.monto_cuota, 0);
+      const montoVencido = vencidas.reduce((sum, c) => sum + Math.round(c.monto_cuota * 100), 0) / 100;
       alertas.push({
         id: `mora-${Date.now()}`,
         tipo: "mora",
         prioridad: vencidas.length > 5 ? "alta" : "media",
         titulo: "Cartera en mora",
-        descripcion: `${vencidas.length} cuotas vencidas por $${montoVencido.toLocaleString()}`,
+        descripcion: `${vencidas.length} cuotas vencidas por $${montoVencido.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        detalle: await this.detalleCuotasPorCliente(vencidas, empresaId),
         entidad_tipo: "cobranza",
         created_at: new Date().toISOString(),
         leida: false,

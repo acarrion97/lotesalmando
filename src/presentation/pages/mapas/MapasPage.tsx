@@ -68,7 +68,8 @@ import {
   etiquetaLote,
 } from "@/presentation/components/maps/PlanoInteractivo";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
-import { formatCurrency } from "@/utils";
+import { compararNumeroLote, formatCurrency } from "@/utils";
+import { InfoVentaLote } from "./InfoVentaLote";
 
 // The scoped client list (GetClientesUseCase) only contains clients with a
 // venta or cotizacion, so a client created here would never be found again.
@@ -209,8 +210,11 @@ export function MapasPage() {
 
   const lotesConPosicion = useMemo<PositionedLote[]>(() => {
     if (!lotesData) return [];
-    return lotesData.map((lote: Lote, index: number) => {
-      const pos = getLotePosition(index, lotesData.length);
+    // Solo la grilla generica (sin plano) posiciona por indice, asi que se ordena
+    // por numero de lote; con plano las posiciones salen del poligono trazado.
+    const ordenados = [...lotesData].sort(compararNumeroLote);
+    return ordenados.map((lote: Lote, index: number) => {
+      const pos = getLotePosition(index, ordenados.length);
       return { ...lote, ...pos };
     });
   }, [lotesData]);
@@ -793,7 +797,8 @@ export function MapasPage() {
                   onChange={setLoteAUbicar}
                   optionFilterProp="label"
                   options={[...lotesPlano]
-                    .sort((a, b) => Number(!!a.poligono) - Number(!!b.poligono))
+                    // Primero los que aun no tienen trazado; dentro de cada grupo, por numero de lote.
+                    .sort((a, b) => Number(!!a.poligono) - Number(!!b.poligono) || compararNumeroLote(a, b))
                     .map((l) => ({
                       value: l.id_lote,
                       label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}`,
@@ -960,10 +965,13 @@ export function MapasPage() {
           <div>
             <Descriptions column={2} bordered size="small" style={{ marginBottom: 20 }}>
               <Descriptions.Item label="Numero">{selectedLote.numero_lote}</Descriptions.Item>
-              <Descriptions.Item label="Manzana">{selectedLote.id_manzana}</Descriptions.Item>
+              <Descriptions.Item label="Manzana">
+                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)?.nombre_codigo ??
+                  selectedLote.id_manzana}
+              </Descriptions.Item>
               <Descriptions.Item label="Precio Lista" span={2}>
                 <span style={{ fontWeight: 700, fontSize: 18, color: "#1677ff" }}>
-                  ${selectedLote.precio_lista?.toLocaleString()}
+                  {formatCurrency(selectedLote.precio_lista ?? 0)}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Estado" span={2}>
@@ -975,6 +983,10 @@ export function MapasPage() {
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
+
+            {selectedLote.estado === "vendido" && (
+              <InfoVentaLote idLote={selectedLote.id_lote} clientes={clientes} />
+            )}
 
             <div
               style={{

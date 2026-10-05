@@ -22,6 +22,9 @@ export class GetLotesUseCase {
       numero_lote: lote.numero_lote,
       precio_lista: lote.precio_lista,
       estado: lote.estado,
+      superficie_m2: lote.superficie_m2 ?? null,
+      codigo_catastral: lote.codigo_catastral ?? null,
+      medidas: lote.medidas ?? null,
     };
   }
 }

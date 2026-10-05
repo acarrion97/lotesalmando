@@ -44,6 +44,9 @@ function desdeIso(iso: string): Date {
 
 /** Día (YYYY-MM-DD) de un instante según el reloj de la empresa. Vacío si la fecha no es válida. */
 export function diaEnEmpresa(instante: Date | string): string {
+  // Una fecha sin hora (columna DATE, ej. fecha_vencimiento) ya es un dia del
+  // calendario: pasarla por el desfase la correria un dia atras.
+  if (typeof instante === "string" && /^\d{4}-\d{2}-\d{2}$/.test(instante.trim())) return instante.trim();
   const reloj = comoRelojEmpresa(instante);
   if (Number.isNaN(reloj.getTime())) return "";
   return aIso(reloj);

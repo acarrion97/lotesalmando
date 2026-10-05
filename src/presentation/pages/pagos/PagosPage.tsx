@@ -3,13 +3,16 @@ import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, Select, mess
 import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePagos, useOnlineStatus, useCobranzas, useContratos, useLookup } from "@/presentation/hooks";
+import { usePagos, useOnlineStatus, useCobranzas, useContratos, useLookup, useInfoContratos } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useAuth } from "@/presentation/providers";
 import { pagoSchema } from "@/presentation/validations";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
+import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
+import { dentroDelRango, diaEnEmpresa, formatDateOnly } from "@/utils";
 
 type PagoRow = {
   id_pago: number;
@@ -26,6 +29,8 @@ export function PagosPage() {
   const { data: contratos } = useContratos();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
+  const { infoDeCobranza } = useInfoContratos();
+  const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
@@ -34,13 +39,19 @@ export function PagosPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
 
-  const stats = useMemo(() => {
-    if (!pagos) return { total: 0, montoTotal: 0 };
-    return {
-      total: pagos.length,
-      montoTotal: pagos.reduce((sum, p) => sum + p.monto_pagado, 0),
-    };
-  }, [pagos]);
+  const pagosEnRango = useMemo(
+    () => (pagos ?? []).filter((p) => dentroDelRango(p.fecha_pago, filtroFechas.rango)),
+    [pagos, filtroFechas],
+  );
+
+  const stats = useMemo(
+    () => ({
+      total: pagosEnRango.length,
+      // Centavos enteros para que los flotantes no ensucien el total.
+      montoTotal: pagosEnRango.reduce((sum, p) => sum + Math.round(p.monto_pagado * 100), 0) / 100,
+    }),
+    [pagosEnRango],
+  );
 
   const cobranzaOptions = useMemo(
     () =>
@@ -54,14 +65,15 @@ export function PagosPage() {
   );
 
   const filteredData = useMemo(() => {
-    if (!pagos) return [];
-    return pagos.filter(
+    return pagosEnRango.filter(
       (p) =>
-        String(p.id_cobranza).includes(searchText) ||
+        (String(p.id_cobranza).includes(searchText) ||
+        (infoDeCobranza(p.id_cobranza)?.cliente ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+        (infoDeCobranza(p.id_cobranza)?.lote ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
         String(p.monto_pagado).includes(searchText) ||
-        p.fecha_pago.includes(searchText)
+        p.fecha_pago.includes(searchText))
     );
-  }, [pagos, searchText]);
+  }, [pagosEnRango, searchText, infoDeCobranza]);
 
   const handleCreate = async () => {
     if (!isOnline) {
@@ -109,6 +121,18 @@ export function PagosPage() {
       render: (id: number) => <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>,
     },
     {
+      title: "Cliente",
+      key: "cliente",
+      render: (_: unknown, record: PagoRow) => infoDeCobranza(record.id_cobranza)?.cliente ?? "-",
+      sorter: (a, b) =>
+        (infoDeCobranza(a.id_cobranza)?.cliente ?? "").localeCompare(infoDeCobranza(b.id_cobranza)?.cliente ?? ""),
+    },
+    {
+      title: "Lote",
+      key: "lote",
+      render: (_: unknown, record: PagoRow) => infoDeCobranza(record.id_cobranza)?.lote ?? "-",
+    },
+    {
       title: "Monto Pagado",
       dataIndex: "monto_pagado",
       key: "monto_pagado",
@@ -120,7 +144,7 @@ export function PagosPage() {
       dataIndex: "fecha_pago",
       key: "fecha_pago",
       sorter: (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
-      render: (fecha: string) => fecha ? new Date(fecha).toLocaleDateString() : "-",
+      render: (fecha: string) => (fecha ? formatDateOnly(diaEnEmpresa(fecha)) : "-"),
     },
     {
       title: "Acciones",
@@ -143,6 +167,7 @@ export function PagosPage() {
         title="Pagos"
         subtitle="Registro de pagos recibidos"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar pago..." }}
+        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
         actions={
           <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
             <Button type="primary" icon={<PlusOutlined />} disabled={!isOnline} onClick={() => setCreateModalOpen(true)}>
@@ -151,6 +176,8 @@ export function PagosPage() {
           </Tooltip>
         }
       />
+
+      <ResumenRangoFechas filtro={filtroFechas} cantidad={stats.total} singular="pago" plural="pagos" />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
@@ -178,8 +205,10 @@ export function PagosPage() {
           <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
             <Descriptions.Item label="# Pago">{viewModal.record.id_pago}</Descriptions.Item>
             <Descriptions.Item label="Cobranza"><Tag>#{viewModal.record.id_cobranza}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Cliente" span={2}>{infoDeCobranza(viewModal.record.id_cobranza)?.cliente ?? "-"}</Descriptions.Item>
+            <Descriptions.Item label="Lote" span={2}>{infoDeCobranza(viewModal.record.id_cobranza)?.lote ?? "-"}</Descriptions.Item>
             <Descriptions.Item label="Monto Pagado"><span style={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }}>${viewModal.record.monto_pagado.toLocaleString()}</span></Descriptions.Item>
-            <Descriptions.Item label="Fecha">{viewModal.record.fecha_pago ? new Date(viewModal.record.fecha_pago).toLocaleDateString() : "-"}</Descriptions.Item>
+            <Descriptions.Item label="Fecha">{viewModal.record.fecha_pago ? formatDateOnly(diaEnEmpresa(viewModal.record.fecha_pago)) : "-"}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
