@@ -6,6 +6,9 @@ export interface LoteDto {
   numero_lote: string;
   precio_lista: number;
   estado: LoteEstado;
+  superficie_m2?: number | null;
+  codigo_catastral?: string | null;
+  medidas?: string | null;
 }
 
 export type { LoteEstado };

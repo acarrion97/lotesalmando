@@ -6,8 +6,10 @@ export const FORMATOS_IMAGEN: readonly string[] = ["image/png", "image/jpeg", "i
 export const FORMATOS_VIDEO: readonly string[] = ["video/mp4", "video/webm"];
 /** Límite de la imagen, igual que el del bucket. */
 export const LIMITE_IMAGEN_BYTES = 10 * 1024 * 1024;
-/** Límite del video (bucket `medios`: 50 MB). */
+/** Límite del video que se sube (tope global de Supabase en plan Free). */
 export const LIMITE_VIDEO_BYTES = 50 * 1024 * 1024;
+/** Video que se puede elegir: si pasa del límite de subida, se comprime antes. */
+export const LIMITE_VIDEO_ORIGEN_BYTES = 1024 * 1024 * 1024;
 
 export const FORMATOS_ADMITIDOS = [...FORMATOS_IMAGEN, ...FORMATOS_VIDEO];
 
@@ -23,12 +25,15 @@ export function tipoDeArchivo(file: File): ProyectoMedioTipo | null {
  * almacenamiento (que es el que no deja pasar nada raro). Devuelve el mensaje
  * de error, o `null` si el archivo es válido.
  */
-export function validarArchivoMedio(file: File): string | null {
+export function validarArchivoMedio(
+  file: File,
+  limiteVideo: number = LIMITE_VIDEO_BYTES,
+): string | null {
   const tipo = tipoDeArchivo(file);
   if (!tipo) {
     return "Formato no admitido: usá PNG, JPG, WEBP, MP4 o WEBM";
   }
-  const limite = tipo === "imagen" ? LIMITE_IMAGEN_BYTES : LIMITE_VIDEO_BYTES;
+  const limite = tipo === "imagen" ? LIMITE_IMAGEN_BYTES : limiteVideo;
   if (file.size > limite) {
     const mb = Math.round(limite / (1024 * 1024));
     return `El archivo supera los ${mb} MB`;

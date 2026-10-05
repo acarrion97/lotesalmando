@@ -6,6 +6,7 @@ import {
   Col,
   Empty,
   Image,
+  Progress,
   Row,
   Select,
   Space,
@@ -25,6 +26,9 @@ import {
 import type { ProyectoMedio } from "@/domain/proyecto/entities";
 import {
   FORMATOS_ADMITIDOS,
+  LIMITE_VIDEO_BYTES,
+  LIMITE_VIDEO_ORIGEN_BYTES,
+  tipoDeArchivo,
   validarArchivoMedio,
 } from "@/application/proyectos/ports/ProyectoMedioStorage";
 import { useMediosProyecto, useProyectos } from "@/presentation/hooks";
@@ -42,6 +46,10 @@ export function GaleriaProyectoCard() {
   const [messageApi, contextHolder] = message.useMessage();
   const { data: proyectos, isLoading: cargandoProyectos } = useProyectos();
   const [proyecto, setProyecto] = useState<number | null>(null);
+  const [compresion, setCompresion] = useState<{
+    fase: "cargando" | "comprimiendo";
+    fraccion: number;
+  } | null>(null);
   const { medios, isLoading, subir, quitar } = useMediosProyecto(proyecto ?? 0);
 
   const opciones = useMemo(
@@ -49,17 +57,37 @@ export function GaleriaProyectoCard() {
     [proyectos],
   );
 
-  const seleccionarArchivo = (file: File) => {
-    const error = validarArchivoMedio(file);
-    if (error) {
-      messageApi.error(error);
-      return Upload.LIST_IGNORE;
-    }
+  const subirArchivo = (file: File) =>
     subir.mutate(file, {
       onSuccess: () => messageApi.success(`${file.name} subido a la galería`),
       onError: (err) =>
         messageApi.error(err instanceof Error ? err.message : "No se pudo subir el archivo"),
     });
+
+  const seleccionarArchivo = (file: File) => {
+    const error = validarArchivoMedio(file, LIMITE_VIDEO_ORIGEN_BYTES);
+    if (error) {
+      messageApi.error(error);
+      return Upload.LIST_IGNORE;
+    }
+
+    if (tipoDeArchivo(file) === "video" && file.size > LIMITE_VIDEO_BYTES) {
+      setCompresion({ fase: "cargando", fraccion: 0 });
+      import("@/infrastructure/video/comprimirVideo")
+        .then(({ comprimirVideo }) =>
+          comprimirVideo(file, {
+            objetivoBytes: LIMITE_VIDEO_BYTES,
+            onProgreso: (fase, fraccion) => setCompresion({ fase, fraccion }),
+          }),
+        )
+        .then(subirArchivo)
+        .catch((err) =>
+          messageApi.error(err instanceof Error ? err.message : "No se pudo comprimir el video"),
+        )
+        .finally(() => setCompresion(null));
+    } else {
+      subirArchivo(file);
+    }
     return Upload.LIST_IGNORE;
   };
 
@@ -168,12 +196,12 @@ export function GaleriaProyectoCard() {
             accept={ACCEPT_IMAGEN_VIDEO}
             showUploadList={false}
             beforeUpload={seleccionarArchivo}
-            disabled={!proyecto || subir.isPending}
+            disabled={!proyecto || subir.isPending || !!compresion}
           >
             <Button
               type="primary"
               icon={<UploadOutlined />}
-              loading={subir.isPending}
+              loading={subir.isPending || !!compresion}
               disabled={!proyecto}
             >
               Subir foto o video
@@ -181,8 +209,27 @@ export function GaleriaProyectoCard() {
           </Upload>
 
           <div style={{ color: "#8c8c8c", fontSize: 12, marginTop: 8 }}>
-            Imágenes PNG, JPG o WEBP hasta 10 MB · Videos MP4 o WEBM hasta 50 MB
+            Imágenes PNG, JPG o WEBP hasta 10 MB · Videos MP4 o WEBM hasta 1 GB (los de más de 50 MB
+            se comprimen a 720p en tu navegador antes de subir)
           </div>
+
+          {compresion && (
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginTop: 12 }}
+              message={
+                compresion.fase === "cargando"
+                  ? "Preparando el compresor (primera vez: descarga ~30 MB)..."
+                  : "Comprimiendo video. Puede tardar varios minutos: no cierres esta pestaña."
+              }
+              description={
+                compresion.fase === "comprimiendo" && (
+                  <Progress percent={Math.round(compresion.fraccion * 100)} size="small" />
+                )
+              }
+            />
+          )}
 
           {subir.isPending && (
             <Alert type="info" showIcon style={{ marginTop: 12 }} message="Subiendo archivo..." />

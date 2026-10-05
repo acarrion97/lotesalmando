@@ -77,6 +77,12 @@ export function FichaLotePublico({
           <Descriptions column={2} bordered size="small" style={{ marginBottom: 20 }}>
             <Descriptions.Item label="Manzana">{etiquetaLote(lote)}</Descriptions.Item>
             <Descriptions.Item label="Número">{lote.numero_lote}</Descriptions.Item>
+            {lote.superficie_m2 != null && (
+              <Descriptions.Item label="Superficie">
+                {lote.superficie_m2.toLocaleString("es")} m²
+              </Descriptions.Item>
+            )}
+            {lote.medidas && <Descriptions.Item label="Medidas">{lote.medidas}</Descriptions.Item>}
             <Descriptions.Item label="Precio de lista" span={2}>
               {lote.precio_lista != null ? (
                 <span style={{ fontWeight: 700, fontSize: 18, color: "#1677ff" }}>
