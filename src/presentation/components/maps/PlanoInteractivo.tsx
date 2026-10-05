@@ -469,6 +469,18 @@ export function PlanoInteractivo({
           <div style={{ fontSize: 13, fontWeight: 500, color: "#1f1f1f", marginTop: 2 }}>
             {etiquetaLote(hover.lote)}
           </div>
+          {(hover.lote.superficie_m2 != null || hover.lote.medidas) && (
+            <div style={{ fontSize: 12, color: "#595959" }}>
+              {[
+                hover.lote.superficie_m2 != null
+                  ? `${hover.lote.superficie_m2.toLocaleString("es")} m²`
+                  : null,
+                hover.lote.medidas,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
           {mostrarPrecio && hover.lote.precio_lista != null && (
             <div style={{ fontSize: 12, color: "#595959" }}>
               ${hover.lote.precio_lista.toLocaleString()}
