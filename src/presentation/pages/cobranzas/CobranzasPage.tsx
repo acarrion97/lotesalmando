@@ -2,12 +2,15 @@ import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
 import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useCarteraMetricas, useOnlineStatus, useContratos, useLookup } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
+import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
+import { dentroDelRango, diaEnEmpresa, formatDateOnly } from "@/utils";
 
 type CobranzaRow = {
   id_cobranza: number;
@@ -15,6 +18,7 @@ type CobranzaRow = {
   numero_cuota: number;
   monto_cuota: number;
   estado: "pendiente" | "pagada" | "vencida";
+  fecha_vencimiento?: string;
 };
 
 const estadoConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
@@ -25,9 +29,10 @@ const estadoConfig: Record<string, { color: string; icon: React.ReactNode; label
 
 export function CobranzasPage() {
   const { data: cobranzas, isLoading } = useCobranzas();
-  const { data: metricas } = useCarteraMetricas();
   const { data: contratos } = useContratos();
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
+  const { infoDeContrato } = useInfoContratos();
+  const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
@@ -46,15 +51,37 @@ export function CobranzasPage() {
     }
   };
 
+  // Indicadores sobre las cuotas dentro del rango (mismas formulas que
+  // GetCarteraMetricasUseCase); sin filtro equivalen a la cartera completa.
+  const m = useMemo(() => {
+    const enRango = (cobranzas ?? []).filter((c) => dentroDelRango(c.fecha_vencimiento, filtroFechas.rango));
+    const suma = (lista: typeof enRango) => lista.reduce((s, c) => s + Math.round(c.monto_cuota * 100), 0) / 100;
+    const pendientes = enRango.filter((c) => c.estado === "pendiente");
+    const vencidas = enRango.filter((c) => c.estado === "vencida");
+    const activas = pendientes.length + vencidas.length;
+    return {
+      totalCobranzas: enRango.length,
+      pendientes: pendientes.length,
+      vencidas: vencidas.length,
+      morosidadPorcentaje: activas > 0 ? Math.round((vencidas.length / activas) * 100) : 0,
+      montoTotal: suma(enRango),
+      montoPendiente: suma(pendientes),
+      montoVencido: suma(vencidas),
+    };
+  }, [cobranzas, filtroFechas]);
+
   const filteredData = useMemo(() => {
     if (!cobranzas) return [];
     return cobranzas.filter(
       (c) =>
-        String(c.id_contrato).includes(searchText) ||
+        dentroDelRango(c.fecha_vencimiento, filtroFechas.rango) &&
+        (String(c.id_contrato).includes(searchText) ||
+        (infoDeContrato(c.id_contrato)?.cliente ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
+        (infoDeContrato(c.id_contrato)?.lote ?? "").toLowerCase().includes(searchText.toLowerCase()) ||
         String(c.numero_cuota).includes(searchText) ||
-        c.estado.toLowerCase().includes(searchText.toLowerCase())
+        c.estado.toLowerCase().includes(searchText.toLowerCase()))
     );
-  }, [cobranzas, searchText]);
+  }, [cobranzas, searchText, infoDeContrato, filtroFechas]);
 
   const columns: TableColumnType<CobranzaRow>[] = [
     {
@@ -65,10 +92,29 @@ export function CobranzasPage() {
       sorter: (a, b) => a.id_contrato - b.id_contrato,
     },
     {
+      title: "Cliente",
+      key: "cliente",
+      render: (_: unknown, record: CobranzaRow) => infoDeContrato(record.id_contrato)?.cliente ?? "-",
+      sorter: (a, b) =>
+        (infoDeContrato(a.id_contrato)?.cliente ?? "").localeCompare(infoDeContrato(b.id_contrato)?.cliente ?? ""),
+    },
+    {
+      title: "Lote",
+      key: "lote",
+      render: (_: unknown, record: CobranzaRow) => infoDeContrato(record.id_contrato)?.lote ?? "-",
+    },
+    {
       title: "Cuota",
       dataIndex: "numero_cuota",
       key: "numero_cuota",
       sorter: (a, b) => a.numero_cuota - b.numero_cuota,
+    },
+    {
+      title: "Vencimiento",
+      dataIndex: "fecha_vencimiento",
+      key: "fecha_vencimiento",
+      sorter: (a, b) => (a.fecha_vencimiento ?? "").localeCompare(b.fecha_vencimiento ?? ""),
+      render: (fecha?: string) => (fecha ? formatDateOnly(diaEnEmpresa(fecha)) : "-"),
     },
     {
       title: "Monto",
@@ -111,28 +157,31 @@ export function CobranzasPage() {
         title="Cobranzas"
         subtitle="Control de cuotas y morosidad"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar cobranza..." }}
+        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
         actions={<Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>}
       />
+
+      <ResumenRangoFechas filtro={filtroFechas} cantidad={filteredData.length} singular="cuota" plural="cuotas" />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total Cuotas</span>} value={metricas?.totalCobranzas ?? 0} styles={{ content: { fontWeight: 700, fontSize: 22 } }} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Total Cuotas</span>} value={m.totalCobranzas} styles={{ content: { fontWeight: 700, fontSize: 22 } }} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffe58f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={metricas?.pendientes ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#faad14" } }} prefix={<ClockCircleOutlined />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Pendientes</span>} value={m.pendientes} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#faad14" } }} prefix={<ClockCircleOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #ffccc7" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Vencidas</span>} value={metricas?.vencidas ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#ff4d4f" } }} prefix={<WarningOutlined />} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Vencidas</span>} value={m.vencidas} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#ff4d4f" } }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #d9d9d9" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Morosidad</span>} value={metricas?.morosidadPorcentaje ?? 0} styles={{ content: { fontWeight: 700, fontSize: 18, color: (metricas?.morosidadPorcentaje ?? 0) > 20 ? "#ff4d4f" : "#52c41a" } }} suffix="%" />
+            <Statistic title={<span style={{ fontSize: 12 }}>Morosidad</span>} value={m.morosidadPorcentaje} styles={{ content: { fontWeight: 700, fontSize: 18, color: (m.morosidadPorcentaje) > 20 ? "#ff4d4f" : "#52c41a" } }} suffix="%" />
           </Card>
         </Col>
       </Row>
@@ -140,17 +189,17 @@ export function CobranzasPage() {
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Cartera</span>} value={metricas?.montoTotal ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16 } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Cartera</span>} value={m.montoTotal} styles={{ content: { fontWeight: 700, fontSize: 16 } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Pendiente</span>} value={metricas?.montoPendiente ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#faad14" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Pendiente</span>} value={m.montoPendiente} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#faad14" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Vencido</span>} value={metricas?.montoVencido ?? 0} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#ff4d4f" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic title={<span style={{ fontSize: 12 }}>Monto Vencido</span>} value={m.montoVencido} styles={{ content: { fontWeight: 700, fontSize: 16, color: "#ff4d4f" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
           </Card>
         </Col>
       </Row>
@@ -167,8 +216,11 @@ export function CobranzasPage() {
           <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
             <Descriptions.Item label="# Cobranza">{viewModal.record.id_cobranza}</Descriptions.Item>
             <Descriptions.Item label="Estado"><Tag color={estadoConfig[viewModal.record.estado]?.color}>{estadoConfig[viewModal.record.estado]?.label}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Cliente" span={2}>{infoDeContrato(viewModal.record.id_contrato)?.cliente ?? "-"}</Descriptions.Item>
+            <Descriptions.Item label="Lote" span={2}>{infoDeContrato(viewModal.record.id_contrato)?.lote ?? "-"}</Descriptions.Item>
             <Descriptions.Item label="Contrato">#{viewModal.record.id_contrato}</Descriptions.Item>
             <Descriptions.Item label="Cuota">#{viewModal.record.numero_cuota}</Descriptions.Item>
+            <Descriptions.Item label="Vencimiento" span={2}>{viewModal.record.fecha_vencimiento ? formatDateOnly(diaEnEmpresa(viewModal.record.fecha_vencimiento)) : "-"}</Descriptions.Item>
             <Descriptions.Item label="Monto" span={2}><span style={{ fontWeight: 700, fontSize: 18 }}>${viewModal.record.monto_cuota.toLocaleString()}</span></Descriptions.Item>
           </Descriptions>
         )}

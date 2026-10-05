@@ -34,3 +34,4 @@ export { useLookup } from "./useLookup";
 export { useLotesPlano } from "./useLotesPlano";
 export { useMapaPublico } from "./useMapaPublico";
 export { useMediosProyecto } from "./useMediosProyecto";
+export { useInfoContratos } from "./useInfoContratos";
