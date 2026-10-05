@@ -69,6 +69,7 @@ import {
 } from "@/presentation/components/maps/PlanoInteractivo";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 import { compararNumeroLote, formatCurrency } from "@/utils";
+import { InfoVentaLote } from "./InfoVentaLote";
 
 // The scoped client list (GetClientesUseCase) only contains clients with a
 // venta or cotizacion, so a client created here would never be found again.
@@ -964,10 +965,13 @@ export function MapasPage() {
           <div>
             <Descriptions column={2} bordered size="small" style={{ marginBottom: 20 }}>
               <Descriptions.Item label="Numero">{selectedLote.numero_lote}</Descriptions.Item>
-              <Descriptions.Item label="Manzana">{selectedLote.id_manzana}</Descriptions.Item>
+              <Descriptions.Item label="Manzana">
+                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)?.nombre_codigo ??
+                  selectedLote.id_manzana}
+              </Descriptions.Item>
               <Descriptions.Item label="Precio Lista" span={2}>
                 <span style={{ fontWeight: 700, fontSize: 18, color: "#1677ff" }}>
-                  ${selectedLote.precio_lista?.toLocaleString()}
+                  {formatCurrency(selectedLote.precio_lista ?? 0)}
                 </span>
               </Descriptions.Item>
               <Descriptions.Item label="Estado" span={2}>
@@ -979,6 +983,10 @@ export function MapasPage() {
                 </Tag>
               </Descriptions.Item>
             </Descriptions>
+
+            {selectedLote.estado === "vendido" && (
+              <InfoVentaLote idLote={selectedLote.id_lote} clientes={clientes} />
+            )}
 
             <div
               style={{
