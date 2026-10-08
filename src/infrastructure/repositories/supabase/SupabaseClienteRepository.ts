@@ -1,7 +1,6 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Cliente } from "@/domain/cliente/entities";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
-import { getLoteIdsForEmpresa } from "./shared/empresaScope";
 
 export class SupabaseClienteRepository implements ClienteRepository {
   async getAll(): Promise<Cliente[]> {
@@ -10,30 +9,16 @@ export class SupabaseClienteRepository implements ClienteRepository {
     return (data ?? []) as Cliente[];
   }
 
-  // `cliente` has no id_empresa column of its own — a client only belongs
-  // to a tenant through the ventas and cotizaciones it appears in, so scope
-  // by those instead. Including `cotizador` matters: a client created while
-  // reserving a lot only gets linked once a cotizacion exists for it.
+  // `cliente.id_empresa` (migración 019) define el alcance directo: el
+  // listado por empresa es una igualdad, no una inferencia por ventas y
+  // cotizaciones, así que un cliente creado al reservar ya se ve aquí.
   async getByEmpresaId(empresaId: number): Promise<Cliente[]> {
-    const loteIds = await getLoteIdsForEmpresa(empresaId);
-    if (loteIds.length === 0) return [];
-
-    const [ventasResult, cotizacionesResult] = await Promise.all([
-      supabase.from("ventas").select("id_cliente").in("id_lote", loteIds),
-      supabase.from("cotizador").select("id_cliente").in("id_lote", loteIds),
-    ]);
-    if (ventasResult.error) throw ventasResult.error;
-    if (cotizacionesResult.error) throw cotizacionesResult.error;
-
-    const clienteIds = [
-      ...new Set([
-        ...(ventasResult.data ?? []).map((v) => v.id_cliente as number),
-        ...(cotizacionesResult.data ?? []).map((c) => c.id_cliente as number),
-      ]),
-    ];
-    if (clienteIds.length === 0) return [];
-
-    const { data, error } = await supabase.from("cliente").select("*").in("id_cliente", clienteIds);
+    if (!empresaId) return [];
+    const { data, error } = await supabase
+      .from("cliente")
+      .select("*")
+      .eq("id_empresa", empresaId)
+      .order("nombres");
     if (error) throw error;
     return (data ?? []) as Cliente[];
   }

@@ -18,7 +18,7 @@ import { ShoppingCartOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  useTodosClientes,
+  useClientes,
   useProyectos,
   useEtapasByProyecto,
   useManzanasByEtapa,
@@ -26,6 +26,7 @@ import {
   useAsesores,
   useAsesorDeSesion,
 } from "@/presentation/hooks";
+import { useEmpresa } from "@/presentation/providers";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
 import { getContainer } from "@/infrastructure/container";
 import { formatCurrency } from "@/utils";
@@ -48,7 +49,11 @@ export function NuevaCotizacionPage() {
   const [montoEntrada, setMontoEntrada] = useState<number>(0);
   const [numCuotas, setNumCuotas] = useState<number>(12);
 
-  const { data: clientes, isLoading: loadingClientes } = useTodosClientes();
+  // Selector de cliente acotado a la empresa seleccionada (migración 019).
+  const { empresaActual } = useEmpresa();
+  const { data: clientes, isLoading: loadingClientes } = useClientes(
+    empresaActual?.id_empresa ?? 0,
+  );
   const { data: asesores, isLoading: loadingAsesores } = useAsesores();
   // Spec plan-de-pago: la cotización que crea un asesor con sesión activa guarda
   // ese asesor por defecto. `undefined` = sin tocar (se usa el de la sesión),
@@ -207,7 +212,7 @@ export function NuevaCotizacionPage() {
                   options={
                     clientes?.map((c) => ({
                       value: c.id_cliente,
-                      label: `${c.nombres} - ${c.cedula_ruc}`,
+                      label: c.cedula_ruc ? `${c.nombres} - ${c.cedula_ruc}` : c.nombres,
                     })) ?? []
                   }
                 />

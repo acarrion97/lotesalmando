@@ -40,7 +40,6 @@ import {
   FileTextOutlined,
   UserOutlined,
   MailOutlined,
-  PhoneOutlined,
   EditOutlined,
   UndoOutlined,
   SaveOutlined,
@@ -48,18 +47,18 @@ import {
 } from "@ant-design/icons";
 import {
   useProyectos,
-  useTodosClientes,
+  useClientes,
+  useProspectos,
   useEtapasByProyecto,
   useManzanasByEtapa,
   useLotesByManzana,
-  useReservarLote,
   useAceptarCotizacion,
   useOnlineStatus,
   useMapaByProyecto,
   useLotesPlano,
   useAsesorDeSesion,
 } from "@/presentation/hooks";
-import { useAuth } from "@/presentation/providers";
+import { useAuth, useEmpresa } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
@@ -73,21 +72,30 @@ import { compararNumeroLote, formatCurrency } from "@/utils";
 import { AsistentePoligonosModal } from "@/presentation/components/maps/AsistentePoligonosModal";
 import { InfoVentaLote } from "./InfoVentaLote";
 
-// The scoped client list (GetClientesUseCase) only contains clients with a
-// venta or cotizacion, so a client created here would never be found again.
-// Look through the full list instead, otherwise every reserva/venta creates
-// a duplicate row for the same cedula/email.
+// Dedupe dentro de la propia empresa: `cliente.id_empresa` (migración 019)
+// es el alcance, así que la misma cédula puede existir en dos empresas sin
+// mezclar sus listados. La lista por empresa ya incluye a los clientes
+// creados al reservar (antes solo entraban al vender).
 async function findOrCreateCliente(
+  idEmpresa: number,
   nombres: string,
   cedula_ruc: string,
   email: string,
   telefono: string | null = null,
 ) {
   const container = getContainer();
-  const clientes = await container.getAllClientes.execute();
-  const existing = clientes.find((c) => c.email === email || c.cedula_ruc === cedula_ruc);
+  const clientes = await container.getClientes.execute(idEmpresa);
+  const existing = clientes.find(
+    (c) => c.email === email || (cedula_ruc !== "" && c.cedula_ruc === cedula_ruc),
+  );
   if (existing) return existing;
-  return container.createCliente.execute({ nombres, cedula_ruc, email, telefono });
+  return container.createCliente.execute({
+    id_empresa: idEmpresa,
+    nombres,
+    cedula_ruc,
+    email,
+    telefono,
+  });
 }
 
 const { Title, Text } = Typography;
@@ -173,6 +181,8 @@ export function MapasPage() {
   const [reservaStep, setReservaStep] = useState(0);
   const [ventaStep, setVentaStep] = useState(0);
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
+  /** Prospecto elegido en el wizard de reserva (lista de mi empresa). */
+  const [selectedProspecto, setSelectedProspecto] = useState<number | null>(null);
   const [ventaClienteInfo, setVentaClienteInfo] = useState<{
     cliente_nombre: string;
     cliente_cedula: string;
@@ -184,20 +194,21 @@ export function MapasPage() {
   const [ventaEntrada, setVentaEntrada] = useState<number>(0);
   const [ventaNumCuotas, setVentaNumCuotas] = useState<number>(12);
   const [cotizacionForm] = Form.useForm();
-  const [reservaForm] = Form.useForm();
   const [ventaForm] = Form.useForm();
   const [ventaClienteForm] = Form.useForm();
 
   const { user } = useAuth();
-  // Asesor de la cuenta con sesión: el de las cotizaciones y ventas directas
-  // que se abren desde el mapa (null cuando la cuenta no es asesor).
+  const { empresaActual } = useEmpresa();
+  const empresaId = empresaActual?.id_empresa ?? 0;
+  // Asesor de la cuenta con sesión: el de las cotizaciones, reservas y ventas
+  // directas que se abren desde el mapa (null cuando la cuenta no es asesor).
   const { idAsesor } = useAsesorDeSesion();
   const queryClient = useQueryClient();
-  const reservarLoteMutation = useReservarLote();
   const aceptarCotizacionMutation = useAceptarCotizacion();
   const isOnline = useOnlineStatus();
 
-  const { data: clientes, isLoading: loadingClientes } = useTodosClientes();
+  const { data: clientes, isLoading: loadingClientes } = useClientes(empresaId);
+  const { data: prospectos, isLoading: loadingProspectos } = useProspectos();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: etapas, isLoading: loadingEtapas } = useEtapasByProyecto(selectedProyecto ?? 0);
   const { data: manzanasData, isLoading: loadingManzanas } = useManzanasByEtapa(selectedEtapa ?? 0);
@@ -320,9 +331,10 @@ export function MapasPage() {
 
   const isLoading = loadingProyectos || loadingEtapas || loadingManzanas || loadingLotes;
   // La frescura se mide sobre la fuente que alimenta los lotes a la vista: con
-  // plano, la consulta del plano; sin plano, la de la manzana elegida. Sin ella,
-  // `undefined` se clasificaría como "muy desactualizado" aunque el plano se
-  // haya cargado hace segundos.
+  // plano, la consulta del plano; sin plano, la de la manzana elegida. Sin
+  // manzana seleccionada esa consulta está deshabilitada y su `dataUpdatedAt`
+  // viene vacío, lo que se clasificaría como "muy desactualizado" aunque el
+  // plano se haya cargado hace segundos.
   const lotesDataUpdatedAt = hayPlano ? lotesPlanoUpdatedAt : lotesUpdatedAt;
   const isVeryStale = classifyFreshness(lotesDataUpdatedAt) === "very-stale";
   const commercialActionBlockedReason = !isOnline
@@ -347,7 +359,7 @@ export function MapasPage() {
     }
     if (type === "reservar") {
       setReservaStep(0);
-      reservaForm.resetFields();
+      setSelectedProspecto(null);
     }
     if (type === "venta") {
       setVentaStep(0);
@@ -434,37 +446,60 @@ export function MapasPage() {
       .catch(() => undefined);
   };
 
-  const handleReservar = () => {
+  const handleReservar = async () => {
     if (reservaStep === 0) {
+      // La reserva se hace sobre un prospecto de esta empresa: sin prospectos
+      // no hay a quién ligar la oportunidad, así que no se avanza.
+      if (!prospectos?.length) {
+        message.warning("No hay prospectos en esta empresa");
+        return;
+      }
       setReservaStep(1);
       return;
     }
-    reservaForm.validateFields().then(async (values) => {
-      if (!selectedLote || !user?.id_usuario) {
-        message.error("No se pudo identificar el usuario actual");
-        return;
-      }
-      setReservaSubmitting(true);
-      try {
-        await findOrCreateCliente(
-          values.cliente_nombre,
-          values.cliente_cedula,
-          values.cliente_email,
-        );
-        queryClient.invalidateQueries({ queryKey: ["clientes"] });
-        await reservarLoteMutation.mutateAsync({
-          loteId: selectedLote.id_lote,
-          usuarioId: user.id_usuario,
-        });
-        message.success(`Lote ${selectedLote.numero_lote} reservado correctamente`);
-        closeModal();
-      } catch (err) {
-        message.error(err instanceof Error ? err.message : "Error al reservar el lote");
-      } finally {
-        setReservaSubmitting(false);
-      }
-    });
+
+    const prospecto = prospectos?.find((p) => p.id_prospecto === selectedProspecto);
+    if (!selectedLote || !user?.id_usuario || !prospecto) {
+      message.error("Seleccione el prospecto para la reserva");
+      return;
+    }
+
+    setReservaSubmitting(true);
+    try {
+      // Misma orquestación que la reserva desde el módulo Prospectos: cliente
+      // (creado o reusado) + lote reservado + oportunidad y prospecto en la
+      // etapa "reserva". El prospecto no tiene cédula, así que el cliente se
+      // arma con su nombre, email y teléfono.
+      await getContainer().reservarProspecto.execute({
+        idProspecto: prospecto.id_prospecto,
+        idLote: selectedLote.id_lote,
+        usuarioId: user.id_usuario,
+        idAsesor,
+        cliente: {
+          nombres: prospecto.nombres,
+          cedula_ruc: "",
+          email: prospecto.email ?? "",
+          telefono: prospecto.telefono?.trim() ? prospecto.telefono : null,
+        },
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["lotes"] }),
+        queryClient.invalidateQueries({ queryKey: ["clientes"] }),
+        queryClient.invalidateQueries({ queryKey: ["prospectos"] }),
+        queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
+        queryClient.invalidateQueries({ queryKey: ["inventario"] }),
+      ]);
+      message.success(`Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`);
+      closeModal();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : "Error al reservar el lote");
+    } finally {
+      setReservaSubmitting(false);
+    }
   };
+
+  const prospectoReserva =
+    prospectos?.find((p) => p.id_prospecto === selectedProspecto) ?? null;
 
   const precioVenta = selectedLote?.precio_lista ?? 0;
   const financiamientoValido =
@@ -509,6 +544,7 @@ export function MapasPage() {
       (async () => {
         try {
           const cliente = await findOrCreateCliente(
+            empresaId,
             clienteInfo.cliente_nombre,
             clienteInfo.cliente_cedula,
             clienteInfo.cliente_email,
@@ -1168,7 +1204,7 @@ export function MapasPage() {
               options={
                 clientes?.map((c) => ({
                   value: c.id_cliente,
-                  label: `${c.nombres} - ${c.cedula_ruc}`,
+                  label: c.cedula_ruc ? `${c.nombres} - ${c.cedula_ruc}` : c.nombres,
                 })) ?? []
               }
             />
@@ -1215,14 +1251,20 @@ export function MapasPage() {
           <Button key="cancel" onClick={closeModal} disabled={reservaSubmitting}>
             Cancelar
           </Button>,
-          <Button key="submit" type="primary" loading={reservaSubmitting} onClick={handleReservar}>
+          <Button
+            key="submit"
+            type="primary"
+            loading={reservaSubmitting}
+            disabled={reservaStep === 1 && !selectedProspecto}
+            onClick={handleReservar}
+          >
             {reservaStep === 0 ? "Siguiente" : "Confirmar Reserva"}
           </Button>,
         ]}
       >
         <Steps
           current={reservaStep}
-          items={[{ title: "Confirmar" }, { title: "Detalles" }]}
+          items={[{ title: "Confirmar" }, { title: "Prospecto" }]}
           style={{ marginBottom: 24 }}
         />
         {reservaStep === 0 ? (
@@ -1255,35 +1297,53 @@ export function MapasPage() {
             />
           </div>
         ) : (
-          <Form form={reservaForm} layout="vertical">
-            <Form.Item
-              name="cliente_nombre"
-              label="Nombre del Cliente"
-              rules={[{ required: true, message: "Ingrese el nombre" }]}
-            >
-              <Input prefix={<UserOutlined />} placeholder="Nombre completo" />
-            </Form.Item>
-            <Form.Item
-              name="cliente_cedula"
-              label="Cedula/RUC"
-              rules={[{ required: true, message: "Ingrese la cedula" }]}
-            >
-              <Input placeholder="0912345678" />
-            </Form.Item>
-            <Form.Item
-              name="cliente_email"
-              label="Email"
-              rules={[
-                { required: true, message: "Ingrese el email" },
-                { type: "email", message: "Email invalido" },
-              ]}
-            >
-              <Input prefix={<MailOutlined />} placeholder="cliente@email.com" />
-            </Form.Item>
-            <Form.Item name="cliente_telefono" label="Telefono">
-              <Input prefix={<PhoneOutlined />} placeholder="0991234567" />
-            </Form.Item>
-          </Form>
+          <>
+            <Alert
+              message="Seleccione el prospecto para la reserva"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            {loadingProspectos ? (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <Spin />
+              </div>
+            ) : prospectos?.length ? (
+              <>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Seleccionar prospecto"
+                  showSearch
+                  optionFilterProp="label"
+                  value={selectedProspecto}
+                  onChange={setSelectedProspecto}
+                  notFoundContent="No hay prospectos registrados"
+                  options={prospectos.map((p) => ({
+                    value: p.id_prospecto,
+                    label: `${p.nombres}${p.telefono ? ` · ${p.telefono}` : ""}${
+                      p.email ? ` · ${p.email}` : ""
+                    }`,
+                  }))}
+                />
+                {prospectoReserva && (
+                  <Alert
+                    type="success"
+                    showIcon
+                    style={{ marginTop: 16 }}
+                    message={`${prospectoReserva.nombres} pasa a etapa Reserva`}
+                    description="Se crea (o se reusa) su cliente y la oportunidad de este lote; el lote pasa a RESERVADO."
+                  />
+                )}
+              </>
+            ) : (
+              <Alert
+                type="warning"
+                showIcon
+                message="No hay prospectos en esta empresa"
+                description="Creá el prospecto en el módulo Prospectos antes de reservar un lote desde el mapa."
+              />
+            )}
+          </>
         )}
       </Modal>
 

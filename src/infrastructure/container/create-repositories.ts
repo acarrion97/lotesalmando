@@ -22,6 +22,7 @@ import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
 import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
 import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
+import type { RegistrarInteresPublicoPort } from "@/application/prospectos/ports/RegistrarInteresPublicoPort";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
 import type { Actividad } from "@/domain/actividad/entities";
@@ -48,6 +49,8 @@ import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStor
 import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
 import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
 import { SupabaseAceptarCotizacion } from "@/infrastructure/transactions/SupabaseAceptarCotizacion";
+import { MockRegistrarInteresPublico } from "@/infrastructure/transactions/MockRegistrarInteresPublico";
+import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/SupabaseRegistrarInteresPublico";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
@@ -102,6 +105,8 @@ export interface Repositories {
   proyectoMedioStorage: ProyectoMedioStorage;
   /** Puerto de infraestructura: aceptación atómica de una cotización (RPC en Supabase). */
   aceptarCotizacion: AceptarCotizacionPort;
+  /** Puerto de infraestructura: registro de interés del mapa público (RPC en Supabase). */
+  registrarInteresPublico: RegistrarInteresPublicoPort;
 }
 
 function createMockRepositories(): Repositories {
@@ -221,6 +226,11 @@ function createMockRepositories(): Repositories {
     manzanaRepo: new MockManzanaRepository(),
     prospectoRepo,
     oportunidadRepo,
+    registrarInteresPublico: new MockRegistrarInteresPublico(
+      prospectoRepo,
+      oportunidadRepo,
+      lotRepository,
+    ),
     actividadRepo,
     asesorRepo,
     rolRepo: new MockRolRepository(),
@@ -267,6 +277,7 @@ function createSupabaseRepositories(): Repositories {
     proyectoMedioRepo: new SupabaseProyectoMedioRepository(),
     proyectoMedioStorage: new SupabaseProyectoMedioStorage(),
     aceptarCotizacion: new SupabaseAceptarCotizacion(),
+    registrarInteresPublico: new SupabaseRegistrarInteresPublico(),
   };
 }
 

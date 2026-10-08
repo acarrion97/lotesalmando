@@ -52,6 +52,7 @@ import { GetProspectosUseCase } from "@/application/prospectos/use-cases/GetPros
 import { CreateProspectoUseCase } from "@/application/prospectos/use-cases/CreateProspectoUseCase";
 import { UpdateProspectoUseCase } from "@/application/prospectos/use-cases/UpdateProspectoUseCase";
 import { DeleteProspectoUseCase } from "@/application/prospectos/use-cases/DeleteProspectoUseCase";
+import { RegistrarInteresPublicoUseCase } from "@/application/prospectos/use-cases/RegistrarInteresPublicoUseCase";
 import { GetOportunidadesUseCase } from "@/application/oportunidades/use-cases/GetOportunidadesUseCase";
 import { CreateOportunidadUseCase } from "@/application/oportunidades/use-cases/CreateOportunidadUseCase";
 import { UpdateOportunidadUseCase } from "@/application/oportunidades/use-cases/UpdateOportunidadUseCase";
@@ -135,6 +136,8 @@ export interface UseCases {
   createProspecto: CreateProspectoUseCase;
   updateProspecto: UpdateProspectoUseCase;
   deleteProspecto: DeleteProspectoUseCase;
+  /** Registro de interés de un visitante del mapa público (RPC en Supabase). */
+  registrarInteresPublico: RegistrarInteresPublicoUseCase;
   getOportunidades: GetOportunidadesUseCase;
   createOportunidad: CreateOportunidadUseCase;
   updateOportunidad: UpdateOportunidadUseCase;
@@ -236,6 +239,7 @@ export function createUseCases(repos: Repositories): UseCases {
     createProspecto: new CreateProspectoUseCase(repos.prospectoRepo),
     updateProspecto: new UpdateProspectoUseCase(repos.prospectoRepo),
     deleteProspecto: new DeleteProspectoUseCase(repos.prospectoRepo),
+    registrarInteresPublico: new RegistrarInteresPublicoUseCase(repos.registrarInteresPublico),
     getOportunidades: new GetOportunidadesUseCase(repos.oportunidadRepo),
     createOportunidad: new CreateOportunidadUseCase(repos.oportunidadRepo),
     updateOportunidad: new UpdateOportunidadUseCase(repos.oportunidadRepo),

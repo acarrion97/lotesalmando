@@ -75,7 +75,7 @@ export class ReservarProspectoUseCase {
       throw new Error(`El lote ${lote.numero_lote} ya no esta disponible (estado: ${lote.estado})`);
     }
 
-    const cliente = await this.obtenerOCrearCliente(input.cliente);
+    const cliente = await this.obtenerOCrearCliente(input.cliente, prospecto.id_empresa);
 
     // Marca los movimientos previos para poder deshacer solo los de esta
     // operación si algo falla después de la reserva.
@@ -126,7 +126,10 @@ export class ReservarProspectoUseCase {
     if (cliente.nombres.trim().length < 2) {
       throw new Error("Ingrese el nombre del cliente");
     }
-    if (cliente.cedula_ruc.trim().length < 5) {
+    // La cédula puede venir vacía cuando la reserva parte de un prospecto
+    // (que no tiene cédula): si se informa, tiene que ser creíble.
+    const cedula = cliente.cedula_ruc.trim();
+    if (cedula !== "" && cedula.length < 5) {
       throw new Error("Ingrese la cedula o RUC del cliente");
     }
     const email = cliente.email.trim();
@@ -137,9 +140,14 @@ export class ReservarProspectoUseCase {
 
   /**
    * Reusa el cliente por cédula o email (cualquiera de los dos identifica a la
-   * misma persona) para no duplicar filas en cada reserva.
+   * misma persona) dentro de la empresa del prospecto, para no duplicar filas
+   * en cada reserva. Una cédula vacía no identifica a nadie: solo se dedupea
+   * por email en ese caso.
    */
-  private async obtenerOCrearCliente(datos: DatosClienteReserva): Promise<Cliente> {
+  private async obtenerOCrearCliente(
+    datos: DatosClienteReserva,
+    idEmpresa: number,
+  ): Promise<Cliente> {
     const nombres = datos.nombres.trim();
     const cedula = datos.cedula_ruc.trim();
     const email = datos.email.trim().toLowerCase();
@@ -147,11 +155,19 @@ export class ReservarProspectoUseCase {
 
     const clientes = await this.clienteRepo.getAll();
     const existente = clientes.find(
-      (c) => c.cedula_ruc === cedula || (email !== "" && (c.email ?? "").toLowerCase() === email),
+      (c) =>
+        c.id_empresa === idEmpresa &&
+        ((cedula !== "" && c.cedula_ruc === cedula) || (email !== "" && (c.email ?? "").toLowerCase() === email)),
     );
     if (existente) return existente;
 
-    return this.clienteRepo.create({ nombres, cedula_ruc: cedula, email: datos.email.trim(), telefono });
+    return this.clienteRepo.create({
+      id_empresa: idEmpresa,
+      nombres,
+      cedula_ruc: cedula,
+      email: datos.email.trim(),
+      telefono,
+    });
   }
 
   private async revertirReserva(idLote: number, movimientosPrevios: Set<number>): Promise<boolean> {

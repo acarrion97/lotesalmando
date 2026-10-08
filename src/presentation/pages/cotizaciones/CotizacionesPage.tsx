@@ -30,13 +30,13 @@ import type { TableColumnType } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCotizaciones,
-  useTodosClientes,
+  useClientes,
   useLotes,
   useLookup,
   useAsesores,
   useAceptarCotizacion,
 } from "@/presentation/hooks";
-import { useAuth } from "@/presentation/providers";
+import { useAuth, useEmpresa } from "@/presentation/providers";
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
@@ -61,7 +61,9 @@ interface ModalState {
 
 export function CotizacionesPage() {
   const { data: cotizaciones, isLoading } = useCotizaciones();
-  const { data: clientes } = useTodosClientes();
+  const { empresaActual } = useEmpresa();
+  // Selector de cliente acotado a la empresa seleccionada (019).
+  const { data: clientes } = useClientes(empresaActual?.id_empresa ?? 0);
   const { data: lotes } = useLotes();
   const { data: asesores } = useAsesores();
   const { user } = useAuth();
@@ -529,7 +531,7 @@ export function CotizacionesPage() {
                 options={
                   clientes?.map((c) => ({
                     value: c.id_cliente,
-                    label: `${c.nombres} - ${c.cedula_ruc}`,
+                    label: c.cedula_ruc ? `${c.nombres} - ${c.cedula_ruc}` : c.nombres,
                   })) ?? []
                 }
               />

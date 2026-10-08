@@ -2,7 +2,8 @@ import { useMemo } from "react";
 import { etiquetaNumeroLote } from "@/utils";
 import { useContratos } from "./useContratos";
 import { useVentas } from "./useVentas";
-import { useTodosClientes } from "./useTodosClientes";
+import { useClientes } from "./useClientes";
+import { useEmpresa } from "@/presentation/providers";
 import { useLotes } from "./useLotes";
 import { useManzanas } from "./useManzanas";
 import { useCobranzas } from "./useCobranzas";
@@ -22,9 +23,10 @@ export interface InfoContrato {
  * solo guardan ids de contrato o cobranza.
  */
 export function useInfoContratos() {
+  const { empresaActual } = useEmpresa();
   const { data: contratos } = useContratos();
   const { data: ventas } = useVentas();
-  const { data: clientes } = useTodosClientes();
+  const { data: clientes } = useClientes(empresaActual?.id_empresa ?? 0);
   const { data: lotes } = useLotes();
   const { data: manzanas } = useManzanas();
   const { data: cobranzas } = useCobranzas();

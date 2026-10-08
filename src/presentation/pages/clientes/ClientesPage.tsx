@@ -91,7 +91,12 @@ export function ClientesPage() {
     try {
       const values = await createForm.validateFields();
       const parsed = clienteSchema.parse(values);
-      await container.createCliente.execute(parsed);
+      await container.createCliente.execute({
+        ...parsed,
+        // El cliente nace en la empresa seleccionada (migración 019): es lo
+        // que después filtra el listado y los selectores de cotización.
+        id_empresa: empresaActual?.id_empresa ?? null,
+      });
       await refreshClientes();
       messageApi.success("Cliente creado correctamente");
       setCreateModalOpen(false);

@@ -121,7 +121,7 @@ export function FichaLotePublico({
             icon={<CalculatorOutlined />}
             onClick={() => onSimular(lote)}
           >
-            Simular financiamiento de {etiquetaLote(lote)}
+            Simular financiamiento
           </Button>
         </div>
       )}

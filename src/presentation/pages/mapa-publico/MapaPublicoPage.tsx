@@ -3,14 +3,17 @@ import { useSearchParams, useParams } from "react-router-dom";
 import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
 import type { PlanoLote } from "@/domain/mapa/entities";
-import { useMapaPublico } from "@/presentation/hooks";
+import { useMapaPublico, useRegistrarInteresPublico } from "@/presentation/hooks";
 import {
   LeyendaPlano,
   PlanoInteractivo,
   etiquetaLote,
 } from "@/presentation/components/maps/PlanoInteractivo";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
-import { CalculadoraFinanciamiento } from "@/presentation/components/publicos/CalculadoraFinanciamiento";
+import {
+  CalculadoraFinanciamiento,
+  type RegistroInteresLote,
+} from "@/presentation/components/publicos/CalculadoraFinanciamiento";
 import { FichaLotePublico } from "@/presentation/components/publicos/FichaLotePublico";
 
 const { Title, Text } = Typography;
@@ -40,6 +43,7 @@ export function MapaPublicoPage() {
   const [loteCalculadora, setLoteCalculadora] = useState<PlanoLote | null>(null);
   /** Lote del que se muestra el modal de financiamiento (abierto desde la ficha). */
   const [loteSimulador, setLoteSimulador] = useState<PlanoLote | null>(null);
+  const registrarInteres = useRegistrarInteresPublico();
 
   useEffect(() => {
     document.title = mapa ? `${mapa.proyecto} - Mapa de disponibilidad` : "Mapa de disponibilidad";
@@ -97,6 +101,14 @@ export function MapaPublicoPage() {
   const verEnMapa = (lote: PlanoLote) => {
     setLoteFicha(lote);
     cambiarTab("mapa");
+  };
+
+  /**
+   * El visitante se registra desde el modal de la calculadora: la RPC crea (o
+   * reusa por email) el prospecto y la oportunidad de ese lote, sin sesión.
+   */
+  const registrarInteresEnLote = async (datos: RegistroInteresLote) => {
+    await registrarInteres.mutateAsync({ slug, ...datos });
   };
 
   let contenido: React.ReactNode;
@@ -254,6 +266,7 @@ export function MapaPublicoPage() {
               moneda={moneda}
               lote={loteSimulador}
               soloLote
+              onRegistrar={registrarInteresEnLote}
               onVerEnMapa={(l) => {
                 setLoteSimulador(null);
                 verEnMapa(l);
