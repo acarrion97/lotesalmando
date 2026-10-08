@@ -240,9 +240,11 @@ export function MapasPage() {
   };
 
   // --- Con plano: todos los lotes del proyecto dibujados sobre la imagen ---
-  const { data: lotesPlano, isLoading: loadingLotesPlano } = useLotesPlano(
-    hayPlano ? (selectedProyecto ?? 0) : 0,
-  );
+  const {
+    data: lotesPlano,
+    isLoading: loadingLotesPlano,
+    dataUpdatedAt: lotesPlanoUpdatedAt,
+  } = useLotesPlano(hayPlano ? (selectedProyecto ?? 0) : 0);
   const [dibujando, setDibujando] = useState<{ lote: PlanoLote; puntos: PuntoPlano[] } | null>(
     null,
   );
@@ -317,7 +319,12 @@ export function MapasPage() {
   }, [lotesData]);
 
   const isLoading = loadingProyectos || loadingEtapas || loadingManzanas || loadingLotes;
-  const isVeryStale = classifyFreshness(lotesUpdatedAt) === "very-stale";
+  // La frescura se mide sobre la fuente que alimenta los lotes a la vista: con
+  // plano, la consulta del plano; sin plano, la de la manzana elegida. Sin ella,
+  // `undefined` se clasificaría como "muy desactualizado" aunque el plano se
+  // haya cargado hace segundos.
+  const lotesDataUpdatedAt = hayPlano ? lotesPlanoUpdatedAt : lotesUpdatedAt;
+  const isVeryStale = classifyFreshness(lotesDataUpdatedAt) === "very-stale";
   const commercialActionBlockedReason = !isOnline
     ? "Sin conexión: no se pueden realizar acciones comerciales"
     : isVeryStale
@@ -702,7 +709,7 @@ export function MapasPage() {
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            {selectedManzana && lotesData && <FreshnessBadge dataUpdatedAt={lotesUpdatedAt} />}
+            {selectedManzana && lotesData && <FreshnessBadge dataUpdatedAt={lotesDataUpdatedAt} />}
             {hayPlano && mapaProyecto?.slug && (
               <Button
                 size="small"
@@ -1027,7 +1034,7 @@ export function MapasPage() {
               <Text type="secondary" style={{ fontSize: 12 }}>
                 Precio y estado según la última sincronización, no una garantía en tiempo real.
               </Text>
-              <FreshnessBadge dataUpdatedAt={lotesUpdatedAt} />
+              <FreshnessBadge dataUpdatedAt={lotesDataUpdatedAt} />
             </div>
 
             <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
