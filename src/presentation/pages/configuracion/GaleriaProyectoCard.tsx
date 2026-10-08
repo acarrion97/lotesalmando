@@ -37,15 +37,27 @@ const { Text } = Typography;
 
 const ACCEPT_IMAGEN_VIDEO = FORMATOS_ADMITIDOS.join(",");
 
+interface GaleriaProyectoCardProps {
+  /**
+   * Proyecto a configurar. Si se pasa, la tarjeta trabaja directo sobre ese
+   * proyecto y oculta el selector (uso desde el módulo Proyectos); sin él,
+   * muestra el selector global (uso desde Configuración).
+   */
+  proyectoId?: number;
+}
+
 /**
  * Galería del proyecto: fotos y videos que se publican en la pestaña
  * Galería del enlace público `/mapa/:slug`. Vive en Configuración,
- * debajo de la tarjeta del plano.
+ * debajo de la tarjeta del plano, y también en el modal de configuración
+ * de cada fila del módulo Proyectos.
  */
-export function GaleriaProyectoCard() {
+export function GaleriaProyectoCard({ proyectoId }: GaleriaProyectoCardProps) {
   const [messageApi, contextHolder] = message.useMessage();
   const { data: proyectos, isLoading: cargandoProyectos } = useProyectos();
-  const [proyecto, setProyecto] = useState<number | null>(null);
+  const [proyectoInterno, setProyectoInterno] = useState<number | null>(null);
+  const proyecto: number | null = proyectoId ?? proyectoInterno;
+  const setProyecto = (value: number | null) => setProyectoInterno(value);
   const [compresion, setCompresion] = useState<{
     fase: "cargando" | "comprimiendo";
     fraccion: number;
@@ -174,23 +186,25 @@ export function GaleriaProyectoCard() {
       {contextHolder}
       <Row gutter={[16, 16]}>
         <Col xs={24} md={8}>
-          <div style={{ marginBottom: 12 }}>
-            <Text strong>
-              Proyecto <span style={{ color: "#ff4d4f" }}>*</span>
-            </Text>
-            <Select
-              placeholder="Seleccionar proyecto"
-              style={{ width: "100%", marginTop: 4 }}
-              options={opciones}
-              value={proyecto}
-              onChange={(value) => setProyecto(value ?? null)}
-              allowClear
-              showSearch
-              optionFilterProp="label"
-              loading={cargandoProyectos}
-              notFoundContent={proyectos ? "Sin proyectos disponibles" : "Cargando..."}
-            />
-          </div>
+          {proyectoId === undefined && (
+            <div style={{ marginBottom: 12 }}>
+              <Text strong>
+                Proyecto <span style={{ color: "#ff4d4f" }}>*</span>
+              </Text>
+              <Select
+                placeholder="Seleccionar proyecto"
+                style={{ width: "100%", marginTop: 4 }}
+                options={opciones}
+                value={proyecto}
+                onChange={(value) => setProyecto(value ?? null)}
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                loading={cargandoProyectos}
+                notFoundContent={proyectos ? "Sin proyectos disponibles" : "Cargando..."}
+              />
+            </div>
+          )}
 
           <Upload
             accept={ACCEPT_IMAGEN_VIDEO}

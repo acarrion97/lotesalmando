@@ -4,6 +4,7 @@ export interface Cliente {
   nombres: string;
   cedula_ruc: string;
   email: string;
+  telefono: string | null;
 }
 
 export const clientes: Cliente[] = [
@@ -13,6 +14,7 @@ export const clientes: Cliente[] = [
     nombres: "Carlos Mendoza Rivera",
     cedula_ruc: "1804567890",
     email: "carlos.mendoza@gmail.com",
+    telefono: "0991234567",
   },
   {
     id_cliente: 2,
@@ -20,6 +22,7 @@ export const clientes: Cliente[] = [
     nombres: "María Fernanda López Castillo",
     cedula_ruc: "0709876543",
     email: "maria.lopez@hotmail.com",
+    telefono: "0987654321",
   },
   {
     id_cliente: 3,
@@ -27,6 +30,7 @@ export const clientes: Cliente[] = [
     nombres: "Roberto Jiménez Pérez",
     cedula_ruc: "0401234567",
     email: "roberto.jimenez@outlook.com",
+    telefono: null,
   },
   {
     id_cliente: 4,
@@ -34,6 +38,7 @@ export const clientes: Cliente[] = [
     nombres: "Ana Lucía Morales Vega",
     cedula_ruc: "1102345678",
     email: "ana.morales@gmail.com",
+    telefono: "0965554433",
   },
   {
     id_cliente: 5,
@@ -41,6 +46,7 @@ export const clientes: Cliente[] = [
     nombres: "Luis Herrera Gómez",
     cedula_ruc: "0912345678",
     email: "luis.herrera@yahoo.com",
+    telefono: null,
   },
   {
     id_cliente: 6,
@@ -48,5 +54,6 @@ export const clientes: Cliente[] = [
     nombres: "Diana Paredes Silva",
     cedula_ruc: "0503456789",
     email: "diana.paredes@gmail.com",
+    telefono: "0922110099",
   },
 ];

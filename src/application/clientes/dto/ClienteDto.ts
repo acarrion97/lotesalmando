@@ -3,4 +3,5 @@ export interface ClienteDto {
   nombres: string;
   cedula_ruc: string;
   email: string;
+  telefono: string | null;
 }

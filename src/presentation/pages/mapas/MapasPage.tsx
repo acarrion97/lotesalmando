@@ -57,6 +57,7 @@ import {
   useOnlineStatus,
   useMapaByProyecto,
   useLotesPlano,
+  useAsesorDeSesion,
 } from "@/presentation/hooks";
 import { useAuth } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
@@ -69,18 +70,24 @@ import {
 } from "@/presentation/components/maps/PlanoInteractivo";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 import { compararNumeroLote, formatCurrency } from "@/utils";
+import { AsistentePoligonosModal } from "@/presentation/components/maps/AsistentePoligonosModal";
 import { InfoVentaLote } from "./InfoVentaLote";
 
 // The scoped client list (GetClientesUseCase) only contains clients with a
 // venta or cotizacion, so a client created here would never be found again.
 // Look through the full list instead, otherwise every reserva/venta creates
 // a duplicate row for the same cedula/email.
-async function findOrCreateCliente(nombres: string, cedula_ruc: string, email: string) {
+async function findOrCreateCliente(
+  nombres: string,
+  cedula_ruc: string,
+  email: string,
+  telefono: string | null = null,
+) {
   const container = getContainer();
   const clientes = await container.getAllClientes.execute();
   const existing = clientes.find((c) => c.email === email || c.cedula_ruc === cedula_ruc);
   if (existing) return existing;
-  return container.createCliente.execute({ nombres, cedula_ruc, email });
+  return container.createCliente.execute({ nombres, cedula_ruc, email, telefono });
 }
 
 const { Title, Text } = Typography;
@@ -182,6 +189,9 @@ export function MapasPage() {
   const [ventaClienteForm] = Form.useForm();
 
   const { user } = useAuth();
+  // Asesor de la cuenta con sesión: el de las cotizaciones y ventas directas
+  // que se abren desde el mapa (null cuando la cuenta no es asesor).
+  const { idAsesor } = useAsesorDeSesion();
   const queryClient = useQueryClient();
   const reservarLoteMutation = useReservarLote();
   const aceptarCotizacionMutation = useAceptarCotizacion();
@@ -238,6 +248,7 @@ export function MapasPage() {
   );
   const [guardandoPoligono, setGuardandoPoligono] = useState(false);
   const [loteAUbicar, setLoteAUbicar] = useState<number | null>(null);
+  const [asistenteAbierto, setAsistenteAbierto] = useState(false);
 
   const lotesSinUbicar = useMemo(
     () => (lotesPlano ?? []).filter((l) => !l.poligono || l.poligono.length < 3),
@@ -399,8 +410,8 @@ export function MapasPage() {
             id_lote: selectedLote.id_lote,
             precio_ofertado: values.precio_ofertado,
             estado: "borrador",
-            // Cotización creada desde el mapa sin asesor; condiciones por defecto.
-            id_asesor: null,
+            // Cotización creada desde el mapa con el asesor de la sesión.
+            id_asesor: idAsesor,
             monto_entrada: 0,
             num_cuotas: 12,
           });
@@ -506,7 +517,8 @@ export function MapasPage() {
             id_lote: lote.id_lote,
             precio_ofertado: precioOfertado,
             estado: "borrador",
-            id_asesor: null,
+            // Venta directa del mapa: asesor de la sesión (spec ventas/asesor).
+            id_asesor: idAsesor,
             monto_entrada: entrada,
             num_cuotas: cuotas,
           });
@@ -784,6 +796,10 @@ export function MapasPage() {
               <Text type="secondary" style={{ fontSize: 13 }}>
                 {lotesUbicados} de {lotesPlano.length} lotes ubicados en el plano
               </Text>
+              <Space wrap>
+              <Button icon={<EnvironmentOutlined />} onClick={() => setAsistenteAbierto(true)}>
+                Detectar lotes automáticamente
+              </Button>
               <Space.Compact>
                 <Select
                   showSearch
@@ -813,8 +829,19 @@ export function MapasPage() {
                   Dibujar
                 </Button>
               </Space.Compact>
+              </Space>
             </div>
           ))}
+
+        {asistenteAbierto && hayPlano && urlPlano && lotesPlano && (
+          <AsistentePoligonosModal
+            open
+            imagenUrl={urlPlano}
+            lotes={lotesPlano}
+            onClose={() => setAsistenteAbierto(false)}
+            onGuardado={() => queryClient.invalidateQueries({ queryKey: ["mapa"] })}
+          />
+        )}
 
         {isLoading || (hayPlano && loadingLotesPlano) ? (
           <div

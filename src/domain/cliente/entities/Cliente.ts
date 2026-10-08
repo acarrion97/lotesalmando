@@ -3,4 +3,6 @@ export interface Cliente {
   nombres: string;
   cedula_ruc: string;
   email: string;
+  /** Contacto adicional; los clientes antiguos pueden no tenerlo. */
+  telefono: string | null;
 }

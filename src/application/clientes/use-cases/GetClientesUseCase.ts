@@ -19,6 +19,7 @@ export class GetClientesUseCase {
       nombres: cliente.nombres,
       cedula_ruc: cliente.cedula_ruc,
       email: cliente.email,
+      telefono: cliente.telefono ?? null,
     };
   }
 }

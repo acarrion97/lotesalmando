@@ -24,9 +24,9 @@ import {
   useManzanasByEtapa,
   useLotesByManzana,
   useAsesores,
+  useAsesorDeSesion,
 } from "@/presentation/hooks";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
-import { useAuth } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { formatCurrency } from "@/utils";
 
@@ -53,10 +53,7 @@ export function NuevaCotizacionPage() {
   // Spec plan-de-pago: la cotización que crea un asesor con sesión activa guarda
   // ese asesor por defecto. `undefined` = sin tocar (se usa el de la sesión),
   // `null` = vaciado a mano por el usuario.
-  const { user } = useAuth();
-  const asesorDeSesion = asesores?.find(
-    (a) => a.id_usuario === user?.id_usuario && a.estado === "activo",
-  );
+  const { asesor: asesorDeSesion } = useAsesorDeSesion();
   const [idAsesorInput, setIdAsesorInput] = useState<number | null | undefined>(undefined);
   const idAsesor =
     idAsesorInput === undefined ? (asesorDeSesion?.id_asesor ?? null) : idAsesorInput;

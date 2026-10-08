@@ -22,7 +22,15 @@ import {
   InfoCircleOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas, useClientes, useLotes, useManzanas, useUsuarios, useLookup } from "@/presentation/hooks";
+import {
+  useVentas,
+  useClientes,
+  useLotes,
+  useManzanas,
+  useUsuarios,
+  useAsesores,
+  useLookup,
+} from "@/presentation/hooks";
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
@@ -44,6 +52,9 @@ const estadoConfig: Record<VentaEstado, { color: string; label: string; icon: Re
 };
 
 type EstadoConfig = (typeof estadoConfig)[VentaEstado];
+
+/** Valor del filtro por asesor para las ventas que no tienen ninguno. */
+const FILTRO_SIN_ASESOR = "sin-asesor";
 
 /**
  * `ventas.estado` es VARCHAR(50) sin CHECK en la BD y la importación de
@@ -98,6 +109,13 @@ export function VentasPage() {
     ) as Record<number, string>;
   }, [lotes, manzanas]);
   const usuarioMap = useLookup(usuarios, "id_usuario", "nombres", "Usuario");
+  const { data: asesores } = useAsesores();
+  const asesorMap = useLookup(asesores, "id_asesor", "nombre_comercial", "Asesor");
+
+  // Quién vendió el lote: distinto del usuario que registró la venta.
+  // Si la venta no tiene asesor, o el asesor ya no existe, se muestra el respaldo.
+  const nombreAsesor = (idAsesor?: number | null) =>
+    (idAsesor ? asesorMap[idAsesor] : undefined) ?? "Sin asesor";
   const [searchText, setSearchText] = useState("");
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const [modalState, setModalState] = useState<ModalState>({
@@ -153,6 +171,27 @@ export function VentasPage() {
       dataIndex: "id_lote",
       key: "id_lote",
       render: (id: number) => <Tag>{loteEtiqueta[id] ?? `Lote #${id}`}</Tag>,
+    },
+    {
+      title: "Asesor",
+      key: "asesor",
+      filters: [
+        ...(asesores ?? []).map((a) => ({ text: a.nombre_comercial, value: a.id_asesor })),
+        { text: "Sin asesor", value: FILTRO_SIN_ASESOR },
+      ],
+      onFilter: (value: unknown, record: Venta) =>
+        value === FILTRO_SIN_ASESOR
+          ? !record.id_asesor
+          : record.id_asesor === (value as number),
+      sorter: (a, b) => nombreAsesor(a.id_asesor).localeCompare(nombreAsesor(b.id_asesor)),
+      render: (_: unknown, record: Venta) => {
+        const nombre = nombreAsesor(record.id_asesor);
+        return nombre === "Sin asesor" ? (
+          <Text type="secondary">{nombre}</Text>
+        ) : (
+          <span>{nombre}</span>
+        );
+      },
     },
     {
       title: "Precio Final",
@@ -325,6 +364,7 @@ export function VentasPage() {
             <Descriptions.Item label="Cotizacion">
               Cotizacion #{modalState.record.id_cotizacion}
             </Descriptions.Item>
+            <Descriptions.Item label="Asesor">{nombreAsesor(modalState.record.id_asesor)}</Descriptions.Item>
             <Descriptions.Item label="Usuario">
               {usuarioMap[modalState.record.id_usuario] ??
                 `Usuario #${modalState.record.id_usuario}`}

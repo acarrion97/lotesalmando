@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useProyectos, useEmpresas, useLookup } from "@/presentation/hooks";
 import type { Proyecto } from "@/domain/proyecto/entities/Proyecto";
@@ -9,6 +9,8 @@ import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+import { MapaProyectoCard } from "@/presentation/pages/configuracion/MapaProyectoCard";
+import { GaleriaProyectoCard } from "@/presentation/pages/configuracion/GaleriaProyectoCard";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -26,6 +28,8 @@ export function ProyectosPage() {
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Configuración (plano, galería y enlace público) del proyecto de la fila.
+  const [configProyecto, setConfigProyecto] = useState<Proyecto | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
@@ -130,6 +134,13 @@ export function ProyectosPage() {
       render: (_: unknown, record: Proyecto) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
+          <Button
+            type="link"
+            icon={<SettingOutlined />}
+            onClick={() => setConfigProyecto(record)}
+          >
+            Configuración
+          </Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
         </Space>
@@ -226,6 +237,22 @@ export function ProyectosPage() {
         <p style={{ marginTop: 16 }}>
           ¿Estás seguro que deseas eliminar el proyecto <strong>{modal.record?.nombre}</strong>?
         </p>
+      </Modal>
+
+      {/* Modal de configuración: mismo componente que en Configuración, fijado a la fila */}
+      <Modal
+        title={`Configuración — ${configProyecto?.nombre ?? ""}`}
+        open={configProyecto !== null}
+        onCancel={() => setConfigProyecto(null)}
+        footer={[<Button key="close" onClick={() => setConfigProyecto(null)}>Cerrar</Button>]}
+        width={900}
+      >
+        {configProyecto && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 16 }}>
+            <MapaProyectoCard proyectoId={configProyecto.id_proyecto} />
+            <GaleriaProyectoCard proyectoId={configProyecto.id_proyecto} />
+          </div>
+        )}
       </Modal>
     </div>
   );

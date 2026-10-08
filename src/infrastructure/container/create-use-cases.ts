@@ -14,6 +14,7 @@ import { UpdateLoteUseCase } from "@/application/lotes/use-cases/UpdateLoteUseCa
 import { DeleteLoteUseCase } from "@/application/lotes/use-cases/DeleteLoteUseCase";
 import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
+import { ReservarProspectoUseCase } from "@/application/prospectos/use-cases/ReservarProspectoUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
 import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
@@ -36,6 +37,7 @@ import { GetUsuariosUseCase } from "@/application/usuarios/use-cases/GetUsuarios
 import { CreateUsuarioUseCase } from "@/application/usuarios/use-cases/CreateUsuarioUseCase";
 import { UpdateUsuarioUseCase } from "@/application/usuarios/use-cases/UpdateUsuarioUseCase";
 import { DeleteUsuarioUseCase } from "@/application/usuarios/use-cases/DeleteUsuarioUseCase";
+import { AsignarAsesorParaUsuarioUseCase } from "@/application/usuarios/use-cases/AsignarAsesorParaUsuarioUseCase";
 import { GetEtapasByProyectoUseCase } from "@/application/etapas/use-cases/GetEtapasByProyectoUseCase";
 import { GetAllEtapasUseCase } from "@/application/etapas/use-cases/GetAllEtapasUseCase";
 import { CreateEtapaUseCase } from "@/application/etapas/use-cases/CreateEtapaUseCase";
@@ -95,6 +97,7 @@ export interface UseCases {
   deleteLote: DeleteLoteUseCase;
   reservarLote: ReservarLoteUseCase;
   cancelarReserva: CancelarReservaUseCase;
+  reservarProspecto: ReservarProspectoUseCase;
   getClientes: GetClientesUseCase;
   getAllClientes: GetAllClientesUseCase;
   createCliente: CreateClienteUseCase;
@@ -117,6 +120,7 @@ export interface UseCases {
   createUsuario: CreateUsuarioUseCase;
   updateUsuario: UpdateUsuarioUseCase;
   deleteUsuario: DeleteUsuarioUseCase;
+  asignarAsesorParaUsuario: AsignarAsesorParaUsuarioUseCase;
   getAllEtapas: GetAllEtapasUseCase;
   getEtapasByProyecto: GetEtapasByProyectoUseCase;
   createEtapa: CreateEtapaUseCase;
@@ -163,6 +167,8 @@ export interface UseCases {
 }
 
 export function createUseCases(repos: Repositories): UseCases {
+  const reservarLote = new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo);
+
   return {
     getEmpresas: new GetEmpresasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
@@ -176,8 +182,16 @@ export function createUseCases(repos: Repositories): UseCases {
     createLote: new CreateLoteUseCase(repos.lotRepository),
     updateLote: new UpdateLoteUseCase(repos.lotRepository),
     deleteLote: new DeleteLoteUseCase(repos.lotRepository),
-    reservarLote: new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo),
+    reservarLote,
     cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
+    reservarProspecto: new ReservarProspectoUseCase({
+      prospectoRepo: repos.prospectoRepo,
+      clienteRepo: repos.clienteRepo,
+      lotRepo: repos.lotRepository,
+      inventarioRepo: repos.inventarioRepo,
+      oportunidadRepo: repos.oportunidadRepo,
+      reservarLote,
+    }),
     getClientes: new GetClientesUseCase(repos.clienteRepo),
     getAllClientes: new GetAllClientesUseCase(repos.clienteRepo),
     createCliente: new CreateClienteUseCase(repos.clienteRepo),
@@ -207,6 +221,7 @@ export function createUseCases(repos: Repositories): UseCases {
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
     deleteUsuario: new DeleteUsuarioUseCase(repos.usuarioRepo),
+    asignarAsesorParaUsuario: new AsignarAsesorParaUsuarioUseCase(repos.asesorRepo),
     getAllEtapas: new GetAllEtapasUseCase(repos.etapaRepo),
     getEtapasByProyecto: new GetEtapasByProyectoUseCase(repos.etapaRepo),
     createEtapa: new CreateEtapaUseCase(repos.etapaRepo),

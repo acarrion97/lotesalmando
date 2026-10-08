@@ -181,18 +181,21 @@ export interface Database {
           nombres: string;
           cedula_ruc: string | null;
           email: string | null;
+          telefono: string | null;
         };
         Insert: {
           id_cliente?: number;
           nombres: string;
           cedula_ruc?: string | null;
           email?: string | null;
+          telefono?: string | null;
         };
         Update: {
           id_cliente?: number;
           nombres?: string;
           cedula_ruc?: string | null;
           email?: string | null;
+          telefono?: string | null;
         };
       };
       inventario: {

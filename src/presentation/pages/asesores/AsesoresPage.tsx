@@ -25,9 +25,10 @@ import {
   EyeOutlined,
   TrophyOutlined,
   UserOutlined,
+  UserSwitchOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useAsesores, useVentas } from "@/presentation/hooks";
+import { useAsesores, useVentas, useUsuarios } from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
@@ -50,9 +51,14 @@ interface ModalState {
 export function AsesoresPage() {
   const { data: asesores, isLoading } = useAsesores();
   const { data: ventas } = useVentas();
+  const { data: usuarios } = useUsuarios();
   const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
+  // Vincular/desvincular un usuario (rol Vendedor) a un asesor.
+  const [vinculacion, setVinculacion] = useState<Asesor | null>(null);
+  const [idUsuarioVincular, setIdUsuarioVincular] = useState<number | null>(null);
+  const [vinculando, setVinculando] = useState(false);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -89,6 +95,50 @@ export function AsesoresPage() {
     return ventas
       .filter((v) => v.id_asesor === asesorId && dentroDelRango(v.created_at, mesActual))
       .reduce((sum, v) => sum + v.precio_final, 0);
+  };
+
+  const usuarioDe = (idUsuario: number | null) =>
+    idUsuario ? usuarios?.find((u) => u.id_usuario === idUsuario) : undefined;
+
+  const abrirVinculacion = (record: Asesor) => {
+    setVinculacion(record);
+    setIdUsuarioVincular(record.id_usuario);
+  };
+
+  // Un usuario no puede quedar vinculado a dos asesores a la vez.
+  const opcionesUsuarios = useMemo(
+    () =>
+      (usuarios ?? [])
+        .filter((u) => {
+          if (u.id_usuario === vinculacion?.id_usuario) return true;
+          if (u.estado !== "activo") return false;
+          return !(asesores ?? []).some(
+            (a) => a.id_usuario === u.id_usuario && a.id_asesor !== vinculacion?.id_asesor,
+          );
+        })
+        .map((u) => ({ value: u.id_usuario, label: `${u.nombres} (${u.email})` })),
+    [usuarios, asesores, vinculacion],
+  );
+
+  const handleVincular = async () => {
+    if (!vinculacion) return;
+    setVinculando(true);
+    try {
+      await container.updateAsesor.execute(vinculacion.id_asesor, { id_usuario: idUsuarioVincular });
+      await refresh();
+      await queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+      messageApi.success(
+        idUsuarioVincular ? "Usuario vinculado al asesor" : "Usuario desvinculado del asesor",
+      );
+      setVinculacion(null);
+      setIdUsuarioVincular(null);
+    } catch (error) {
+      messageApi.error(
+        error instanceof Error ? error.message : "No se pudo actualizar la vinculación",
+      );
+    } finally {
+      setVinculando(false);
+    }
   };
 
   const openModal = (type: "view" | "edit" | "delete", record: Asesor) => {
@@ -179,6 +229,24 @@ export function AsesoresPage() {
       render: (text: string) => <span style={{ fontWeight: 600 }}>{text}</span>,
     },
     {
+      title: "Usuario",
+      key: "usuario",
+      sorter: (a, b) =>
+        (usuarioDe(a.id_usuario)?.nombres ?? "").localeCompare(
+          usuarioDe(b.id_usuario)?.nombres ?? "",
+        ),
+      render: (_: unknown, record: Asesor) => {
+        const usuario = usuarioDe(record.id_usuario);
+        return usuario ? (
+          <span>{usuario.nombres}</span>
+        ) : (
+          <span style={{ color: "#bfbfbf" }} aria-label="Sin usuario vinculado">
+            Sin usuario
+          </span>
+        );
+      },
+    },
+    {
       title: "Meta Mensual",
       dataIndex: "meta_ventas_mensual",
       key: "meta_ventas_mensual",
@@ -219,9 +287,17 @@ export function AsesoresPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 150,
+      width: 190,
       render: (_: unknown, record: Asesor) => (
         <Space size={4}>
+          <Tooltip title={record.id_usuario ? "Vincular otro usuario" : "Vincular usuario"}>
+            <Button
+              type="text"
+              icon={<UserSwitchOutlined />}
+              style={{ color: record.id_usuario ? "#52c41a" : "#1677ff" }}
+              onClick={() => abrirVinculacion(record)}
+            />
+          </Tooltip>
           <Tooltip title="Ver">
             <Button
               type="text"
@@ -397,6 +473,48 @@ export function AsesoresPage() {
         <p style={{ marginTop: 16 }}>
           ¿Eliminar asesor <strong>{modal.record?.nombre_comercial}</strong>?
         </p>
+      </Modal>
+
+      {/* Modal de vinculación usuario ↔ asesor */}
+      <Modal
+        title="Vincular usuario"
+        open={vinculacion !== null}
+        onCancel={() => {
+          setVinculacion(null);
+          setIdUsuarioVincular(null);
+        }}
+        onOk={handleVincular}
+        okText={idUsuarioVincular ? "Guardar vínculo" : "Desvincular"}
+        cancelText="Cancelar"
+        confirmLoading={vinculando}
+        okButtonProps={{ disabled: !idUsuarioVincular && !vinculacion?.id_usuario }}
+        width={520}
+      >
+        {vinculacion && (
+          <div style={{ marginTop: 16 }}>
+            <p>
+              Asesor <strong>{vinculacion.nombre_comercial}</strong> (
+              <Tag color="blue">{vinculacion.codigo}</Tag>)
+            </p>
+            <Form layout="vertical">
+              <Form.Item
+                label="Usuario"
+                extra="Se usa para cargar prospectos y ventas con este asesor. Deje el campo vacío para desvincular."
+              >
+                <Select
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                  placeholder="Seleccionar usuario"
+                  value={idUsuarioVincular}
+                  onChange={(value) => setIdUsuarioVincular(value ?? null)}
+                  options={opcionesUsuarios}
+                  style={{ width: "100%" }}
+                />
+              </Form.Item>
+            </Form>
+          </div>
+        )}
       </Modal>
 
       {/* Create Modal */}

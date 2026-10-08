@@ -3,12 +3,13 @@ import { Button, Space, Input, Tag, Modal, Form, Select, Descriptions, message }
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useUsuarios, useRoles, useEmpresas, useLookup } from "@/presentation/hooks";
+import { useUsuarios, useRoles, useEmpresas, useLookup, useAsesores } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { usuarioSchema } from "@/presentation/validations";
+import { esRolVendedor } from "@/utils";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
 const estadoColorMap: Record<UsuarioEstado, string> = {
@@ -25,6 +26,7 @@ interface ModalState {
 export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
   const { data: roles } = useRoles();
+  const { data: asesores } = useAsesores();
   const { empresaActual } = useEmpresa();
   const { data: empresas } = useEmpresas();
   const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
@@ -39,6 +41,45 @@ export function UsuariosPage() {
   const container = getContainer();
 
   const refreshUsuarios = () => queryClient.invalidateQueries({ queryKey: ["usuarios"] });
+
+  // Ids del rol "Vendedor" del catálogo (el catálogo es editable por empresa,
+  // así que se reconoce por nombre, no por id).
+  const idsRolVendedor = (roles ?? [])
+    .filter((r) => esRolVendedor(r.nombre_rol))
+    .map((r) => r.id_rol);
+
+  const esRolDeVendedor = (id: number) => idsRolVendedor.includes(id);
+
+  /**
+   * El rol Vendedor es el que garantiza un asesor para firmar ventas y
+   * prospectos: al entrar se crea (o reutiliza/reactiva) el asesor vinculado y
+   * al salir se desactiva —nunca se borra— porque ventas y prospectos lo
+   * referencian.
+   */
+  const sincronizarAsesorDeUsuario = async (usuario: Usuario, conRolVendedor: boolean) => {
+    if (!empresaActual) return;
+    try {
+      if (conRolVendedor) {
+        await container.asignarAsesorParaUsuario.execute({
+          id_usuario: usuario.id_usuario,
+          id_empresa: usuario.id_empresa,
+          nombres: usuario.nombres,
+        });
+        return;
+      }
+
+      const vinculado = asesores?.find((a) => a.id_usuario === usuario.id_usuario) ?? null;
+      if (vinculado?.estado === "activo") {
+        await container.updateAsesor.execute(vinculado.id_asesor, { estado: "inactivo" });
+      }
+    } catch (error) {
+      messageApi.warning(
+        error instanceof Error
+          ? `Rol guardado, pero no se pudo sincronizar el asesor: ${error.message}`
+          : "Rol guardado, pero no se pudo sincronizar el asesor",
+      );
+    }
+  };
 
   const filteredData = useMemo(() => {
     if (!usuarios) return [];
@@ -81,7 +122,15 @@ export function UsuariosPage() {
         ...removidos.map((id) => container.removeRol.execute(modal.record!.id_usuario, id)),
       ]);
 
+      // Entrar o salir del rol Vendedor crea/desactiva el asesor vinculado.
+      const teniaVendedor = rolesAsignados.some(esRolDeVendedor);
+      const tieneVendedor = nuevos.some(esRolDeVendedor);
+      if (teniaVendedor !== tieneVendedor) {
+        await sincronizarAsesorDeUsuario(modal.record, tieneVendedor);
+      }
+
       await refreshUsuarios();
+      await queryClient.invalidateQueries({ queryKey: ["asesores"] });
       messageApi.success("Usuario actualizado correctamente");
       closeModal();
     } catch (error) {
@@ -109,10 +158,25 @@ export function UsuariosPage() {
     }
 
     try {
-      const values = await createForm.validateFields();
+      const { roles: rolesSeleccionados, ...values } = await createForm.validateFields();
       const parsed = usuarioSchema.parse(values);
-      await container.createUsuario.execute({ ...parsed, id_empresa: empresaActual.id_empresa });
+      const creado = await container.createUsuario.execute({
+        ...parsed,
+        id_empresa: empresaActual.id_empresa,
+      });
+
+      const seleccionados: number[] = rolesSeleccionados ?? [];
+      if (seleccionados.length > 0) {
+        await Promise.all(
+          seleccionados.map((id) => container.assignRol.execute(creado.id_usuario, id)),
+        );
+        if (seleccionados.some(esRolDeVendedor)) {
+          await sincronizarAsesorDeUsuario(creado, true);
+        }
+      }
+
       await refreshUsuarios();
+      await queryClient.invalidateQueries({ queryKey: ["asesores"] });
       messageApi.success("Usuario creado correctamente");
       setCreateModalOpen(false);
       createForm.resetFields();
@@ -317,6 +381,17 @@ export function UsuariosPage() {
                 { value: "activo", label: "Activo" },
                 { value: "inactivo", label: "Inactivo" },
               ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="roles"
+            label="Roles"
+            extra="Con el rol Vendedor se crea automáticamente un asesor vinculado."
+          >
+            <Select
+              mode="multiple"
+              placeholder="Selecciona los roles del usuario"
+              options={(roles ?? []).map((r) => ({ value: r.id_rol, label: r.nombre_rol }))}
             />
           </Form.Item>
         </Form>

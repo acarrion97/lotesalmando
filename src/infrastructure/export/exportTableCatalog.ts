@@ -150,6 +150,7 @@ export const EXPORT_TABLES: TablaExport[] = [
       c("nombres", "Nombres", "texto", { requerida: true, ejemplo: "María Pérez" }),
       c("cedula_ruc", "Cédula / RUC", "texto", { ejemplo: "1712345678" }),
       c("email", "Correo", "texto", { ejemplo: "maria@correo.com" }),
+      c("telefono", "Teléfono", "texto", { ejemplo: "0991234567" }),
     ],
   },
   {

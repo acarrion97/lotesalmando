@@ -7,6 +7,7 @@ import { useClientes } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { getContainer } from "@/infrastructure/container";
+import { clienteSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 
@@ -44,7 +45,12 @@ export function ClientesPage() {
   const openModal = (type: "view" | "edit" | "delete", record: Cliente) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ nombres: record.nombres, cedula_ruc: record.cedula_ruc, email: record.email });
+      editForm.setFieldsValue({
+        nombres: record.nombres,
+        cedula_ruc: record.cedula_ruc,
+        email: record.email,
+        telefono: record.telefono ?? "",
+      });
     }
   };
 
@@ -58,7 +64,8 @@ export function ClientesPage() {
 
     try {
       const values = await editForm.validateFields();
-      await container.updateCliente.execute(modal.record.id_cliente, values);
+      const parsed = clienteSchema.parse(values);
+      await container.updateCliente.execute(modal.record.id_cliente, parsed);
       await refreshClientes();
       messageApi.success("Cliente actualizado correctamente");
       closeModal();
@@ -83,7 +90,8 @@ export function ClientesPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createCliente.execute(values);
+      const parsed = clienteSchema.parse(values);
+      await container.createCliente.execute(parsed);
       await refreshClientes();
       messageApi.success("Cliente creado correctamente");
       setCreateModalOpen(false);
@@ -159,6 +167,20 @@ export function ClientesPage() {
       onFilter: (value, record) => record.email.toLowerCase().includes(String(value).toLowerCase()),
     },
     {
+      title: "Telefono",
+      dataIndex: "telefono",
+      key: "telefono",
+      width: 140,
+      render: (telefono?: string | null) =>
+        telefono ? (
+          <span>{telefono}</span>
+        ) : (
+          <span style={{ color: "#bfbfbf" }} aria-label="Sin telefono">
+            —
+          </span>
+        ),
+    },
+    {
       title: "Acciones",
       key: "acciones",
       render: (_: unknown, record: Cliente) => (
@@ -204,6 +226,13 @@ export function ClientesPage() {
             <Descriptions.Item label="Nombres">{modal.record.nombres}</Descriptions.Item>
             <Descriptions.Item label="Cedula / RUC">{modal.record.cedula_ruc}</Descriptions.Item>
             <Descriptions.Item label="Email">{modal.record.email}</Descriptions.Item>
+            <Descriptions.Item label="Telefono">
+              {modal.record.telefono ?? (
+                <span style={{ color: "#bfbfbf" }} aria-label="Sin telefono">
+                  Sin registrar
+                </span>
+              )}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
@@ -242,6 +271,13 @@ export function ClientesPage() {
           >
             <Input />
           </Form.Item>
+          <Form.Item
+            name="telefono"
+            label="Telefono"
+            rules={[{ max: 50, message: "Maximo 50 caracteres" }]}
+          >
+            <Input placeholder="0991234567" />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -278,6 +314,13 @@ export function ClientesPage() {
             ]}
           >
             <Input />
+          </Form.Item>
+          <Form.Item
+            name="telefono"
+            label="Telefono"
+            rules={[{ max: 50, message: "Maximo 50 caracteres" }]}
+          >
+            <Input placeholder="0991234567" />
           </Form.Item>
         </Form>
       </Modal>
