@@ -15,6 +15,7 @@ import { DeleteLoteUseCase } from "@/application/lotes/use-cases/DeleteLoteUseCa
 import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
 import { ReservarProspectoUseCase } from "@/application/prospectos/use-cases/ReservarProspectoUseCase";
+import { RegistrarEntradaReservaUseCase } from "@/application/entradas/use-cases/RegistrarEntradaReservaUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
 import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
@@ -99,6 +100,7 @@ export interface UseCases {
   reservarLote: ReservarLoteUseCase;
   cancelarReserva: CancelarReservaUseCase;
   reservarProspecto: ReservarProspectoUseCase;
+  registrarEntrada: RegistrarEntradaReservaUseCase;
   getClientes: GetClientesUseCase;
   getAllClientes: GetAllClientesUseCase;
   createCliente: CreateClienteUseCase;
@@ -171,6 +173,7 @@ export interface UseCases {
 
 export function createUseCases(repos: Repositories): UseCases {
   const reservarLote = new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo);
+  const registrarEntrada = new RegistrarEntradaReservaUseCase(repos.entradaRepo, repos.lotRepository);
 
   return {
     getEmpresas: new GetEmpresasUseCase(repos.empresaRepo),
@@ -187,6 +190,7 @@ export function createUseCases(repos: Repositories): UseCases {
     deleteLote: new DeleteLoteUseCase(repos.lotRepository),
     reservarLote,
     cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
+    registrarEntrada,
     reservarProspecto: new ReservarProspectoUseCase({
       prospectoRepo: repos.prospectoRepo,
       clienteRepo: repos.clienteRepo,
@@ -194,6 +198,7 @@ export function createUseCases(repos: Repositories): UseCases {
       inventarioRepo: repos.inventarioRepo,
       oportunidadRepo: repos.oportunidadRepo,
       reservarLote,
+      registrarEntrada,
     }),
     getClientes: new GetClientesUseCase(repos.clienteRepo),
     getAllClientes: new GetAllClientesUseCase(repos.clienteRepo),

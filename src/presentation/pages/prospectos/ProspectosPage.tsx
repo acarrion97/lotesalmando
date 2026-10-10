@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
+import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
@@ -141,6 +141,7 @@ export function ProspectosPage() {
       email: reservaProspecto.email ?? "",
       telefono: reservaProspecto.telefono ?? "",
       cedula_ruc: "",
+      entrada: 0,
     });
   }, [reservaAbierta, reservaProspecto, reservaForm]);
 
@@ -238,6 +239,7 @@ export function ProspectosPage() {
       cedula_ruc: string;
       email?: string;
       telefono?: string;
+      entrada?: number;
     };
     try {
       values = await reservaForm.validateFields();
@@ -258,6 +260,8 @@ export function ProspectosPage() {
           email: values.email ?? "",
           telefono: values.telefono?.trim() ? values.telefono : null,
         },
+        // Entrada (seña) opcional: 0 o ausente = sin cobro, la reserva avanza igual.
+        entrada: (values.entrada ?? 0) > 0 ? { monto: values.entrada ?? 0 } : null,
       });
       await refresh();
       await Promise.all([
@@ -265,6 +269,7 @@ export function ProspectosPage() {
         queryClient.invalidateQueries({ queryKey: ["clientes"] }),
         queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
         queryClient.invalidateQueries({ queryKey: ["inventario"] }),
+        queryClient.invalidateQueries({ queryKey: ["entradasReserva"] }),
       ]);
       messageApi.success(`Reserva confirmada: ${prospecto.nombres} paso a etapa Reserva`);
       cerrarReserva();
@@ -525,6 +530,25 @@ export function ProspectosPage() {
                   ]}
                 >
                   <Input placeholder="0991234567" />
+                </Form.Item>
+                <Form.Item
+                  name="entrada"
+                  label="Entrada (opcional)"
+                  extra={
+                    loteResumen
+                      ? `Si se cobra una seña al reservar, ingrésela aquí. Máximo ${formatCurrency(
+                          Math.max(0, (loteResumen.precio_lista ?? 0) - 1)
+                        )}. Dejar en 0 si no se cobra nada.`
+                      : "Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                  }
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={0}
+                    max={loteResumen ? Math.max(0, (loteResumen.precio_lista ?? 0) - 1) : undefined}
+                    step={100}
+                    placeholder="0"
+                  />
                 </Form.Item>
               </Form>
             )}

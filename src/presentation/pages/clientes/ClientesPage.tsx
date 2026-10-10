@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
@@ -10,9 +10,10 @@ import { getContainer } from "@/infrastructure/container";
 import { clienteSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { ClienteDeudasModal } from "./ClienteDeudasModal";
 
 interface ModalState {
-  type: "view" | "edit" | "delete" | null;
+  type: "view" | "edit" | "delete" | "deudas" | null;
   visible: boolean;
   record: Cliente | null;
 }
@@ -42,7 +43,7 @@ export function ClientesPage() {
     );
   }, [clientes, searchText]);
 
-  const openModal = (type: "view" | "edit" | "delete", record: Cliente) => {
+  const openModal = (type: "view" | "edit" | "delete" | "deudas", record: Cliente) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
       editForm.setFieldsValue({
@@ -191,6 +192,7 @@ export function ClientesPage() {
       render: (_: unknown, record: Cliente) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
+          <Button type="link" icon={<WalletOutlined />} onClick={() => openModal("deudas", record)}>Deudas</Button>
           <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
         </Space>
@@ -241,6 +243,13 @@ export function ClientesPage() {
           </Descriptions>
         )}
       </Modal>
+
+      {/* Deudas Modal */}
+      <ClienteDeudasModal
+        cliente={modal.record}
+        open={modal.visible && modal.type === "deudas"}
+        onClose={closeModal}
+      />
 
       {/* Edit Modal */}
       <Modal
