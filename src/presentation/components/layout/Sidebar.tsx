@@ -13,6 +13,7 @@ import {
   FileProtectOutlined,
   CreditCardOutlined,
   PayCircleOutlined,
+  FundOutlined,
   TeamOutlined,
   SettingOutlined,
   BellOutlined,
@@ -68,6 +69,7 @@ const menuItems: MenuItem[] = [
       { key: "/contratos", icon: <FileProtectOutlined />, label: "Contratos" },
       { key: "/cobranzas", icon: <CreditCardOutlined />, label: "Cobranzas" },
       { key: "/pagos", icon: <PayCircleOutlined />, label: "Pagos" },
+      { key: "/proyeccion", icon: <FundOutlined />, label: "Proyección" },
     ],
   },
   {

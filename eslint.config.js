@@ -21,6 +21,16 @@ export default tseslint.config(
     },
   },
   {
+    files: ["scripts/**/*.{js,mjs,cjs}"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        URL: "readonly",
+      },
+    },
+  },
+  {
     ignores: ["dist/", "node_modules/", ".claude/"],
   }
 );

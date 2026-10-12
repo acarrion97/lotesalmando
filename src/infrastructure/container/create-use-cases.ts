@@ -31,6 +31,7 @@ import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
+import { GetProyeccionFinancieraUseCase } from "@/application/proyecciones/use-cases/GetProyeccionFinancieraUseCase";
 import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
 import { GenerarAlertasUseCase } from "@/application/alertas/use-cases/GenerarAlertasUseCase";
 import { GetUsuariosUseCase } from "@/application/usuarios/use-cases/GetUsuariosUseCase";
@@ -115,6 +116,7 @@ export interface UseCases {
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
+  getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
   generarAlertas: GenerarAlertasUseCase;
   getUsuarios: GetUsuariosUseCase;
@@ -211,6 +213,14 @@ export function createUseCases(repos: Repositories): UseCases {
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
+    getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
+      repos.etapaRepo,
+      repos.manzanaRepo,
+      repos.lotRepository,
+      repos.saleRepo,
+      repos.contractRepo,
+      repos.cobranzaRepo,
+    ),
     detectarCuotasVencidas: new DetectarCuotasVencidasUseCase(repos.cobranzaRepo),
     generarAlertas: new GenerarAlertasUseCase(
       repos.lotRepository,

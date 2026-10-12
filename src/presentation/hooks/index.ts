@@ -11,6 +11,7 @@ export { useCotizaciones } from "./useCotizaciones";
 export { useVentas } from "./useVentas";
 export { useContratos } from "./useContratos";
 export { useCarteraMetricas } from "./useCarteraMetricas";
+export { useProyeccionFinanciera } from "./useProyeccionFinanciera";
 export { useAlertas } from "./useAlertas";
 export { useCobranzas } from "./useCobranzas";
 export { useCobranzasByContrato } from "./useCobranzasByContrato";

@@ -1,0 +1,1 @@
+export { ProyeccionFinancieraPage } from "./ProyeccionFinancieraPage";
