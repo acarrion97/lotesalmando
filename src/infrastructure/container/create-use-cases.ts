@@ -16,6 +16,7 @@ import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteU
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
 import { ReservarProspectoUseCase } from "@/application/prospectos/use-cases/ReservarProspectoUseCase";
 import { RegistrarEntradaReservaUseCase } from "@/application/entradas/use-cases/RegistrarEntradaReservaUseCase";
+import { GetEntradasReservaUseCase } from "@/application/entradas/use-cases/GetEntradasReservaUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
 import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
@@ -101,6 +102,7 @@ export interface UseCases {
   cancelarReserva: CancelarReservaUseCase;
   reservarProspecto: ReservarProspectoUseCase;
   registrarEntrada: RegistrarEntradaReservaUseCase;
+  getEntradasReserva: GetEntradasReservaUseCase;
   getClientes: GetClientesUseCase;
   getAllClientes: GetAllClientesUseCase;
   createCliente: CreateClienteUseCase;
@@ -191,6 +193,7 @@ export function createUseCases(repos: Repositories): UseCases {
     reservarLote,
     cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
     registrarEntrada,
+    getEntradasReserva: new GetEntradasReservaUseCase(repos.entradaRepo),
     reservarProspecto: new ReservarProspectoUseCase({
       prospectoRepo: repos.prospectoRepo,
       clienteRepo: repos.clienteRepo,

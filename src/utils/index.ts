@@ -23,4 +23,5 @@ export type {
 } from "./financiamiento/calcularFinanciamiento";
 export { compararNumeroLote } from "./lotes/compararNumeroLote";
 export { etiquetaNumeroLote } from "./lotes/etiquetaNumeroLote";
+export { detectarLoteEnNotas } from "./lotes/detectarLoteEnNotas";
 export { esRolVendedor } from "./roles/esRolVendedor";
