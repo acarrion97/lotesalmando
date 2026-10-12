@@ -3,6 +3,7 @@ import {
   Alert,
   Card,
   Col,
+  DatePicker,
   Empty,
   InputNumber,
   Row,
@@ -13,6 +14,7 @@ import {
   Tag,
   Typography,
 } from "antd";
+import dayjs from "dayjs";
 import {
   ClockCircleOutlined,
   DollarOutlined,
@@ -24,7 +26,7 @@ import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { useProyeccionFinanciera } from "@/presentation/hooks";
 import { formatCurrency } from "@/utils";
-import type { TableProps } from "antd";
+import type { TableColumnType, TableProps } from "antd";
 import type {
   FilaProyeccion,
   ModeloAbsorcion,
@@ -74,6 +76,8 @@ export function ProyeccionFinancieraPage() {
   const [tasaAnualPct, setTasaAnualPct] = useState(0);
   const [costoUrbTotal, setCostoUrbTotal] = useState(0);
   const [costoVarPct, setCostoVarPct] = useState(0);
+  /** Mes de arranque de la proyección (solo presentación: no afecta los cálculos). */
+  const [fechaInicio, setFechaInicio] = useState(() => dayjs().startOf("month"));
 
   const opciones: ProyeccionOpciones = {
     etapaId,
@@ -88,8 +92,28 @@ export function ProyeccionFinancieraPage() {
 
   const { data: proy, isLoading, isError } = useProyeccionFinanciera(opciones);
 
+  /** "oct 2026" para el mes N de la proyección (1 = mes de arranque). */
+  const fmtPeriodo = new Intl.DateTimeFormat("es-EC", { month: "short", year: "numeric" });
+  const periodoDe = (mes: number) =>
+    fmtPeriodo
+      .format(new Date(fechaInicio.year(), fechaInicio.month() + mes - 1, 1))
+      .replace(/\.$/, "");
+
+  const colMes: TableColumnType<FilaProyeccion> = {
+    title: "Mes",
+    dataIndex: "mes",
+    width: 112,
+    align: "center",
+    render: (m: number) => (
+      <div>
+        <div>{periodoDe(m)}</div>
+        <div style={{ fontSize: 11, opacity: 0.55 }}>mes {m}</div>
+      </div>
+    ),
+  };
+
   const colAbsorcion: TableProps<FilaProyeccion>["columns"] = [
-    { title: "Mes", dataIndex: "mes", width: 70, align: "center" },
+    colMes,
     { title: "Vendidos en el mes", dataIndex: "vendidos", width: 160, align: "center" },
     { title: "Acumulado", dataIndex: "acumVendidos", width: 120, align: "center" },
     { title: "Inventario inicial", dataIndex: "invInicial", width: 150, align: "center" },
@@ -97,7 +121,7 @@ export function ProyeccionFinancieraPage() {
   ];
 
   const colValor: TableProps<FilaProyeccion>["columns"] = [
-    { title: "Mes", dataIndex: "mes", width: 70, align: "center" },
+    colMes,
     {
       title: "Valor contratado del mes",
       dataIndex: "valorMes",
@@ -115,7 +139,7 @@ export function ProyeccionFinancieraPage() {
   ];
 
   const colFlujo: TableProps<FilaProyeccion>["columns"] = [
-    { title: "Mes", dataIndex: "mes", width: 70, align: "center" },
+    colMes,
     {
       title: "Enganches",
       dataIndex: "enganches",
@@ -147,7 +171,7 @@ export function ProyeccionFinancieraPage() {
   ];
 
   const colNeto: TableProps<FilaProyeccion>["columns"] = [
-    { title: "Mes", dataIndex: "mes", width: 70, align: "center" },
+    colMes,
     {
       title: "Ingresos",
       dataIndex: "ingresoMes",
@@ -243,7 +267,7 @@ export function ProyeccionFinancieraPage() {
       icon: <RiseOutlined style={{ color: metricas.netoTotal >= 0 ? "#52c41a" : "#ff4d4f" }} />,
     },
     {
-      title: "Payback",
+      title: metricas.paybackMes ? `Payback (${periodoDe(metricas.paybackMes)})` : "Payback",
       value: metricas.paybackMes ? `Mes ${metricas.paybackMes}` : "—",
       icon: <ClockCircleOutlined style={{ color: "#722ed1" }} />,
     },
@@ -346,6 +370,18 @@ export function ProyeccionFinancieraPage() {
                 onChange={(v) => setMeses(v ?? 12)}
                 min={1}
                 max={120}
+                style={{ width: "100%" }}
+              />
+            </Campo>
+          </Col>
+          <Col xs={12} sm={8} md={6} lg={4}>
+            <Campo label="Fecha inicial" hint="Primer mes de la proyección">
+              <DatePicker
+                picker="month"
+                format="MM/YYYY"
+                allowClear={false}
+                value={fechaInicio}
+                onChange={(v) => v && setFechaInicio(v.startOf("month"))}
                 style={{ width: "100%" }}
               />
             </Campo>
