@@ -347,7 +347,11 @@ export function ProyeccionFinancieraPage() {
           <Col xs={24} sm={12} md={8} lg={5}>
             <Campo label="Etapa">
               <Select
-                value={etapaId ?? resumen.idEtapa}
+                value={
+                  etapaId !== undefined && etapasDisponibles.some((e) => e.id_etapa === etapaId)
+                    ? etapaId
+                    : resumen.idEtapa
+                }
                 onChange={(v) => setEtapaId(v)}
                 style={{ width: "100%" }}
                 options={etapasDisponibles.map((e) => ({

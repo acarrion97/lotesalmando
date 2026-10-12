@@ -51,14 +51,22 @@ export class GetProyeccionFinancieraUseCase {
     this.cobranzaRepo = cobranzaRepo;
   }
 
-  async execute(opciones: ProyeccionOpciones): Promise<ProyeccionFinancieraDto> {
+  /**
+   * @param empresaId Si se indica, solo se leen datos de esa empresa: la lista
+   *   de etapas y todo el cálculo quedan acotados a ella. Sin empresaId se lee
+   *   todo (útil para scripts/CLI).
+   */
+  async execute(
+    opciones: ProyeccionOpciones,
+    empresaId?: number,
+  ): Promise<ProyeccionFinancieraDto> {
     const [etapas, manzanas, lotes, ventas, contratos, cobranzas] = await Promise.all([
-      this.etapaRepo.getAll(),
-      this.manzanaRepo.getAll(),
-      this.lotRepo.getAll(),
-      this.ventaRepo.getAll(),
-      this.contratoRepo.getAll(),
-      this.cobranzaRepo.getAll(),
+      empresaId ? this.etapaRepo.getByEmpresaId(empresaId) : this.etapaRepo.getAll(),
+      empresaId ? this.manzanaRepo.getByEmpresaId(empresaId) : this.manzanaRepo.getAll(),
+      empresaId ? this.lotRepo.getByEmpresaId(empresaId) : this.lotRepo.getAll(),
+      empresaId ? this.ventaRepo.getByEmpresaId(empresaId) : this.ventaRepo.getAll(),
+      empresaId ? this.contratoRepo.getByEmpresaId(empresaId) : this.contratoRepo.getAll(),
+      empresaId ? this.cobranzaRepo.getByEmpresaId(empresaId) : this.cobranzaRepo.getAll(),
     ]);
 
     const etapaDeManzana = new Map(manzanas.map((m) => [m.id_manzana, m.id_etapa]));
