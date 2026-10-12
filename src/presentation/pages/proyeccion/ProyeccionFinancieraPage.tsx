@@ -351,14 +351,13 @@ export function ProyeccionFinancieraPage() {
             </Campo>
           </Col>
           <Col xs={12} sm={8} md={6} lg={3}>
-            <Campo label="Enganche" hint={`Real: ${esquemaReal.enganchePct}%`}>
+            <Campo label="Enganche (%)" hint={`Real: ${esquemaReal.enganchePct}%`}>
               <InputNumber
                 value={enganchePct}
                 onChange={(v) => setEnganchePct(v ?? undefined)}
                 min={0}
                 max={100}
                 step={0.5}
-                addonAfter="%"
                 placeholder={`${esquemaReal.enganchePct}%`}
                 style={{ width: "100%" }}
               />
@@ -377,14 +376,13 @@ export function ProyeccionFinancieraPage() {
             </Campo>
           </Col>
           <Col xs={12} sm={8} md={6} lg={3}>
-            <Campo label="Interés anual">
+            <Campo label="Interés anual (%)">
               <InputNumber
                 value={tasaAnualPct}
                 onChange={(v) => setTasaAnualPct(v ?? 0)}
                 min={0}
                 max={100}
                 step={0.5}
-                addonAfter="%"
                 style={{ width: "100%" }}
               />
             </Campo>
@@ -401,14 +399,13 @@ export function ProyeccionFinancieraPage() {
             </Campo>
           </Col>
           <Col xs={12} sm={8} md={6} lg={3}>
-            <Campo label="Costo variable" hint="% del ingreso">
+            <Campo label="Costo variable (%)" hint="sobre el ingreso">
               <InputNumber
                 value={costoVarPct}
                 onChange={(v) => setCostoVarPct(v ?? 0)}
                 min={0}
                 max={100}
                 step={0.5}
-                addonAfter="%"
                 style={{ width: "100%" }}
               />
             </Campo>
