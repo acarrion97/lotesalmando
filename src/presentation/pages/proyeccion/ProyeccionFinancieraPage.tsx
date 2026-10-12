@@ -67,6 +67,12 @@ function Campo({
 
 const money = (v?: number) => formatCurrency(v ?? 0);
 
+/** Mes/año cortos en español ("oct", "2026"), sin punto final ("sept."). */
+const FMT_MES = new Intl.DateTimeFormat("es-EC", { month: "short" });
+const FMT_ANIO = new Intl.DateTimeFormat("es-EC", { year: "numeric" });
+const FMT_PERIODO = new Intl.DateTimeFormat("es-EC", { month: "short", year: "numeric" });
+const sinPunto = (s: string) => s.replace(/\.$/, "");
+
 export function ProyeccionFinancieraPage() {
   const [etapaId, setEtapaId] = useState<number | undefined>(undefined);
   const [meses, setMeses] = useState(12);
@@ -92,12 +98,10 @@ export function ProyeccionFinancieraPage() {
 
   const { data: proy, isLoading, isError } = useProyeccionFinanciera(opciones);
 
+  /** Fecha calendario del mes N de la proyección (1 = mes de arranque). */
+  const fechaDe = (mes: number) => new Date(fechaInicio.year(), fechaInicio.month() + mes - 1, 1);
   /** "oct 2026" para el mes N de la proyección (1 = mes de arranque). */
-  const fmtPeriodo = new Intl.DateTimeFormat("es-EC", { month: "short", year: "numeric" });
-  const periodoDe = (mes: number) =>
-    fmtPeriodo
-      .format(new Date(fechaInicio.year(), fechaInicio.month() + mes - 1, 1))
-      .replace(/\.$/, "");
+  const periodoDe = (mes: number) => sinPunto(FMT_PERIODO.format(fechaDe(mes)));
 
   const colMes: TableColumnType<FilaProyeccion> = {
     title: "Mes",
@@ -503,9 +507,21 @@ export function ProyeccionFinancieraPage() {
                   }}
                 />
               </div>
-              <Text type="secondary" style={{ fontSize: 11 }}>
-                {f.mes}
-              </Text>
+              <div
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <Text type="secondary" style={{ fontSize: 10, lineHeight: 1.15 }}>
+                  {sinPunto(FMT_MES.format(fechaDe(f.mes)))}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 10, lineHeight: 1.15 }}>
+                  {FMT_ANIO.format(fechaDe(f.mes))}
+                </Text>
+              </div>
             </div>
           ))}
         </div>
