@@ -183,6 +183,8 @@ export function MapasPage() {
   const [selectedCliente, setSelectedCliente] = useState<number | null>(null);
   /** Prospecto elegido en el wizard de reserva (lista de mi empresa). */
   const [selectedProspecto, setSelectedProspecto] = useState<number | null>(null);
+  /** Entrada (seña) opcional cobrada al confirmar la reserva. */
+  const [reservaEntrada, setReservaEntrada] = useState<number>(0);
   const [ventaClienteInfo, setVentaClienteInfo] = useState<{
     cliente_nombre: string;
     cliente_cedula: string;
@@ -360,6 +362,7 @@ export function MapasPage() {
     if (type === "reservar") {
       setReservaStep(0);
       setSelectedProspecto(null);
+      setReservaEntrada(0);
     }
     if (type === "venta") {
       setVentaStep(0);
@@ -481,6 +484,8 @@ export function MapasPage() {
           email: prospecto.email ?? "",
           telefono: prospecto.telefono?.trim() ? prospecto.telefono : null,
         },
+        // Entrada (seña) opcional: 0 = sin cobro, la reserva avanza igual.
+        entrada: reservaEntrada > 0 ? { monto: reservaEntrada } : null,
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["lotes"] }),
@@ -488,8 +493,13 @@ export function MapasPage() {
         queryClient.invalidateQueries({ queryKey: ["prospectos"] }),
         queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
         queryClient.invalidateQueries({ queryKey: ["inventario"] }),
+        queryClient.invalidateQueries({ queryKey: ["entradasReserva"] }),
       ]);
-      message.success(`Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`);
+      message.success(
+        reservaEntrada > 0
+          ? `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres} · Entrada $${reservaEntrada.toLocaleString()}`
+          : `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`
+      );
       closeModal();
     } catch (err) {
       message.error(err instanceof Error ? err.message : "Error al reservar el lote");
@@ -1325,6 +1335,22 @@ export function MapasPage() {
                     }`,
                   }))}
                 />
+                <Form.Item
+                  label="Entrada (opcional)"
+                  style={{ marginTop: 16 }}
+                  extra="Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={0}
+                    max={Math.max(0, (selectedLote?.precio_lista ?? 0) - 1)}
+                    step={100}
+                    prefix="$"
+                    placeholder="0"
+                    value={reservaEntrada}
+                    onChange={(value) => setReservaEntrada(value ?? 0)}
+                  />
+                </Form.Item>
                 {prospectoReserva && (
                   <Alert
                     type="success"

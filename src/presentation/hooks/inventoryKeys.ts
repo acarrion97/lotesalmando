@@ -21,6 +21,8 @@ export const inventoryKeys = {
   ventas: (empresaId: number) => ["ventas", empresaId] as const,
   cobranzas: (empresaId: number) => ["cobranzas", empresaId] as const,
   pagos: (empresaId: number) => ["pagos", empresaId] as const,
+  /** Entradas (señas) cobradas al reservar un lote. */
+  entradasReserva: (empresaId: number) => ["entradasReserva", empresaId] as const,
   asesores: (empresaId: number) => ["asesores", empresaId] as const,
   configuracion: (empresaId: number) => ["configuracion", empresaId] as const,
   /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */

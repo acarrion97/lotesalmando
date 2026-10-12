@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import { Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
+import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion } from "@/presentation/hooks";
+import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva } from "@/presentation/hooks";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
@@ -11,7 +11,7 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useAuth } from "@/presentation/providers";
-import { compararNumeroLote, formatCurrency } from "@/utils";
+import { compararNumeroLote, detectarLoteEnNotas, formatCurrency } from "@/utils";
 
 const { Text } = Typography;
 
@@ -40,6 +40,7 @@ export function ProspectosPage() {
   const { data: lotes } = useLotes();
   const { data: manzanas } = useManzanas();
   const { data: oportunidades } = useOportunidades();
+  const { data: entradasReserva } = useEntradasReserva();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   // Modal de reserva: se abre al pasar (o volver) a estado "reserva" y solo
@@ -73,6 +74,16 @@ export function ProspectosPage() {
     }
     return stats;
   }, [prospectos]);
+
+  // Entradas (señas) que dio el prospecto en estado "reserva"; se suma el
+  // total cobrado para mostrarlo en el modal de detalle.
+  const entradasDelProspecto = useMemo(() => {
+    if (!modal.record || modal.record.estado !== "reserva" || !entradasReserva) return null;
+    const monto = entradasReserva
+      .filter((e) => e.id_prospecto === modal.record?.id_prospecto)
+      .reduce((s, e) => s + Math.round(e.monto * 100), 0) / 100;
+    return monto;
+  }, [modal.record, entradasReserva]);
 
   const sinSeguimiento = useMemo(() => {
     if (!prospectos) return [];
@@ -115,10 +126,25 @@ export function ProspectosPage() {
   const loteElegido = Form.useWatch("id_lote", reservaForm);
   const loteResumen = lotesDisponibles.find((l) => l.id_lote === loteElegido) ?? null;
 
+  // Lote deducido de las notas cuando el prospecto es nuevo: sirve tanto para
+  // pre-seleccionarlo al abrir el modal como para mostrar el aviso en el form.
+  const loteDetectadoNota = useMemo(
+    () =>
+      reservaProspecto?.estado === "nuevo"
+        ? detectarLoteEnNotas(reservaProspecto.notas, lotesDisponibles)
+        : null,
+    [reservaProspecto, lotesDisponibles],
+  );
+
   const tieneLoteAsignado = (prospecto: Prospecto) =>
     (oportunidades ?? []).some(
       (o) => o.id_prospecto === prospecto.id_prospecto && o.id_lote != null,
     );
+
+  // Un prospecto se puede reservar mientras no esté ya en "reserva" ni
+  // "perdido". Mismo criterio que el flujo de Editar → Estado = Reserva.
+  const puedeReservar = (prospecto: Prospecto) =>
+    prospecto.estado !== "reserva" && prospecto.estado !== "perdido";
 
   const abrirReserva = (prospecto: Prospecto) => {
     setReservaProspecto(prospecto);
@@ -135,14 +161,18 @@ export function ProspectosPage() {
   // form antes de que exista el campo no siempre deja valores.
   useEffect(() => {
     if (!reservaAbierta || !reservaProspecto) return;
+    // Si el prospecto recién llega (estado "nuevo") y en sus notas se anotó
+    // un lote ("lote 5", "lote H3"), se pre-selecciona para agilizar la
+    // reserva. En los demás estados el lote queda en blanco como siempre.
     reservaForm.setFieldsValue({
-      id_lote: null,
+      id_lote: loteDetectadoNota?.id_lote ?? null,
       nombres: reservaProspecto.nombres,
       email: reservaProspecto.email ?? "",
       telefono: reservaProspecto.telefono ?? "",
       cedula_ruc: "",
+      entrada: 0,
     });
-  }, [reservaAbierta, reservaProspecto, reservaForm]);
+  }, [reservaAbierta, reservaProspecto, reservaForm, loteDetectadoNota]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Prospecto) => {
     setModal({ type, visible: true, record });
@@ -176,6 +206,28 @@ export function ProspectosPage() {
       await refresh();
       messageApi.success("Prospecto actualizado");
       closeModal();
+    } catch (error) {
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error al actualizar");
+    }
+  };
+
+  // Guarda lo que se haya editado y de ahí sigue directo al modal de reserva.
+  // El estado no se fuerza a "reserva": ese estado lo pone el modal al
+  // confirmar, así que cancelar deja el prospecto como estaba.
+  const handleEditAndReserve = async () => {
+    if (!modal.record) return;
+    const record = modal.record;
+    try {
+      const values = await editForm.validateFields();
+      const parsed = prospectoSchema.partial().parse(values);
+      const conservado = await container.updateProspecto.execute(record.id_prospecto, {
+        ...parsed,
+        estado: record.estado,
+      });
+      await refresh();
+      closeModal();
+      abrirReserva(conservado);
     } catch (error) {
       if (error instanceof Error) messageApi.error(error.message);
       else messageApi.error("Error al actualizar");
@@ -238,6 +290,7 @@ export function ProspectosPage() {
       cedula_ruc: string;
       email?: string;
       telefono?: string;
+      entrada?: number;
     };
     try {
       values = await reservaForm.validateFields();
@@ -258,6 +311,8 @@ export function ProspectosPage() {
           email: values.email ?? "",
           telefono: values.telefono?.trim() ? values.telefono : null,
         },
+        // Entrada (seña) opcional: 0 o ausente = sin cobro, la reserva avanza igual.
+        entrada: (values.entrada ?? 0) > 0 ? { monto: values.entrada ?? 0 } : null,
       });
       await refresh();
       await Promise.all([
@@ -265,6 +320,7 @@ export function ProspectosPage() {
         queryClient.invalidateQueries({ queryKey: ["clientes"] }),
         queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
         queryClient.invalidateQueries({ queryKey: ["inventario"] }),
+        queryClient.invalidateQueries({ queryKey: ["entradasReserva"] }),
       ]);
       messageApi.success(`Reserva confirmada: ${prospecto.nombres} paso a etapa Reserva`);
       cerrarReserva();
@@ -316,6 +372,11 @@ export function ProspectosPage() {
       width: 150,
       render: (_: unknown, record: Prospecto) => (
         <Space size={4}>
+          {puedeReservar(record) && (
+            <Tooltip title="Reservar lote">
+              <Button type="text" icon={<ClockCircleOutlined />} style={{ color: "#722ed1" }} onClick={() => abrirReserva(record)} />
+            </Tooltip>
+          )}
           <Tooltip title="Ver"><Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => openModal("view", record)} /></Tooltip>
           <Tooltip title="Editar"><Button type="text" icon={<EditOutlined />} style={{ color: "#faad14" }} onClick={() => openModal("edit", record)} /></Tooltip>
           <Tooltip title="Eliminar"><Button type="text" icon={<DeleteOutlined />} style={{ color: "#ff4d4f" }} onClick={() => openModal("delete", record)} /></Tooltip>
@@ -388,6 +449,13 @@ export function ProspectosPage() {
               <Descriptions.Item label="Telefono">{modal.record.telefono || "N/A"}</Descriptions.Item>
               <Descriptions.Item label="Origen">{modal.record.origen}</Descriptions.Item>
               <Descriptions.Item label="Estado"><Tag color={estadoConfig[modal.record.estado]?.color}>{estadoConfig[modal.record.estado]?.label}</Tag></Descriptions.Item>
+              {modal.record.estado === "reserva" && entradasDelProspecto !== null && (
+                <Descriptions.Item label="Entrada" span={2}>
+                  <Text strong style={{ color: entradasDelProspecto > 0 ? "#389e0d" : undefined }}>
+                    {entradasDelProspecto > 0 ? formatCurrency(entradasDelProspecto) : "Sin entrada registrada"}
+                  </Text>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Notas" span={2}>{modal.record.notas || "Sin notas"}</Descriptions.Item>
             </Descriptions>
           </div>
@@ -402,6 +470,17 @@ export function ProspectosPage() {
         onOk={handleEdit}
         okText="Guardar"
         cancelText="Cancelar"
+        footer={(_, { OkBtn, CancelBtn }) => (
+          <Space>
+            {modal.record && puedeReservar(modal.record) && (
+              <Button icon={<ClockCircleOutlined />} onClick={handleEditAndReserve}>
+                Reservar ahora
+              </Button>
+            )}
+            <CancelBtn />
+            <OkBtn />
+          </Space>
+        )}
       >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="nombres" label="Nombres" rules={[{ required: true, message: "Ingrese el nombre" }]}>
@@ -474,6 +553,16 @@ export function ProspectosPage() {
                   />
                 </Form.Item>
 
+                {loteDetectadoNota && loteElegido === loteDetectadoNota.id_lote && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message={`Lote ${loteDetectadoNota.numero_lote} tomado de las notas`}
+                    description="Se pre-seleccionó el lote anotado en las notas del prospecto. Confírmelo o cámbielo si es otro."
+                  />
+                )}
+
                 {loteResumen && (
                   <div
                     style={{
@@ -525,6 +614,25 @@ export function ProspectosPage() {
                   ]}
                 >
                   <Input placeholder="0991234567" />
+                </Form.Item>
+                <Form.Item
+                  name="entrada"
+                  label="Entrada (opcional)"
+                  extra={
+                    loteResumen
+                      ? `Si se cobra una seña al reservar, ingrésela aquí. Máximo ${formatCurrency(
+                          Math.max(0, (loteResumen.precio_lista ?? 0) - 1)
+                        )}. Dejar en 0 si no se cobra nada.`
+                      : "Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                  }
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={0}
+                    max={loteResumen ? Math.max(0, (loteResumen.precio_lista ?? 0) - 1) : undefined}
+                    step={100}
+                    placeholder="0"
+                  />
                 </Form.Item>
               </Form>
             )}

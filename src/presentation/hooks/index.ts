@@ -14,6 +14,7 @@ export { useCarteraMetricas } from "./useCarteraMetricas";
 export { useAlertas } from "./useAlertas";
 export { useCobranzas } from "./useCobranzas";
 export { useCobranzasByContrato } from "./useCobranzasByContrato";
+export { useEntradasReserva } from "./useEntradasReserva";
 export { usePagos } from "./usePagos";
 export { useUsuarios } from "./useUsuarios";
 export { useReservarLote } from "./useReservarLote";

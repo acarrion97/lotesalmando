@@ -363,6 +363,38 @@ export interface Database {
           fecha_pago?: string;
         };
       };
+      entradas_reserva: {
+        Row: {
+          id_entrada: number;
+          id_lote: number;
+          id_prospecto: number | null;
+          id_empresa: number | null;
+          id_usuario: number;
+          monto: number;
+          fecha_pago: string;
+          created_at: string;
+        };
+        Insert: {
+          id_entrada?: number;
+          id_lote: number;
+          id_prospecto?: number | null;
+          id_empresa?: number | null;
+          id_usuario: number;
+          monto: number;
+          fecha_pago?: string;
+          created_at?: string;
+        };
+        Update: {
+          id_entrada?: number;
+          id_lote?: number;
+          id_prospecto?: number | null;
+          id_empresa?: number | null;
+          id_usuario?: number;
+          monto?: number;
+          fecha_pago?: string;
+          created_at?: string;
+        };
+      };
       roles: {
         Row: {
           id_rol: number;

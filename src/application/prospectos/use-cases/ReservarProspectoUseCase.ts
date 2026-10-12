@@ -7,6 +7,7 @@ import type { OportunidadRepository } from "@/domain/oportunidad/repositories";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { ProspectoRepository } from "@/domain/prospecto/repositories";
 import type { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
+import type { RegistrarEntradaReservaUseCase } from "@/application/entradas/use-cases/RegistrarEntradaReservaUseCase";
 
 export interface DatosClienteReserva {
   nombres: string;
@@ -22,6 +23,8 @@ export interface ReservarProspectoInput {
   /** Asesor de la sesión; null cuando la cuenta no tiene asesor vinculado. */
   idAsesor: number | null;
   cliente: DatosClienteReserva;
+  /** Entrada (seña) cobrada al reservar; omitirla o monto 0 = sin cobro. */
+  entrada?: { monto: number } | null;
 }
 
 export interface ReservarProspectoResult {
@@ -46,6 +49,7 @@ export class ReservarProspectoUseCase {
   private readonly inventarioRepo: InventarioRepository;
   private readonly oportunidadRepo: OportunidadRepository;
   private readonly reservarLote: ReservarLoteUseCase;
+  private readonly registrarEntrada: RegistrarEntradaReservaUseCase;
 
   constructor(deps: {
     prospectoRepo: ProspectoRepository;
@@ -54,6 +58,7 @@ export class ReservarProspectoUseCase {
     inventarioRepo: InventarioRepository;
     oportunidadRepo: OportunidadRepository;
     reservarLote: ReservarLoteUseCase;
+    registrarEntrada: RegistrarEntradaReservaUseCase;
   }) {
     this.prospectoRepo = deps.prospectoRepo;
     this.clienteRepo = deps.clienteRepo;
@@ -61,6 +66,7 @@ export class ReservarProspectoUseCase {
     this.inventarioRepo = deps.inventarioRepo;
     this.oportunidadRepo = deps.oportunidadRepo;
     this.reservarLote = deps.reservarLote;
+    this.registrarEntrada = deps.registrarEntrada;
   }
 
   async execute(input: ReservarProspectoInput): Promise<ReservarProspectoResult> {
@@ -87,7 +93,22 @@ export class ReservarProspectoUseCase {
     await this.reservarLote.execute(input.idLote, input.usuarioId);
 
     let oportunidad: Oportunidad | null = null;
+    let idEntrada: number | null = null;
     try {
+      // Entrada (seña) opcional: se cobra después de reservar el lote. Si el
+      // monto no está informado o es 0, la reserva avanza sin cobro.
+      const montoEntrada = input.entrada?.monto ?? 0;
+      if (montoEntrada > 0) {
+        const entrada = await this.registrarEntrada.execute({
+          idLote: input.idLote,
+          idProspecto: prospecto.id_prospecto,
+          idEmpresa: prospecto.id_empresa,
+          idUsuario: input.usuarioId,
+          monto: montoEntrada,
+        });
+        idEntrada = entrada.id_entrada;
+      }
+
       oportunidad = await this.oportunidadRepo.create({
         id_empresa: prospecto.id_empresa,
         id_prospecto: prospecto.id_prospecto,
@@ -107,6 +128,9 @@ export class ReservarProspectoUseCase {
     } catch (error) {
       if (oportunidad) {
         await this.oportunidadRepo.delete(oportunidad.id_oportunidad).catch(() => undefined);
+      }
+      if (idEntrada !== null) {
+        await this.registrarEntrada.remove(idEntrada).catch(() => undefined);
       }
       const revertida = await this.revertirReserva(input.idLote, movimientosPrevios);
       const detalle = error instanceof Error ? error.message : "Error desconocido";

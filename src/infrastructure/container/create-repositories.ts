@@ -7,6 +7,7 @@ import type { SaleRepository } from "@/domain/venta/repositories";
 import type { ContractRepository } from "@/domain/contrato/repositories";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
 import type { PagoRepository } from "@/domain/pago/repositories";
+import type { EntradaReservaRepository } from "@/domain/entrada/repositories";
 import type { UsuarioRepository } from "@/domain/usuario/repositories";
 import type { InventarioRepository } from "@/domain/inventario/repositories";
 import type { EtapaRepository } from "@/domain/etapa/repositories";
@@ -37,6 +38,7 @@ import { MockSaleRepository } from "@/infrastructure/repositories/mock/MockSaleR
 import { MockContractRepository } from "@/infrastructure/repositories/mock/MockContractRepository";
 import { MockCobranzaRepository } from "@/infrastructure/repositories/mock/MockCobranzaRepository";
 import { MockPagoRepository } from "@/infrastructure/repositories/mock/MockPagoRepository";
+import { MockEntradaReservaRepository } from "@/infrastructure/repositories/mock/MockEntradaReservaRepository";
 import { MockUsuarioRepository } from "@/infrastructure/repositories/mock/MockUsuarioRepository";
 import { MockInventarioRepository } from "@/infrastructure/repositories/mock/MockInventarioRepository";
 import { MockEtapaRepository } from "@/infrastructure/repositories/mock/MockEtapaRepository";
@@ -61,6 +63,7 @@ import { SupabaseSaleRepository } from "@/infrastructure/repositories/supabase/S
 import { SupabaseContractRepository } from "@/infrastructure/repositories/supabase/SupabaseContractRepository";
 import { SupabaseCobranzaRepository } from "@/infrastructure/repositories/supabase/SupabaseCobranzaRepository";
 import { SupabasePagoRepository } from "@/infrastructure/repositories/supabase/SupabasePagoRepository";
+import { SupabaseEntradaReservaRepository } from "@/infrastructure/repositories/supabase/SupabaseEntradaReservaRepository";
 import { SupabaseUsuarioRepository } from "@/infrastructure/repositories/supabase/SupabaseUsuarioRepository";
 import { SupabaseInventarioRepository } from "@/infrastructure/repositories/supabase/SupabaseInventarioRepository";
 import { SupabaseEtapaRepository } from "@/infrastructure/repositories/supabase/SupabaseEtapaRepository";
@@ -86,6 +89,8 @@ export interface Repositories {
   contractRepo: ContractRepository;
   cobranzaRepo: CobranzaRepository;
   pagoRepo: PagoRepository;
+  /** Entradas (señas) cobradas al reservar un lote; no apuntan a cuota. */
+  entradaRepo: EntradaReservaRepository;
   usuarioRepo: UsuarioRepository;
   inventarioRepo: InventarioRepository;
   etapaRepo: EtapaRepository;
@@ -220,6 +225,7 @@ function createMockRepositories(): Repositories {
     cobranzaRepo,
     inventarioRepo,
     pagoRepo: new MockPagoRepository(),
+    entradaRepo: new MockEntradaReservaRepository(),
     usuarioRepo: new MockUsuarioRepository(),
     aceptarCotizacion,
     etapaRepo: new MockEtapaRepository(),
@@ -262,6 +268,7 @@ function createSupabaseRepositories(): Repositories {
     contractRepo: new SupabaseContractRepository(),
     cobranzaRepo: new SupabaseCobranzaRepository(),
     pagoRepo: new SupabasePagoRepository(),
+    entradaRepo: new SupabaseEntradaReservaRepository(),
     usuarioRepo: new SupabaseUsuarioRepository(),
     inventarioRepo: new SupabaseInventarioRepository(),
     etapaRepo: new SupabaseEtapaRepository(),
