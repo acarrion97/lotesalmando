@@ -193,7 +193,11 @@ function tir(flujos) {
   const npv = (r) => flujos.reduce((s, f, k) => s + f / Math.pow(1 + r, k), 0);
   let lo = -0.99, hi = 10;
   if (npv(lo) * npv(hi) > 0) return null;
-  for (let n = 0; n < 200; n++) { const mid = (lo + hi) / 2; (npv(lo) * npv(mid) <= 0 ? hi = mid : lo = mid); }
+  for (let n = 0; n < 200; n++) {
+    const mid = (lo + hi) / 2;
+    if (npv(lo) * npv(mid) <= 0) hi = mid;
+    else lo = mid;
+  }
   return (lo + hi) / 2;
 }
 const netosConInversion = filas.map((f, k) => f.netoMes - (k === 0 ? COSTO_URB : 0));

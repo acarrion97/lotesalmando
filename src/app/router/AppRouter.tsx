@@ -18,6 +18,7 @@ import { VentasPage } from "@/presentation/pages/ventas";
 import { ContratosPage } from "@/presentation/pages/contratos";
 import { AlertasPage } from "@/presentation/pages/alertas";
 import { CobranzasPage } from "@/presentation/pages/cobranzas";
+import { ProyeccionFinancieraPage } from "@/presentation/pages/proyeccion";
 import { PagosPage } from "@/presentation/pages/pagos";
 import { UsuariosPage } from "@/presentation/pages/usuarios";
 import { ConfiguracionPage } from "@/presentation/pages/configuracion";
@@ -53,6 +54,7 @@ export function AppRouter() {
           <Route path="/contratos" element={<ContratosPage />} />
           <Route path="/alertas" element={<AlertasPage />} />
           <Route path="/cobranzas" element={<CobranzasPage />} />
+          <Route path="/proyeccion" element={<ProyeccionFinancieraPage />} />
           <Route path="/pagos" element={<PagosPage />} />
           <Route path="/usuarios" element={<UsuariosPage />} />
           <Route path="/prospectos" element={<ProspectosPage />} />
