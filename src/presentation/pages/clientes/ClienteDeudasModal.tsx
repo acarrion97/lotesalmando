@@ -1,7 +1,9 @@
-import { useMemo } from "react";
-import { Modal, Button, Table, Tag, Typography, Spin, Empty } from "antd";
+import { useMemo, useState } from "react";
+import { Modal, Button, Table, Tag, Tooltip, Typography, Spin, Empty } from "antd";
+import { PayCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas, useContratos, useCobranzas } from "@/presentation/hooks";
+import { useVentas, useContratos, useCobranzas, useOnlineStatus } from "@/presentation/hooks";
+import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { formatCurrency, formatDateOnly } from "@/utils";
 
@@ -21,7 +23,7 @@ const estadoCuota: Record<string, { color: string; label: string }> = {
   vencida: { color: "error", label: "Vencida" },
 };
 
-const columnas: TableColumnType<DeudaFila>[] = [
+const columnasBase: TableColumnType<DeudaFila>[] = [
   { title: "Cuota", dataIndex: "numero_cuota", key: "numero_cuota", width: 70 },
   { title: "Contrato", dataIndex: "numero_contrato", key: "numero_contrato", width: 130 },
   {
@@ -66,13 +68,15 @@ export function ClienteDeudasModal({
   const { data: ventas, isLoading: loadingVentas } = useVentas();
   const { data: contratos } = useContratos();
   const { data: cobranzas } = useCobranzas();
+  const isOnline = useOnlineStatus();
+  const [cobranzaAPagar, setCobranzaAPagar] = useState<CobranzaAPagar | null>(null);
 
   const { filas, saldo } = useMemo(() => {
     if (!cliente) return { filas: [] as DeudaFila[], saldo: 0 };
 
     // Ventas del cliente → ids de venta.
     const idsVenta = new Set(
-      (ventas ?? []).filter((v) => v.id_cliente === cliente.id_cliente).map((v) => v.id_venta)
+      (ventas ?? []).filter((v) => v.id_cliente === cliente.id_cliente).map((v) => v.id_venta),
     );
     if (idsVenta.size === 0) return { filas: [] as DeudaFila[], saldo: 0 };
 
@@ -102,7 +106,7 @@ export function ClienteDeudasModal({
     deudas.sort((a, b) =>
       a.numero_contrato === b.numero_contrato
         ? a.numero_cuota - b.numero_cuota
-        : a.numero_contrato.localeCompare(b.numero_contrato)
+        : a.numero_contrato.localeCompare(b.numero_contrato),
     );
 
     // Centavos enteros para no arrastrar ruido de flotantes (mismo criterio
@@ -113,46 +117,99 @@ export function ClienteDeudasModal({
 
   const cargando = loadingVentas && open;
 
-  return (
-    <Modal
-      title="Deudas pendientes"
-      open={open}
-      onCancel={onClose}
-      footer={[<Button key="close" onClick={onClose}>Cerrar</Button>]}
-      width={680}
-    >
-      {cliente && (
-        <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-          {cliente.nombres} · {cliente.cedula_ruc}
-        </Text>
-      )}
+  // El botón de pago solo aparece en las cuotas que siguen en deuda (la lista
+  // ya excluye las pagadas); se repite aquí para que una fila marcada como
+  // pagada en otra pestaña no quede con acción disponible.
+  const columnas = useMemo<TableColumnType<DeudaFila>[]>(
+    () => [
+      ...columnasBase,
+      {
+        title: "Acción",
+        key: "accion",
+        width: 100,
+        render: (_: unknown, fila: DeudaFila) =>
+          fila.estado === "pagada" ? null : (
+            <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<PayCircleOutlined />}
+                disabled={!isOnline}
+                onClick={() =>
+                  setCobranzaAPagar({
+                    id_cobranza: fila.id_cobranza,
+                    numero_cuota: fila.numero_cuota,
+                    monto_cuota: fila.monto_cuota,
+                    estado: fila.estado,
+                    fecha_vencimiento: fila.fecha_vencimiento,
+                    cliente: cliente?.nombres,
+                    cedula: cliente?.cedula_ruc,
+                    numero_contrato: fila.numero_contrato,
+                  })
+                }
+              >
+                Pagar
+              </Button>
+            </Tooltip>
+          ),
+      },
+    ],
+    [isOnline, cliente],
+  );
 
-      {cargando ? (
-        <div style={{ textAlign: "center", padding: "32px 0" }}>
-          <Spin />
-        </div>
-      ) : filas.length === 0 ? (
-        <Empty
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="Este cliente no tiene deudas pendientes"
-          style={{ margin: "24px 0" }}
-        />
-      ) : (
-        <>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-            <Text strong>Cuotas por cobrar</Text>
-            <Text type="secondary">Saldo pendiente {formatCurrency(saldo)}</Text>
+  return (
+    <>
+      <Modal
+        title="Deudas pendientes"
+        open={open}
+        onCancel={onClose}
+        footer={[
+          <Button key="close" onClick={onClose}>
+            Cerrar
+          </Button>,
+        ]}
+        width={680}
+      >
+        {cliente && (
+          <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+            {cliente.nombres} · {cliente.cedula_ruc}
+          </Text>
+        )}
+
+        {cargando ? (
+          <div style={{ textAlign: "center", padding: "32px 0" }}>
+            <Spin />
           </div>
-          <Table<DeudaFila>
-            size="small"
-            rowKey="id_cobranza"
-            columns={columnas}
-            dataSource={filas}
-            pagination={false}
-            scroll={{ y: 280 }}
+        ) : filas.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="Este cliente no tiene deudas pendientes"
+            style={{ margin: "24px 0" }}
           />
-        </>
-      )}
-    </Modal>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <Text strong>Cuotas por cobrar</Text>
+              <Text type="secondary">Saldo pendiente {formatCurrency(saldo)}</Text>
+            </div>
+            <Table<DeudaFila>
+              size="small"
+              rowKey="id_cobranza"
+              columns={columnas}
+              dataSource={filas}
+              pagination={false}
+              scroll={{ y: 280 }}
+            />
+          </>
+        )}
+      </Modal>
+
+      <RegistrarPagoModal
+        title="Registrar pago de cuota"
+        cobranza={cobranzaAPagar}
+        open={cobranzaAPagar !== null}
+        onClose={() => setCobranzaAPagar(null)}
+      />
+    </>
   );
 }
