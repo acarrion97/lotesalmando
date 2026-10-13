@@ -41,6 +41,7 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { loteSchema } from "@/presentation/validations";
 import { compararNumeroLote } from "@/utils";
+import { ZodError } from "zod";
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
@@ -80,6 +81,52 @@ const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: stri
     icon: <StopOutlined />,
   },
 };
+
+/** Texto opcional: trim y `undefined` cuando quedo vacio (asi no se persiste "" en columnas con indice unico). */
+function textoOpcional(value: unknown): string | undefined {
+  const texto = typeof value === "string" ? value.trim() : "";
+  return texto === "" ? undefined : texto;
+}
+
+/** Normaliza un numero de lote para comparar (trim + minusculas). */
+function normalizarNumero(numero: unknown): string {
+  return typeof numero === "string" ? numero.trim().toLowerCase() : "";
+}
+
+/**
+ * El numero de lote es unico dentro de la empresa: no puede repetirse en ninguna
+ * manzana ni proyecto. `idLoteExcluido` evita que la edicion de un lote choque
+ * consigo mismo.
+ */
+function numeroYaUsado(
+  lotes: Array<{ id_lote: number; numero_lote: string }> | undefined,
+  numero: unknown,
+  idLoteExcluido?: number,
+): boolean {
+  const buscado = normalizarNumero(numero);
+  if (!buscado) return false;
+  return (
+    lotes?.some(
+      (l) => l.id_lote !== idLoteExcluido && normalizarNumero(l.numero_lote) === buscado,
+    ) ?? false
+  );
+}
+
+/** Convierte el error capturado en un mensaje que el usuario pueda entender. */
+function mensajeErrorLote(error: unknown, fallback: string): string {
+  if (error instanceof ZodError) {
+    return error.issues[0]?.message ?? fallback;
+  }
+  if (typeof error === "object" && error !== null && "code" in error) {
+    // 23505 = unique_violation (numero de lote repetido en la empresa o codigo catastral duplicado).
+    if ((error as { code?: string }).code === "23505") {
+      return "Ya existe un lote con esos datos: revisa el numero de lote en la manzana y el codigo catastral.";
+    }
+    const mensaje = (error as { message?: string }).message;
+    if (mensaje) return mensaje;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -188,6 +235,8 @@ export function LotesPage() {
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Evita doble envio mientras se persiste: sin esto, dos clics en "Crear" daban dos lotes.
+  const [guardando, setGuardando] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
@@ -255,15 +304,38 @@ export function LotesPage() {
   const handleEdit = async () => {
     if (!modal.record) return;
 
+    let values: Record<string, unknown>;
     try {
-      const values = await editForm.validateFields();
-      const parsed = loteSchema.partial().parse({ ...values, id_manzana: values.id_manzana !== undefined ? Number(values.id_manzana) : undefined });
+      values = await editForm.validateFields();
+    } catch {
+      // Ya quedaron marcados en rojo los campos obligatorios: no hay nada que enviar.
+      return;
+    }
+
+    const numeroEditado = textoOpcional(values.numero_lote) ?? modal.record.numero_lote;
+    if (numeroYaUsado(lotes, numeroEditado, modal.record.id_lote)) {
+      messageApi.error(`Ya existe un lote "${numeroEditado}" en esta empresa`);
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const parsed = loteSchema.partial().parse({
+        ...values,
+        numero_lote: numeroEditado,
+        id_manzana: values.id_manzana !== undefined ? Number(values.id_manzana) : undefined,
+        // En edicion un campo vacio significa borrarlo: se manda `null` (ni "" ni omitido).
+        codigo_catastral: textoOpcional(values.codigo_catastral) ?? null,
+        medidas: textoOpcional(values.medidas) ?? null,
+      });
       await container.updateLote.execute(modal.record.id_lote, parsed);
       await refreshLotes();
       messageApi.success("Lote actualizado correctamente");
       closeModal();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "No se pudo actualizar el lote");
+      messageApi.error(mensajeErrorLote(error, "No se pudo actualizar el lote"));
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -281,16 +353,40 @@ export function LotesPage() {
   };
 
   const handleCreate = async () => {
+    let values: Record<string, unknown>;
     try {
-      const values = await createForm.validateFields();
-      const parsed = loteSchema.parse({ ...values, id_manzana: Number(values.id_manzana) });
+      values = await createForm.validateFields();
+    } catch {
+      // Ya quedaron marcados en rojo los campos obligatorios: no hay nada que enviar.
+      return;
+    }
+
+    const numeroLote = textoOpcional(values.numero_lote) ?? "";
+    const idManzana = Number(values.id_manzana);
+
+    if (numeroYaUsado(lotes, numeroLote)) {
+      messageApi.error(`Ya existe un lote "${numeroLote}" en esta empresa`);
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const parsed = loteSchema.parse({
+        ...values,
+        numero_lote: numeroLote,
+        id_manzana: idManzana,
+        codigo_catastral: textoOpcional(values.codigo_catastral),
+        medidas: textoOpcional(values.medidas),
+      });
       await container.createLote.execute(parsed);
       await refreshLotes();
       messageApi.success("Lote creado correctamente");
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "No se pudo crear el lote");
+      messageApi.error(mensajeErrorLote(error, "No se pudo crear el lote"));
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -630,6 +726,7 @@ export function LotesPage() {
         open={modal.visible && modal.type === "edit"}
         onCancel={closeModal}
         onOk={handleEdit}
+        confirmLoading={guardando}
         okText="Guardar"
         cancelText="Cancelar"
       >
@@ -659,12 +756,18 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber<number>
+            <InputNumber<string | number>
               style={{ width: "100%" }}
               min={0}
               step={100}
-              formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
+              formatter={(value) =>
+                value == null || value === ""
+                  ? ""
+                  : `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              // El parser DEBE devolver string: si devuelve un number, rc-input-number pierde el
+              // contexto de tipeo y el precio se guarda mal (tipear "50000" guardaba 500.000).
+              parser={(value) => value?.replace(/[^\d.-]/g, "") ?? ""}
             />
           </Form.Item>
           <Form.Item name="superficie_m2" label="Superficie (m²)">
@@ -701,6 +804,7 @@ export function LotesPage() {
         open={createModalOpen}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={handleCreate}
+        confirmLoading={guardando}
         okText="Crear"
         cancelText="Cancelar"
       >
@@ -730,12 +834,18 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber<number>
+            <InputNumber<string | number>
               style={{ width: "100%" }}
               min={0}
               step={100}
-              formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
+              formatter={(value) =>
+                value == null || value === ""
+                  ? ""
+                  : `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              // El parser DEBE devolver string: si devuelve un number, rc-input-number pierde el
+              // contexto de tipeo y el precio se guarda mal (tipear "50000" guardaba 500.000).
+              parser={(value) => value?.replace(/[^\d.-]/g, "") ?? ""}
             />
           </Form.Item>
           <Form.Item name="superficie_m2" label="Superficie (m²)">
