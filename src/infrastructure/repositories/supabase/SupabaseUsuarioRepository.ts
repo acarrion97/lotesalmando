@@ -16,7 +16,11 @@ export class SupabaseUsuarioRepository implements UsuarioRepository {
   }
 
   async getById(id: number): Promise<Usuario | null> {
-    const { data, error } = await supabase.from("usuario").select("*").eq("id_usuario", id).single();
+    const { data, error } = await supabase
+      .from("usuario")
+      .select("*")
+      .eq("id_usuario", id)
+      .single();
     if (error) return null;
     return data as Usuario;
   }
@@ -27,8 +31,22 @@ export class SupabaseUsuarioRepository implements UsuarioRepository {
     return created as Usuario;
   }
 
+  async createAuthUser(data: { email: string; password: string; nombres: string }): Promise<void> {
+    const { error } = await supabase.rpc("crear_usuario_auth", {
+      p_email: data.email,
+      p_password: data.password,
+      p_nombres: data.nombres,
+    });
+    if (error) throw new Error(error.message);
+  }
+
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
-    const { data: updated, error } = await supabase.from("usuario").update(data).eq("id_usuario", id).select().single();
+    const { data: updated, error } = await supabase
+      .from("usuario")
+      .update(data)
+      .eq("id_usuario", id)
+      .select()
+      .single();
     if (error) throw error;
     return updated as Usuario;
   }

@@ -1,1 +1,1 @@
-export type { RolRepository } from "./RolRepository";
+export type { RolRepository, AsignacionRol } from "./RolRepository";

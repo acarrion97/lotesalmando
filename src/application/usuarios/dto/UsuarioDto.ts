@@ -6,4 +6,6 @@ export interface UsuarioDto {
   nombres: string;
   email: string;
   estado: UsuarioEstado;
+  /** Fecha de registro en la plataforma (migración 026). */
+  created_at?: string | null;
 }

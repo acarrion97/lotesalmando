@@ -22,6 +22,7 @@ export class GetUsuariosUseCase {
       nombres: usuario.nombres,
       email: usuario.email,
       estado: usuario.estado,
+      created_at: usuario.created_at ?? null,
     };
   }
 }

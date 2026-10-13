@@ -1,1 +1,1 @@
-export type { EmpresaRepository } from "./EmpresaRepository";
+export type { EmpresaRepository, CrearEmpresaConAdminInput } from "./EmpresaRepository";

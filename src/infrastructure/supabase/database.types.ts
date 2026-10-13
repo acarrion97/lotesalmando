@@ -15,18 +15,21 @@ export interface Database {
           razon_social: string;
           ruc: string | null;
           estado: string | null;
+          created_at: string;
         };
         Insert: {
           id_empresa?: number;
           razon_social: string;
           ruc?: string | null;
           estado?: string | null;
+          created_at?: string;
         };
         Update: {
           id_empresa?: number;
           razon_social?: string;
           ruc?: string | null;
           estado?: string | null;
+          created_at?: string;
         };
       };
       configuracion: {
@@ -159,6 +162,7 @@ export interface Database {
           nombres: string;
           email: string;
           estado: string | null;
+          created_at: string;
         };
         Insert: {
           id_usuario?: number;
@@ -166,6 +170,7 @@ export interface Database {
           nombres: string;
           email: string;
           estado?: string | null;
+          created_at?: string;
         };
         Update: {
           id_usuario?: number;
@@ -173,6 +178,7 @@ export interface Database {
           nombres?: string;
           email?: string;
           estado?: string | null;
+          created_at?: string;
         };
       };
       cliente: {

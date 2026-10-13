@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
+import { usePuede } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { getContainer } from "@/infrastructure/container";
@@ -30,6 +31,9 @@ export function ClientesPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
+  const puedeCrear = usePuede("crear_clientes");
+  const puedeEditar = usePuede("editar_clientes");
+  const puedeEliminar = usePuede("eliminar_clientes");
 
   const refreshClientes = () => queryClient.invalidateQueries({ queryKey: ["clientes", empresaId] });
 
@@ -193,8 +197,12 @@ export function ClientesPage() {
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
           <Button type="link" icon={<WalletOutlined />} onClick={() => openModal("deudas", record)}>Deudas</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
+          {puedeEditar && (
+            <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
+          )}
+          {puedeEliminar && (
+            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
+          )}
         </Space>
       ),
     },
@@ -207,9 +215,11 @@ export function ClientesPage() {
         title="Clientes"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Nuevo
-          </Button>
+          puedeCrear ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+              Nuevo
+            </Button>
+          ) : null
         }
       />
       <DataTable<Cliente>

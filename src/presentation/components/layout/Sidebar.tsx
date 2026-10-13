@@ -1,6 +1,9 @@
+import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, Typography } from "antd";
 import { useOnlineStatus } from "@/presentation/hooks";
+import { usePermiso } from "@/presentation/providers";
+import { MODULOS, GRUPOS_MENU, ITEMS_SUELTOS } from "@/presentation/permisos/permisosConfig";
 import {
   DashboardOutlined,
   ProjectOutlined,
@@ -17,6 +20,9 @@ import {
   TeamOutlined,
   SettingOutlined,
   BellOutlined,
+  SafetyCertificateOutlined,
+  GlobalOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 
@@ -30,66 +36,30 @@ const groupLabel = (text: string) => (
   </Text>
 );
 
-const menuItems: MenuItem[] = [
-  {
-    key: "/dashboard",
-    icon: <DashboardOutlined />,
-    label: "Dashboard",
-  },
-  {
-    key: "inventario",
-    label: groupLabel("INVENTARIO"),
-    type: "group",
-    children: [
-      { key: "/proyectos", icon: <ProjectOutlined />, label: "Proyectos" },
-      { key: "/etapas", icon: <ProjectOutlined />, label: "Etapas" },
-      { key: "/manzanas", icon: <EnvironmentOutlined />, label: "Manzanas" },
-      { key: "/mapas", icon: <EnvironmentOutlined />, label: "Mapas" },
-      { key: "/lotes", icon: <HomeOutlined />, label: "Lotes" },
-      { key: "/inventario", icon: <InboxOutlined />, label: "Inventario" },
-    ],
-  },
-  {
-    key: "comercial",
-    label: groupLabel("COMERCIAL"),
-    type: "group",
-    children: [
-      { key: "/clientes", icon: <UserOutlined />, label: "Clientes" },
-      { key: "/cotizaciones", icon: <FileTextOutlined />, label: "Cotizaciones" },
-      { key: "/ventas", icon: <DollarOutlined />, label: "Ventas" },
-      { key: "/prospectos", icon: <UserOutlined />, label: "Prospectos" },
-      { key: "/asesores", icon: <TeamOutlined />, label: "Asesores" },
-    ],
-  },
-  {
-    key: "financiero",
-    label: groupLabel("FINANCIERO"),
-    type: "group",
-    children: [
-      { key: "/contratos", icon: <FileProtectOutlined />, label: "Contratos" },
-      { key: "/cobranzas", icon: <CreditCardOutlined />, label: "Cobranzas" },
-      { key: "/pagos", icon: <PayCircleOutlined />, label: "Pagos" },
-      { key: "/proyeccion", icon: <FundOutlined />, label: "Proyección" },
-    ],
-  },
-  {
-    key: "ia",
-    label: groupLabel("INTELIGENCIA"),
-    type: "group",
-    children: [
-      { key: "/alertas", icon: <BellOutlined />, label: "Mando IA" },
-    ],
-  },
-  {
-    key: "administracion",
-    label: groupLabel("ADMINISTRACION"),
-    type: "group",
-    children: [
-      { key: "/usuarios", icon: <TeamOutlined />, label: "Usuarios" },
-      { key: "/configuracion", icon: <SettingOutlined />, label: "Configuracion" },
-    ],
-  },
-];
+const iconosPorRuta: Record<string, React.ReactNode> = {
+  "/dashboard": <DashboardOutlined />,
+  "/proyectos": <ProjectOutlined />,
+  "/etapas": <ProjectOutlined />,
+  "/manzanas": <EnvironmentOutlined />,
+  "/mapas": <EnvironmentOutlined />,
+  "/lotes": <HomeOutlined />,
+  "/inventario": <InboxOutlined />,
+  "/clientes": <UserOutlined />,
+  "/cotizaciones": <FileTextOutlined />,
+  "/ventas": <DollarOutlined />,
+  "/prospectos": <UserOutlined />,
+  "/asesores": <TeamOutlined />,
+  "/contratos": <FileProtectOutlined />,
+  "/cobranzas": <CreditCardOutlined />,
+  "/pagos": <PayCircleOutlined />,
+  "/proyeccion": <FundOutlined />,
+  "/alertas": <BellOutlined />,
+  "/usuarios": <TeamOutlined />,
+  "/configuracion": <SettingOutlined />,
+  "/roles-permisos": <SafetyCertificateOutlined />,
+  "/plataforma": <GlobalOutlined />,
+  "/empresas": <BankOutlined />,
+};
 
 interface SidebarProps {
   collapsed: boolean;
@@ -99,26 +69,58 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnline = useOnlineStatus();
+  const { tienePermiso } = usePermiso();
+
+  // Módulos que el usuario puede ver, según sus permisos de la BD.
+  const modulosVisibles = useMemo(
+    () => new Set(MODULOS.filter((m) => tienePermiso(m.permiso)).map((m) => m.key)),
+    [tienePermiso],
+  );
+
+  const menuItems: MenuItem[] = useMemo(() => {
+    const items: MenuItem[] = [];
+
+    // Ítems sueltos (Dashboard) primero.
+    for (const key of ITEMS_SUELTOS) {
+      if (!modulosVisibles.has(key)) continue;
+      const modulo = MODULOS.find((m) => m.key === key);
+      items.push({
+        key,
+        icon: iconosPorRuta[key],
+        label: modulo?.label ?? key,
+      });
+    }
+
+    // Luego los grupos, ocultando los que quedaron vacíos.
+    for (const grupo of GRUPOS_MENU) {
+      const children: MenuItem[] = grupo.items
+        .filter((key) => modulosVisibles.has(key))
+        .map((key) => {
+          const modulo = MODULOS.find((m) => m.key === key);
+          return { key, icon: iconosPorRuta[key], label: modulo?.label ?? key };
+        });
+
+      if (children.length === 0) continue;
+
+      items.push({
+        key: grupo.key,
+        label: groupLabel(grupo.groupLabel ?? grupo.key),
+        type: "group",
+        children,
+      });
+    }
+
+    return items;
+  }, [modulosVisibles]);
 
   const selectedKeys = [location.pathname === "/" ? "/dashboard" : location.pathname];
 
   const openKeys = (() => {
     const path = location.pathname;
-    const groups = ["inventario", "comercial", "financiero", "ia", "administracion"];
 
-    for (const group of groups) {
-      const groupItem = menuItems.find(
-        (item) => item && "key" in item && item.key === group,
-      );
-
-      if (groupItem && "children" in groupItem && groupItem.children) {
-        const childKeys = groupItem.children.map((child) =>
-          child && "key" in child ? child.key : "",
-        );
-
-        if (childKeys.includes(path)) {
-          return [group];
-        }
+    for (const grupo of GRUPOS_MENU) {
+      if (grupo.items.includes(path)) {
+        return [grupo.key];
       }
     }
 

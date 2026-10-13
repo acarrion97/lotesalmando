@@ -151,12 +151,6 @@ export function RegisterEmpresaPage() {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Ya tienes una invitacion? <Link to="/registro">Registrate aqui</Link>
-          </Text>
-        </div>
         <div style={{ textAlign: "center", marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Ya tienes cuenta? <Link to="/login">Inicia sesion</Link>

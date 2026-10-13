@@ -10,3 +10,4 @@ export { configuracionSchema, type ConfiguracionFormData } from "./configuracion
 export { loginSchema, type LoginFormData } from "./loginSchema";
 export { registroSchema, type RegistroFormData } from "./registroSchema";
 export { registroEmpresaSchema, type RegistroEmpresaFormData } from "./registroEmpresaSchema";
+export { nuevaContrasenaSchema, type NuevaContrasenaFormData } from "./nuevaContrasenaSchema";

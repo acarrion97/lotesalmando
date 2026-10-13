@@ -2,6 +2,8 @@ import type { Repositories } from "./create-repositories";
 
 import { GetEmpresasUseCase } from "@/application/empresa/use-cases/GetEmpresasUseCase";
 import { GetEmpresaByIdUseCase } from "@/application/empresa/use-cases/GetEmpresaByIdUseCase";
+import { CreateEmpresaConAdminUseCase } from "@/application/empresa/use-cases/CreateEmpresaConAdminUseCase";
+import { GetPlataformaMetricasUseCase } from "@/application/empresa/use-cases/GetPlataformaMetricasUseCase";
 import { GetProyectosUseCase } from "@/application/proyectos/use-cases/GetProyectosUseCase";
 import { GetProyectoByIdUseCase } from "@/application/proyectos/use-cases/GetProyectoByIdUseCase";
 import { CreateProyectoUseCase } from "@/application/proyectos/use-cases/CreateProyectoUseCase";
@@ -38,6 +40,7 @@ import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases
 import { GenerarAlertasUseCase } from "@/application/alertas/use-cases/GenerarAlertasUseCase";
 import { GetUsuariosUseCase } from "@/application/usuarios/use-cases/GetUsuariosUseCase";
 import { CreateUsuarioUseCase } from "@/application/usuarios/use-cases/CreateUsuarioUseCase";
+import { CreateUsuarioAuthUseCase } from "@/application/usuarios/use-cases/CreateUsuarioAuthUseCase";
 import { UpdateUsuarioUseCase } from "@/application/usuarios/use-cases/UpdateUsuarioUseCase";
 import { DeleteUsuarioUseCase } from "@/application/usuarios/use-cases/DeleteUsuarioUseCase";
 import { AsignarAsesorParaUsuarioUseCase } from "@/application/usuarios/use-cases/AsignarAsesorParaUsuarioUseCase";
@@ -67,6 +70,17 @@ import { UpdateAsesorUseCase } from "@/application/asesores/use-cases/UpdateAses
 import { DeleteAsesorUseCase } from "@/application/asesores/use-cases/DeleteAsesorUseCase";
 import { GetRolesUseCase } from "@/application/roles/use-cases/GetRolesUseCase";
 import { GetRolesByUsuarioUseCase } from "@/application/roles/use-cases/GetRolesByUsuarioUseCase";
+import { GetRolesPorUsuariosUseCase } from "@/application/roles/use-cases/GetRolesPorUsuariosUseCase";
+import { GetPermisosByUsuarioUseCase } from "@/application/roles/use-cases/GetPermisosByUsuarioUseCase";
+import { CreateRolUseCase } from "@/application/roles/use-cases/CreateRolUseCase";
+import { UpdateRolUseCase } from "@/application/roles/use-cases/UpdateRolUseCase";
+import { DeleteRolUseCase } from "@/application/roles/use-cases/DeleteRolUseCase";
+import { GetAllPermisosUseCase } from "@/application/roles/use-cases/GetAllPermisosUseCase";
+import { CreatePermisoUseCase } from "@/application/roles/use-cases/CreatePermisoUseCase";
+import { DeletePermisoUseCase } from "@/application/roles/use-cases/DeletePermisoUseCase";
+import { GetPermisoIdsByRolUseCase } from "@/application/roles/use-cases/GetPermisoIdsByRolUseCase";
+import { AssignPermisoARolUseCase } from "@/application/roles/use-cases/AssignPermisoARolUseCase";
+import { RemovePermisoDeRolUseCase } from "@/application/roles/use-cases/RemovePermisoDeRolUseCase";
 import { AssignRolUseCase } from "@/application/roles/use-cases/AssignRolUseCase";
 import { RemoveRolUseCase } from "@/application/roles/use-cases/RemoveRolUseCase";
 import { GetInventarioUseCase } from "@/application/inventario/use-cases/GetInventarioUseCase";
@@ -88,6 +102,8 @@ import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/Qu
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
+  createEmpresaConAdmin: CreateEmpresaConAdminUseCase;
+  getPlataformaMetricas: GetPlataformaMetricasUseCase;
   getEmpresaById: GetEmpresaByIdUseCase;
   getProyectos: GetProyectosUseCase;
   getProyectoById: GetProyectoByIdUseCase;
@@ -125,6 +141,7 @@ export interface UseCases {
   generarAlertas: GenerarAlertasUseCase;
   getUsuarios: GetUsuariosUseCase;
   createUsuario: CreateUsuarioUseCase;
+  createUsuarioAuth: CreateUsuarioAuthUseCase;
   updateUsuario: UpdateUsuarioUseCase;
   deleteUsuario: DeleteUsuarioUseCase;
   asignarAsesorParaUsuario: AsignarAsesorParaUsuarioUseCase;
@@ -155,6 +172,17 @@ export interface UseCases {
   deleteAsesor: DeleteAsesorUseCase;
   getRoles: GetRolesUseCase;
   getRolesByUsuario: GetRolesByUsuarioUseCase;
+  getRolesPorUsuarios: GetRolesPorUsuariosUseCase;
+  getPermisosByUsuario: GetPermisosByUsuarioUseCase;
+  createRol: CreateRolUseCase;
+  updateRol: UpdateRolUseCase;
+  deleteRol: DeleteRolUseCase;
+  getAllPermisos: GetAllPermisosUseCase;
+  createPermiso: CreatePermisoUseCase;
+  deletePermiso: DeletePermisoUseCase;
+  getPermisoIdsByRol: GetPermisoIdsByRolUseCase;
+  assignPermisoARol: AssignPermisoARolUseCase;
+  removePermisoDeRol: RemovePermisoDeRolUseCase;
   assignRol: AssignRolUseCase;
   removeRol: RemoveRolUseCase;
   getInventario: GetInventarioUseCase;
@@ -177,10 +205,15 @@ export interface UseCases {
 
 export function createUseCases(repos: Repositories): UseCases {
   const reservarLote = new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo);
-  const registrarEntrada = new RegistrarEntradaReservaUseCase(repos.entradaRepo, repos.lotRepository);
+  const registrarEntrada = new RegistrarEntradaReservaUseCase(
+    repos.entradaRepo,
+    repos.lotRepository,
+  );
 
   return {
     getEmpresas: new GetEmpresasUseCase(repos.empresaRepo),
+    createEmpresaConAdmin: new CreateEmpresaConAdminUseCase(repos.empresaRepo),
+    getPlataformaMetricas: new GetPlataformaMetricasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
     getProyectos: new GetProyectosUseCase(repos.proyectoRepo),
     getProyectoById: new GetProyectoByIdUseCase(repos.proyectoRepo),
@@ -240,6 +273,7 @@ export function createUseCases(repos: Repositories): UseCases {
     ),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
+    createUsuarioAuth: new CreateUsuarioAuthUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
     deleteUsuario: new DeleteUsuarioUseCase(repos.usuarioRepo),
     asignarAsesorParaUsuario: new AsignarAsesorParaUsuarioUseCase(repos.asesorRepo),
@@ -269,6 +303,17 @@ export function createUseCases(repos: Repositories): UseCases {
     deleteAsesor: new DeleteAsesorUseCase(repos.asesorRepo),
     getRoles: new GetRolesUseCase(repos.rolRepo),
     getRolesByUsuario: new GetRolesByUsuarioUseCase(repos.rolRepo),
+    getRolesPorUsuarios: new GetRolesPorUsuariosUseCase(repos.rolRepo),
+    getPermisosByUsuario: new GetPermisosByUsuarioUseCase(repos.rolRepo),
+    createRol: new CreateRolUseCase(repos.rolRepo),
+    updateRol: new UpdateRolUseCase(repos.rolRepo),
+    deleteRol: new DeleteRolUseCase(repos.rolRepo),
+    getAllPermisos: new GetAllPermisosUseCase(repos.rolRepo),
+    createPermiso: new CreatePermisoUseCase(repos.rolRepo),
+    deletePermiso: new DeletePermisoUseCase(repos.rolRepo),
+    getPermisoIdsByRol: new GetPermisoIdsByRolUseCase(repos.rolRepo),
+    assignPermisoARol: new AssignPermisoARolUseCase(repos.rolRepo),
+    removePermisoDeRol: new RemovePermisoDeRolUseCase(repos.rolRepo),
     assignRol: new AssignRolUseCase(repos.rolRepo),
     removeRol: new RemoveRolUseCase(repos.rolRepo),
     getInventario: new GetInventarioUseCase(repos.inventarioRepo),
