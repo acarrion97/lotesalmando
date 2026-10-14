@@ -36,6 +36,7 @@ import { dentroDelRango, rangoDelPreset } from "@/utils";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+import { ZodError } from "zod";
 
 const estadoConfig: Record<AsesorEstado, { color: string; label: string }> = {
   activo: { color: "green", label: "Activo" },
@@ -46,6 +47,20 @@ interface ModalState {
   type: "view" | "edit" | "delete" | null;
   visible: boolean;
   record: Asesor | null;
+}
+
+/** Convierte el error capturado en un mensaje que el usuario pueda entender. */
+function mensajeErrorAsesor(error: unknown, fallback: string): string {
+  if (error instanceof ZodError) return error.issues[0]?.message ?? fallback;
+  if (typeof error === "object" && error !== null && "code" in error) {
+    // 23505 = unique_violation (codigo de asesor repetido en la empresa).
+    if ((error as { code?: string }).code === "23505") {
+      return "Ya existe un asesor con ese codigo en esta empresa.";
+    }
+    const mensaje = (error as { message?: string }).message;
+    if (mensaje) return mensaje;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 export function AsesoresPage() {
@@ -161,14 +176,19 @@ export function AsesoresPage() {
     if (!modal.record) return;
     try {
       const values = await editForm.validateFields();
-      const parsed = asesorSchema.partial().parse(values);
+      // Si el codigo no cambio respecto al guardado, se omite para no bloquear la
+      // edicion de registros cuyo codigo heredado no cumple el formato actual.
+      const payload: typeof values = { ...values };
+      if ((payload.codigo ?? "").trim().toUpperCase() === modal.record.codigo.trim().toUpperCase()) {
+        delete payload.codigo;
+      }
+      const parsed = asesorSchema.partial().parse(payload);
       await container.updateAsesor.execute(modal.record.id_asesor, parsed);
       await refresh();
       messageApi.success("Asesor actualizado");
       closeModal();
     } catch (error) {
-      if (error instanceof Error) messageApi.error(error.message);
-      else messageApi.error("Error");
+      messageApi.error(mensajeErrorAsesor(error, "No se pudo actualizar el asesor"));
     }
   };
 
@@ -204,8 +224,7 @@ export function AsesoresPage() {
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      if (error instanceof Error) messageApi.error(error.message);
-      else messageApi.error("Error");
+      messageApi.error(mensajeErrorAsesor(error, "No se pudo crear el asesor"));
     }
   };
 
@@ -435,9 +454,22 @@ export function AsesoresPage() {
           <Form.Item
             name="codigo"
             label="Codigo"
-            rules={[{ required: true, message: "Ingrese el codigo" }]}
+            rules={[
+              { required: true, message: "Ingrese el codigo" },
+              // Si no se modifica el codigo original se acepta aunque no cumpla el formato actual.
+              () => ({
+                validator(_, value) {
+                  const actual = typeof value === "string" ? value.trim().toUpperCase() : "";
+                  const original = (modal.record?.codigo ?? "").trim().toUpperCase();
+                  if (actual === original || /^[A-Z]{2}-\d{3}$/.test(actual)) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("Formato: AS-001"));
+                },
+              }),
+            ]}
           >
-            <Input placeholder="Ej: AS-001" />
+            <Input placeholder="Ej: AS-001" style={{ textTransform: "uppercase" }} />
           </Form.Item>
           <Form.Item
             name="nombre_comercial"

@@ -204,7 +204,7 @@ export const EXPORT_TABLES: TablaExport[] = [
         cabeceraAjena: "usuario",
         nota: "Cuenta del sistema que usa el asesor (id o correo).",
       }),
-      c("codigo", "Código", "texto", { requerida: true, ejemplo: "AS-01" }),
+      c("codigo", "Código", "texto", { requerida: true, ejemplo: "AS-001" }),
       c("nombre_comercial", "Nombre comercial", "texto", {
         requerida: true,
         ejemplo: "Juan Vendedez",
