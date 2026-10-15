@@ -93,7 +93,7 @@ export function SeleccionarPlanPage() {
       {contextHolder}
       <div style={{ width: "100%", maxWidth: 980 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <img src="/logo-light.png" alt="Lotes al Mando" style={{ maxHeight: 90, marginBottom: 8 }} />
+          <img src="/logo-transparent.png" alt="Lotes al Mando" style={{ maxHeight: 90, marginBottom: 8 }} />
           <Title level={3} style={{ color: "#fff", marginBottom: 8 }}>
             Elige el plan de tu empresa
           </Title>
