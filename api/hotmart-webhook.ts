@@ -35,6 +35,7 @@ const EVENTOS_PAGO = new Set([
   "order_approved",
   "purchase_complete",
   "subscription_confirmation",
+  "subscription_reactivation",
   "checkout.order_approved",
 ]);
 
@@ -45,8 +46,11 @@ const EVENTOS_BAJA = new Set([
   "order_cancelled",
   "purchase_refunded",
   "order_refunded",
+  "purchase_expired",
   "subscription_cancellation",
   "subscription_cancelled",
+  "subscription_expiration",
+  "subscription_expired",
   "chargeback",
 ]);
 
@@ -78,12 +82,23 @@ function encabezado(req: ReqHotmart, nombre: string): string {
 }
 
 /**
- * El pedido viene de Hotmart?
- *   1) Hottok: token de la cuenta, comparado tal cual (no depende del body,
- *      por eso va primero: funciona aunque Vercel haya parseado el JSON).
- *   2) Firma HMAC-SHA256 del body crudo, si el entorno lo deja leer.
+ * El pedido viene de Hotmart? Tres formas, en este orden:
+ *   1) Hottok en el BODY: Hotmart 2.0.0 lo manda como campo "hottok" del JSON
+ *      (ej: {"hottok":"8stx1lGi..."}). Es el mas comun, va primero.
+ *   2) Hottok en el header x-hotmart-hottok (versiones anteriores).
+ *   3) Firma HMAC-SHA256 del body crudo, si el entorno la deja leer.
+ * En los tres casos se compara contra HOTMART_SECRET: quien no conozca ese
+ * secreto no puede firmar, asi que da igual donde lo traiga.
  */
-function esDeHotmart(req: ReqHotmart, body: string, secreto: string): boolean {
+function esDeHotmart(
+  req: ReqHotmart,
+  body: string,
+  secreto: string,
+  payload: Record<string, unknown>,
+): boolean {
+  const hottokBody = typeof payload?.hottok === "string" ? payload.hottok.trim() : "";
+  if (hottokBody && seguroIgual(hottokBody, secreto)) return true;
+
   const hottok = encabezado(req, "x-hotmart-hottok").trim();
   if (hottok && seguroIgual(hottok, secreto)) return true;
 
@@ -145,10 +160,8 @@ export default async function handler(req: ReqHotmart, res: ServerResponse) {
       ? req.body
       : JSON.stringify(req.body ?? {});
 
-  if (!esDeHotmart(req, cuerpoBruto, secreto)) {
-    return responder(res, 401, { ok: false, error: "Hottok o firma invalidos." });
-  }
-
+  // Se parsea antes de validar, pero solo en memoria: hace falta leer el
+  // campo "hottok" del body. No se escribe nada en la BD sin validar antes.
   let payload: Record<string, unknown>;
   try {
     payload =
@@ -157,6 +170,10 @@ export default async function handler(req: ReqHotmart, res: ServerResponse) {
         : (JSON.parse(cuerpoBruto) as Record<string, unknown>);
   } catch {
     return responder(res, 400, { ok: false, error: "El body no es JSON valido." });
+  }
+
+  if (!esDeHotmart(req, cuerpoBruto, secreto, payload)) {
+    return responder(res, 401, { ok: false, error: "Hottok o firma invalidos." });
   }
 
   const evento = String(payload.event ?? "");
