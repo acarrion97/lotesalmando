@@ -29,6 +29,22 @@ function passwordExpirada(hasta: string | null | undefined): boolean {
   return Number.isFinite(limite) && Date.now() > limite;
 }
 
+/**
+ * Mensajes amigables para los errores de signUp() de Supabase Auth.
+ * `email_address_invalid`: desde 2025 Auth valida que el dominio del
+ * correo exista (DNS) y rechaza dominios inventados como `@epruebas.com`
+ * aunque el formato sea correcto (ver supabase/auth#2252).
+ */
+function mensajeErrorSignUp(error: { message: string; code?: string }): string {
+  if (error.code === "email_address_invalid" || error.message.includes("is invalid")) {
+    return "El correo electronico no es valido porque el dominio no existe. Usa un correo con dominio real (por ejemplo, tu@gmail.com).";
+  }
+  if (error.message === "User already registered") {
+    return "Este correo electronico ya esta registrado";
+  }
+  return error.message;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
@@ -212,10 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       return {
         success: false,
-        error:
-          error.message === "User already registered"
-            ? "Este correo electronico ya esta registrado"
-            : error.message,
+        error: mensajeErrorSignUp(error),
       };
     }
 
@@ -282,10 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         return {
           success: false,
-          error:
-            error.message === "User already registered"
-              ? "Este correo electronico ya esta registrado"
-              : error.message,
+          error: mensajeErrorSignUp(error),
         };
       }
 
