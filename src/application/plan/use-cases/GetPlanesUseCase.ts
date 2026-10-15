@@ -30,6 +30,7 @@ export class GetPlanesUseCase {
       descripcion: plan.descripcion,
       imagen_url: plan.imagen_url,
       url_checkout: plan.url_checkout,
+      precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
       max_proyectos: plan.max_proyectos,

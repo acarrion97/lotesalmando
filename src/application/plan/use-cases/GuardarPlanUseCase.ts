@@ -9,6 +9,8 @@ export interface GuardarPlanInput {
   descripcion: string | null;
   imagen_url: string | null;
   url_checkout: string | null;
+  /** Precio mensual en USD. NULL = no se muestra en la pagina de planes. */
+  precio: number | null;
   orden: number;
   activo: boolean;
   /** Limites por plan. NULL = sin limite. */
@@ -30,13 +32,18 @@ export class GuardarPlanUseCase {
     this.storage = storage;
   }
 
-  async execute(idPlan: number | null, input: GuardarPlanInput, imagenAnteriorUrl?: string | null): Promise<PlanDto> {
+  async execute(
+    idPlan: number | null,
+    input: GuardarPlanInput,
+    imagenAnteriorUrl?: string | null,
+  ): Promise<PlanDto> {
     const datos = {
       clave: input.clave.trim().toLowerCase(),
       nombre: input.nombre.trim(),
       descripcion: input.descripcion?.trim() || null,
       imagen_url: input.imagen_url?.trim() || null,
       url_checkout: input.url_checkout?.trim() || null,
+      precio: input.precio,
       orden: input.orden,
       activo: input.activo,
       max_proyectos: input.max_proyectos,
@@ -65,6 +72,7 @@ export class GuardarPlanUseCase {
       descripcion: plan.descripcion,
       imagen_url: plan.imagen_url,
       url_checkout: plan.url_checkout,
+      precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
       max_proyectos: plan.max_proyectos,

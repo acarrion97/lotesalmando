@@ -19,7 +19,13 @@ import {
 } from "antd";
 import { DeleteOutlined, EditOutlined, PictureOutlined, PlusOutlined } from "@ant-design/icons";
 import type { TableColumnType, UploadFile } from "antd";
-import { usePuede, usePlanes, useGuardarPlan, useEliminarPlan, useSubirImagenPlan } from "@/presentation/hooks";
+import {
+  usePuede,
+  usePlanes,
+  useGuardarPlan,
+  useEliminarPlan,
+  useSubirImagenPlan,
+} from "@/presentation/hooks";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import type { PlanDto } from "@/application/plan/dto/PlanDto";
@@ -32,6 +38,7 @@ interface FormValues {
   nombre: string;
   descripcion?: string;
   url_checkout?: string;
+  precio?: number | null;
   orden: number;
   activo: boolean;
   max_proyectos?: number | null;
@@ -42,9 +49,11 @@ interface FormValues {
 /** Texto compacto de los limites de un plan (NULL = sin limite). */
 function limitesTexto(p: PlanDto): string {
   const items: string[] = [];
-  if (p.max_proyectos != null) items.push(`${p.max_proyectos} proyecto${p.max_proyectos === 1 ? "" : "s"}`);
+  if (p.max_proyectos != null)
+    items.push(`${p.max_proyectos} proyecto${p.max_proyectos === 1 ? "" : "s"}`);
   if (p.max_lotes_por_proyecto != null) items.push(`${p.max_lotes_por_proyecto} lotes/proyecto`);
-  if (p.max_usuarios != null) items.push(`${p.max_usuarios} usuario${p.max_usuarios === 1 ? "" : "s"}`);
+  if (p.max_usuarios != null)
+    items.push(`${p.max_usuarios} usuario${p.max_usuarios === 1 ? "" : "s"}`);
   return items.join(" · ");
 }
 
@@ -83,7 +92,14 @@ export function PlanesPage() {
         width: 96,
         render: (url: string | null) =>
           url ? (
-            <Image src={url} alt="plan" width={72} height={48} style={{ objectFit: "contain", background: "#fafafa", borderRadius: 8 }} preview={false} />
+            <Image
+              src={url}
+              alt="plan"
+              width={72}
+              height={48}
+              style={{ objectFit: "contain", background: "#fafafa", borderRadius: 8 }}
+              preview={false}
+            />
           ) : (
             <PictureOutlined style={{ fontSize: 22, color: "#bfbfbf" }} />
           ),
@@ -96,7 +112,9 @@ export function PlanesPage() {
         render: (nombre: string, fila) => (
           <Space direction="vertical" size={0}>
             <Text strong>{nombre}</Text>
-            <Text type="secondary" code>{fila.clave}</Text>
+            <Text type="secondary" code>
+              {fila.clave}
+            </Text>
           </Space>
         ),
       },
@@ -107,6 +125,19 @@ export function PlanesPage() {
         ellipsis: true,
         width: 280,
         render: (texto: string | null) => texto || <Text type="secondary">—</Text>,
+      },
+      {
+        title: "Precio (USD/mes)",
+        dataIndex: "precio",
+        key: "precio",
+        width: 140,
+        sorter: (a, b) => (a.precio ?? -1) - (b.precio ?? -1),
+        render: (precio: number | null) =>
+          precio != null ? (
+            <Text strong>USD {Number.isInteger(precio) ? precio : precio.toFixed(2)}</Text>
+          ) : (
+            <Text type="secondary">Sin precio</Text>
+          ),
       },
       {
         title: "Límites",
@@ -140,9 +171,12 @@ export function PlanesPage() {
                   imagenAnteriorUrl: fila.imagen_url,
                 },
                 {
-                  onSuccess: () => messageApi.success(`Plan "${fila.nombre}" ${valor ? "activado" : "desactivado"}`),
+                  onSuccess: () =>
+                    messageApi.success(
+                      `Plan "${fila.nombre}" ${valor ? "activado" : "desactivado"}`,
+                    ),
                   onError: (error) => messageApi.error(mensajeDeError(error)),
-                }
+                },
               )
             }
           />
@@ -155,7 +189,12 @@ export function PlanesPage() {
         render: (_: unknown, fila: PlanDto) => (
           <Space>
             <Tooltip title={puedeEditar ? "Editar" : "Requiere el permiso editar_planes"}>
-              <Button type="link" icon={<EditOutlined />} disabled={!puedeEditar} onClick={() => abrirEdicion(fila)}>
+              <Button
+                type="link"
+                icon={<EditOutlined />}
+                disabled={!puedeEditar}
+                onClick={() => abrirEdicion(fila)}
+              >
                 Editar
               </Button>
             </Tooltip>
@@ -178,7 +217,7 @@ export function PlanesPage() {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [puedeEditar, puedeEliminar, guardar.isPending]
+    [puedeEditar, puedeEliminar, guardar.isPending],
   );
 
   function mensajeDeError(error: unknown): string {
@@ -192,6 +231,7 @@ export function PlanesPage() {
       descripcion: plan.descripcion,
       imagen_url: plan.imagen_url,
       url_checkout: plan.url_checkout,
+      precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
       max_proyectos: plan.max_proyectos,
@@ -212,12 +252,17 @@ export function PlanesPage() {
   function abrirEdicion(plan: PlanDto) {
     setEditando(plan);
     setImagenUrl(plan.imagen_url);
-    setFileList(plan.imagen_url ? [{ uid: "-1", name: "imagen-actual", status: "done", url: plan.imagen_url }] : []);
+    setFileList(
+      plan.imagen_url
+        ? [{ uid: "-1", name: "imagen-actual", status: "done", url: plan.imagen_url }]
+        : [],
+    );
     form.setFieldsValue({
       clave: plan.clave,
       nombre: plan.nombre,
       descripcion: plan.descripcion ?? undefined,
       url_checkout: plan.url_checkout ?? undefined,
+      precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
       max_proyectos: plan.max_proyectos,
@@ -254,6 +299,7 @@ export function PlanesPage() {
       descripcion: values.descripcion ?? null,
       imagen_url: imagenUrl,
       url_checkout: values.url_checkout ?? null,
+      precio: values.precio ?? null,
       orden: values.orden ?? 0,
       activo: values.activo ?? true,
       max_proyectos: values.max_proyectos ?? null,
@@ -358,7 +404,10 @@ export function PlanesPage() {
             <Input placeholder="https://pay.hotmart.com/..." />
           </Form.Item>
 
-          <Form.Item label="Imagen del plan" extra="PNG, JPG o WEBP, máximo 5 MB. Se muestra en la página de elección de plan.">
+          <Form.Item
+            label="Imagen del plan"
+            extra="PNG, JPG o WEBP, máximo 5 MB. Se muestra en la página de elección de plan."
+          >
             <Upload
               accept="image/png,image/jpeg,image/webp"
               listType="picture-card"
@@ -421,12 +470,30 @@ export function PlanesPage() {
           </Row>
 
           <Row gutter={12}>
-            <Col xs={12}>
-              <Form.Item name="orden" label="Orden de presentación" tooltip="Menor = se muestra primero.">
+            <Col xs={24} sm={8}>
+              <Form.Item
+                name="precio"
+                label="Precio (USD/mes)"
+                tooltip="Se muestra en la página de elección de plan. Vacío = no se muestra."
+              >
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  placeholder="Sin precio"
+                  style={{ width: "100%" }}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item
+                name="orden"
+                label="Orden de presentación"
+                tooltip="Menor = se muestra primero."
+              >
                 <InputNumber min={0} style={{ width: "100%" }} />
               </Form.Item>
             </Col>
-            <Col xs={12}>
+            <Col xs={24} sm={8}>
               <Form.Item name="activo" label="Activo" valuePropName="checked">
                 <Switch />
               </Form.Item>
@@ -434,8 +501,8 @@ export function PlanesPage() {
           </Row>
 
           <Paragraph type="secondary" style={{ fontSize: 12, marginBottom: 0 }}>
-            Las empresas sin plan asignado quedan sin límites. Al cambiar los límites de un plan, las empresas que lo
-            tengan respetan el nuevo tope en la siguiente operación.
+            Las empresas sin plan asignado quedan sin límites. Al cambiar los límites de un plan,
+            las empresas que lo tengan respetan el nuevo tope en la siguiente operación.
           </Paragraph>
         </Form>
       </Modal>

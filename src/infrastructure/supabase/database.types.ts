@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
@@ -91,6 +85,7 @@ export interface Database {
           max_proyectos: number | null;
           max_lotes_por_proyecto: number | null;
           max_usuarios: number | null;
+          precio: number | null;
         };
         Insert: {
           id_plan?: number;
@@ -106,6 +101,7 @@ export interface Database {
           max_proyectos?: number | null;
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
+          precio?: number | null;
         };
         Update: {
           id_plan?: number;
@@ -121,6 +117,7 @@ export interface Database {
           max_proyectos?: number | null;
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
+          precio?: number | null;
         };
       };
       partnership: {

@@ -5,6 +5,8 @@ export interface PlanDto {
   descripcion: string | null;
   imagen_url: string | null;
   url_checkout: string | null;
+  /** Precio mensual en USD. NULL = no se muestra. */
+  precio: number | null;
   orden: number;
   activo: boolean;
   /** Limites por plan. NULL = sin limite. */

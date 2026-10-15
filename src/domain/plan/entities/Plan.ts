@@ -12,6 +12,8 @@ export interface Plan {
   imagen_url: string | null;
   /** Link de checkout de Hotmart. */
   url_checkout: string | null;
+  /** Precio mensual en USD. NULL = no se muestra en la pagina de planes. */
+  precio: number | null;
   /** Position de presentacion (menor = primero). */
   orden: number;
   /** Los inactivos no se muestran en la pagina publica de eleccion. */

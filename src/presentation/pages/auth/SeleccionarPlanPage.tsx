@@ -42,7 +42,10 @@ function limitesDePlan(plan: PlanDto): { icono: React.ReactNode; texto: string }
     });
   }
   if (plan.max_lotes_por_proyecto != null) {
-    items.push({ icono: <DatabaseOutlined />, texto: `Hasta ${plan.max_lotes_por_proyecto} lotes por proyecto` });
+    items.push({
+      icono: <DatabaseOutlined />,
+      texto: `Hasta ${plan.max_lotes_por_proyecto} lotes por proyecto`,
+    });
   }
   if (plan.max_usuarios != null) {
     items.push({ icono: <TeamOutlined />, texto: `${plan.max_usuarios} usuarios` });
@@ -62,7 +65,15 @@ export function SeleccionarPlanPage() {
   // Recien salimos del registro: sin sesion no hay plan que elegir.
   if (loading || cargandoPlanes) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#082B33" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#082B33",
+        }}
+      >
         <Spin size="large" />
       </div>
     );
@@ -74,11 +85,25 @@ export function SeleccionarPlanPage() {
 
   if (!user.id_empresa) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#082B33", padding: 24 }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#082B33",
+          padding: 24,
+        }}
+      >
         <Card style={{ maxWidth: 420, borderRadius: 16, textAlign: "center" }}>
           <Title level={4}>No encontramos tu empresa</Title>
           <Text type="secondary">Inicia sesion de nuevo para elegir tu plan.</Text>
-          <Button type="primary" block style={{ marginTop: 16, background: "#10B981", borderColor: "#10B981" }} onClick={() => navigate("/login")}>
+          <Button
+            type="primary"
+            block
+            style={{ marginTop: 16, background: "#10B981", borderColor: "#10B981" }}
+            onClick={() => navigate("/login")}
+          >
             Ir a iniciar sesion
           </Button>
         </Card>
@@ -98,7 +123,9 @@ export function SeleccionarPlanPage() {
       if (plan.url_checkout) {
         window.open(plan.url_checkout, "_blank", "noopener,noreferrer");
       } else {
-        messageApi.warning("Este plan aun no tiene link de pago configurado. Contactanos para activarlo.");
+        messageApi.warning(
+          "Este plan aun no tiene link de pago configurado. Contactanos para activarlo.",
+        );
       }
     };
 
@@ -106,7 +133,9 @@ export function SeleccionarPlanPage() {
       { idEmpresa: user.id_empresa!, plan: plan.clave },
       {
         onSuccess: () => {
-          messageApi.success(`Elegiste el ${plan.nombre}. Paga con el mismo correo con el que te registraste.`);
+          messageApi.success(
+            `Elegiste el ${plan.nombre}. Paga con el mismo correo con el que te registraste.`,
+          );
           abrirCheckout();
         },
         onError: () => {
@@ -115,7 +144,7 @@ export function SeleccionarPlanPage() {
           abrirCheckout();
         },
         onSettled: () => setPlanAbierto(null),
-      }
+      },
     );
   };
 
@@ -133,12 +162,17 @@ export function SeleccionarPlanPage() {
       {contextHolder}
       <div style={{ width: "100%", maxWidth: 980 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <img src="/logo-transparent.png" alt="Lotes al Mando" style={{ maxHeight: 90, marginBottom: 8 }} />
+          <img
+            src="/logo-transparent.png"
+            alt="Lotes al Mando"
+            style={{ maxHeight: 90, marginBottom: 8 }}
+          />
           <Title level={3} style={{ color: "#fff", marginBottom: 8 }}>
             Elige el plan de tu empresa
           </Title>
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, display: "block" }}>
-            Tu cuenta y empresa ya estan creadas. El pago se procesa de forma segura en Hotmart y podras cambiar de plan mas adelante.
+            Tu cuenta y empresa ya estan creadas. El pago se procesa de forma segura en Hotmart y
+            podras cambiar de plan mas adelante.
           </Text>
         </div>
 
@@ -176,7 +210,9 @@ export function SeleccionarPlanPage() {
                         style={{ maxHeight: 56, maxWidth: "100%", objectFit: "contain" }}
                       />
                     ) : (
-                      <div style={{ fontSize: 32, color: "#10B981" }}>{iconoDePlan(plan.clave)}</div>
+                      <div style={{ fontSize: 32, color: "#10B981" }}>
+                        {iconoDePlan(plan.clave)}
+                      </div>
                     )}
                   </div>
                   <div style={{ textAlign: "center", marginBottom: 8 }}>
@@ -190,10 +226,33 @@ export function SeleccionarPlanPage() {
                     </div>
                   </div>
 
+                  {plan.precio != null && (
+                    <div style={{ textAlign: "center", marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 30, color: "#082B33", lineHeight: 1.2 }}>
+                        USD {Number.isInteger(plan.precio) ? plan.precio : plan.precio.toFixed(2)}
+                      </Text>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          por mes
+                        </Text>
+                      </div>
+                    </div>
+                  )}
+
                   {limites.length > 0 && (
-                    <div style={{ margin: "0 auto 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div
+                      style={{
+                        margin: "0 auto 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
                       {limites.map((limite) => (
-                        <Text key={limite.texto} style={{ fontSize: 13, color: "rgba(0,0,0,0.65)" }}>
+                        <Text
+                          key={limite.texto}
+                          style={{ fontSize: 13, color: "rgba(0,0,0,0.65)" }}
+                        >
                           {limite.icono} {limite.texto}
                         </Text>
                       ))}
@@ -231,7 +290,14 @@ export function SeleccionarPlanPage() {
         </Row>
 
         <div style={{ textAlign: "center", marginTop: 24 }}>
-          <Text style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, display: "block", marginBottom: 12 }}>
+          <Text
+            style={{
+              color: "rgba(255,255,255,0.6)",
+              fontSize: 13,
+              display: "block",
+              marginBottom: 12,
+            }}
+          >
             <SafetyCertificateOutlined /> Pago seguro procesado por Hotmart
           </Text>
           <Button size="large" onClick={() => navigate("/dashboard")}>
