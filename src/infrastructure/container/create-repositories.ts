@@ -1,5 +1,6 @@
 import type { EmpresaRepository } from "@/domain/empresa/repositories";
 import type { PlanRepository } from "@/domain/plan/repositories";
+import type { PartnershipRepository } from "@/domain/partnership/repositories";
 import type { ProyectoRepository } from "@/domain/proyecto/repositories";
 import type { LotRepository } from "@/domain/lote/repositories";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
@@ -33,6 +34,7 @@ import type { Asesor } from "@/domain/asesor/entities";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
 import { MockPlanRepository } from "@/infrastructure/repositories/mock/MockPlanRepository";
+import { MockPartnershipRepository } from "@/infrastructure/repositories/mock/MockPartnershipRepository";
 import { MockProyectoRepository } from "@/infrastructure/repositories/mock/MockProyectoRepository";
 import { MockLotRepository } from "@/infrastructure/repositories/mock/MockLotRepository";
 import { MockClienteRepository } from "@/infrastructure/repositories/mock/MockClienteRepository";
@@ -60,6 +62,7 @@ import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/S
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabasePlanRepository } from "@/infrastructure/repositories/supabase/SupabasePlanRepository";
+import { SupabasePartnershipRepository } from "@/infrastructure/repositories/supabase/SupabasePartnershipRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
 import { SupabaseLotRepository } from "@/infrastructure/repositories/supabase/SupabaseLotRepository";
 import { SupabaseClienteRepository } from "@/infrastructure/repositories/supabase/SupabaseClienteRepository";
@@ -88,6 +91,7 @@ import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseP
 export interface Repositories {
   empresaRepo: EmpresaRepository;
   planRepo: PlanRepository;
+  partnershipRepo: PartnershipRepository;
   proyectoRepo: ProyectoRepository;
   lotRepository: LotRepository;
   clienteRepo: ClienteRepository;
@@ -225,6 +229,7 @@ function createMockRepositories(): Repositories {
   return {
     empresaRepo: new MockEmpresaRepository(),
     planRepo: new MockPlanRepository(),
+    partnershipRepo: new MockPartnershipRepository(),
     proyectoRepo: new MockProyectoRepository(),
     lotRepository: new MockLotRepository(),
     clienteRepo: new MockClienteRepository(),
@@ -271,6 +276,7 @@ function createSupabaseRepositories(): Repositories {
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
     planRepo: new SupabasePlanRepository(),
+    partnershipRepo: new SupabasePartnershipRepository(),
     proyectoRepo: new SupabaseProyectoRepository(),
     lotRepository: new SupabaseLotRepository(),
     clienteRepo: new SupabaseClienteRepository(),

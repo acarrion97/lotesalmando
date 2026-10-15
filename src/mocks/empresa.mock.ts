@@ -4,6 +4,7 @@ export interface Empresa {
   ruc: string;
   estado: string;
   plan: string | null;
+  id_partner: number | null;
 }
 
 export const empresas: Empresa[] = [
@@ -13,6 +14,7 @@ export const empresas: Empresa[] = [
     ruc: "0992345678001",
     estado: "activa",
     plan: null,
+    id_partner: null,
   },
   {
     id_empresa: 2,
@@ -20,5 +22,6 @@ export const empresas: Empresa[] = [
     ruc: "0912345678001",
     estado: "activa",
     plan: null,
+    id_partner: null,
   },
 ];

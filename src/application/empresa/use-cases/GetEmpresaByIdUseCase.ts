@@ -21,6 +21,7 @@ export class GetEmpresaByIdUseCase {
       ruc: empresa.ruc,
       estado: empresa.estado,
       plan: empresa.plan,
+      id_partner: empresa.id_partner ?? null,
     };
   }
 }

@@ -9,6 +9,9 @@ import { GetPlanesUseCase } from "@/application/plan/use-cases/GetPlanesUseCase"
 import { GuardarPlanUseCase } from "@/application/plan/use-cases/GuardarPlanUseCase";
 import { EliminarPlanUseCase } from "@/application/plan/use-cases/EliminarPlanUseCase";
 import { SubirImagenPlanUseCase } from "@/application/plan/use-cases/SubirImagenPlanUseCase";
+import { GetPartnershipsUseCase } from "@/application/partnership/use-cases/GetPartnershipsUseCase";
+import { GuardarPartnershipUseCase } from "@/application/partnership/use-cases/GuardarPartnershipUseCase";
+import { EliminarPartnershipUseCase } from "@/application/partnership/use-cases/EliminarPartnershipUseCase";
 import { GetProyectosUseCase } from "@/application/proyectos/use-cases/GetProyectosUseCase";
 import { GetProyectoByIdUseCase } from "@/application/proyectos/use-cases/GetProyectoByIdUseCase";
 import { CreateProyectoUseCase } from "@/application/proyectos/use-cases/CreateProyectoUseCase";
@@ -115,6 +118,9 @@ export interface UseCases {
   guardarPlan: GuardarPlanUseCase;
   eliminarPlan: EliminarPlanUseCase;
   subirImagenPlan: SubirImagenPlanUseCase;
+  getPartnerships: GetPartnershipsUseCase;
+  guardarPartnership: GuardarPartnershipUseCase;
+  eliminarPartnership: EliminarPartnershipUseCase;
   getProyectos: GetProyectosUseCase;
   getProyectoById: GetProyectoByIdUseCase;
   createProyecto: CreateProyectoUseCase;
@@ -230,6 +236,9 @@ export function createUseCases(repos: Repositories): UseCases {
     guardarPlan: new GuardarPlanUseCase(repos.planRepo, repos.planImageStorage),
     eliminarPlan: new EliminarPlanUseCase(repos.planRepo, repos.planImageStorage),
     subirImagenPlan: new SubirImagenPlanUseCase(repos.planImageStorage),
+    getPartnerships: new GetPartnershipsUseCase(repos.partnershipRepo),
+    guardarPartnership: new GuardarPartnershipUseCase(repos.partnershipRepo),
+    eliminarPartnership: new EliminarPartnershipUseCase(repos.partnershipRepo),
     getProyectos: new GetProyectosUseCase(repos.proyectoRepo),
     getProyectoById: new GetProyectoByIdUseCase(repos.proyectoRepo),
     createProyecto: new CreateProyectoUseCase(repos.proyectoRepo),

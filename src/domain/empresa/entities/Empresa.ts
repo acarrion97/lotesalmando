@@ -7,4 +7,6 @@ export interface Empresa {
   created_at?: string | null;
   /** Plan de pago elegido al registrarse ('basico' | 'inicial' | 'avanzado'). */
   plan: string | null;
+  /** Partner (vendedor de la plataforma) con cuyo codigo se registro. FK a partnership. */
+  id_partner: number | null;
 }

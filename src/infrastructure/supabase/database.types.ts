@@ -17,6 +17,7 @@ export interface Database {
           estado: string | null;
           created_at: string;
           plan: string | null;
+          id_partner: number | null;
         };
         Insert: {
           id_empresa?: number;
@@ -25,6 +26,7 @@ export interface Database {
           estado?: string | null;
           created_at?: string;
           plan?: string | null;
+          id_partner?: number | null;
         };
         Update: {
           id_empresa?: number;
@@ -33,6 +35,7 @@ export interface Database {
           estado?: string | null;
           created_at?: string;
           plan?: string | null;
+          id_partner?: number | null;
         };
       };
       plan: {
@@ -80,6 +83,32 @@ export interface Database {
           max_proyectos?: number | null;
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
+        };
+      };
+      partnership: {
+        Row: {
+          id_partner: number;
+          nombre: string;
+          codigo: string;
+          email: string | null;
+          estado: string;
+          created_at: string;
+        };
+        Insert: {
+          id_partner?: number;
+          nombre: string;
+          codigo: string;
+          email?: string | null;
+          estado?: string;
+          created_at?: string;
+        };
+        Update: {
+          id_partner?: number;
+          nombre?: string;
+          codigo?: string;
+          email?: string | null;
+          estado?: string;
+          created_at?: string;
         };
       };
       configuracion: {

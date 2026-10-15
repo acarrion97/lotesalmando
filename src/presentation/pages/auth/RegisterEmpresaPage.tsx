@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Form, Input, Button, Typography, Alert, message } from "antd";
-import { MailOutlined, LockOutlined, UserOutlined, BankOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
+import { MailOutlined, LockOutlined, UserOutlined, BankOutlined, EyeInvisibleOutlined, EyeTwoTone, TagsOutlined } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
 import { registroEmpresaSchema } from "@/presentation/validations";
 
@@ -14,7 +14,7 @@ export function RegisterEmpresaPage() {
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  const onFinish = async (values: { email: string; password: string; nombres: string; razon_social: string }) => {
+  const onFinish = async (values: { email: string; password: string; nombres: string; razon_social: string; codigo_partner?: string }) => {
     setLoading(true);
     setError(null);
 
@@ -25,7 +25,7 @@ export function RegisterEmpresaPage() {
       return;
     }
 
-    const result = await registerNuevaEmpresa(parsed.data.email, parsed.data.password, parsed.data.nombres, parsed.data.razon_social);
+    const result = await registerNuevaEmpresa(parsed.data.email, parsed.data.password, parsed.data.nombres, parsed.data.razon_social, values.codigo_partner);
 
     if (!result.success) {
       setError(result.error || "Error al crear la empresa");
@@ -131,6 +131,14 @@ export function RegisterEmpresaPage() {
               iconRender={(visible) =>
                 visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
               }
+            />
+          </Form.Item>
+
+          <Form.Item name="codigo_partner" tooltip="Si un partner (vendedor de la plataforma) te compartio su codigo, ingresalo aqui. Es opcional.">
+            <Input
+              prefix={<TagsOutlined style={{ color: "#bfbfbf" }} />}
+              placeholder="Codigo de partner (opcional)"
+              allowClear
             />
           </Form.Item>
 

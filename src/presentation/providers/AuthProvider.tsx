@@ -63,6 +63,8 @@ interface AuthContextType {
     password: string,
     nombres: string,
     razonSocial: string,
+    /** Codigo de partnership (vendedor de la plataforma), opcional. */
+    codigoPartner?: string,
   ) => Promise<{ success: boolean; error?: string }>;
   cambiarPassword: (
     nuevaPassword: string,
@@ -267,7 +269,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const registerNuevaEmpresa = useCallback(
-    async (email: string, password: string, nombres: string, razonSocial: string) => {
+    async (email: string, password: string, nombres: string, razonSocial: string, codigoPartner?: string) => {
       const { data: existente, error: existenteError } = await supabase
         .rpc("usuario_invitado", { p_email: email })
         .maybeSingle<UsuarioInvitado>();
@@ -285,6 +287,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           error:
             "Ya existe una cuenta con este correo. Si tu empresa ya te invito, inicia sesion o registrate normalmente.",
         };
+      }
+
+      // Opcional: codigo de partnership (vendedor de la plataforma) que el
+      // usuario puede ingresar al registrarse. Se valida ANTES de crear la
+      // cuenta para no dejar usuarios huerfanos por un codigo mal escrito.
+      // (La RPC existe desde la migracion 029: si no se corrio, solo falla
+      // cuando alguien escribe un codigo.)
+      let idPartner: number | null = null;
+      const codigo = (codigoPartner ?? "").trim();
+      if (codigo) {
+        const { data: partnerId, error: partnerError } = await supabase.rpc("validar_codigo_partner", {
+          p_codigo: codigo,
+        });
+
+        if (partnerError) {
+          return {
+            success: false,
+            error:
+              "No se pudo verificar el codigo de partnership. Intenta de nuevo en un momento, o dejalo vacio para continuar.",
+          };
+        }
+
+        if (!partnerId) {
+          return {
+            success: false,
+            error: `El codigo de partnership "${codigo.toUpperCase()}" no es valido. Corrigelo o dejalo vacio para continuar sin partner.`,
+          };
+        }
+
+        idPartner = Number(partnerId);
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -346,7 +378,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: empresa, error: empresaError } = await supabase
         .from("empresa")
-        .insert({ razon_social: razonSocial, estado: "activo" })
+        .insert({ razon_social: razonSocial, estado: "activo", id_partner: idPartner })
         .select("id_empresa")
         .single();
 

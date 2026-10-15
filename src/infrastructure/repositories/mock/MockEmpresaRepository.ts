@@ -33,6 +33,7 @@ export class MockEmpresaRepository implements EmpresaRepository {
       ruc: input.ruc ?? "",
       estado: "activo",
       plan: null,
+      id_partner: null,
     });
   }
 
