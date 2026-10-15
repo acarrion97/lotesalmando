@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Button, Card, Col, Row, Spin, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message } from "antd";
 import {
   CheckCircleFilled,
   CrownOutlined,
   DatabaseOutlined,
+  MailOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
   TeamOutlined,
@@ -105,7 +106,7 @@ export function SeleccionarPlanPage() {
       { idEmpresa: user.id_empresa!, plan: plan.clave },
       {
         onSuccess: () => {
-          messageApi.success(`Elegiste el ${plan.nombre}. Te llevamos al pago seguro.`);
+          messageApi.success(`Elegiste el ${plan.nombre}. Paga con el mismo correo con el que te registraste.`);
           abrirCheckout();
         },
         onError: () => {
@@ -140,6 +141,15 @@ export function SeleccionarPlanPage() {
             Tu cuenta y empresa ya estan creadas. El pago se procesa de forma segura en Hotmart y podras cambiar de plan mas adelante.
           </Text>
         </div>
+
+        <Alert
+          type="warning"
+          showIcon
+          icon={<MailOutlined />}
+          message="Usa el mismo correo electronico al pagar en Hotmart"
+          description="En el checkout de Hotmart ingresa el correo con el que te registraste aqui. Asi vinculamos tu pago a tu empresa automaticamente; si usas otro correo, el pago no se reconoce."
+          style={{ marginBottom: 24, borderRadius: 12 }}
+        />
 
         <Row gutter={[16, 16]}>
           {planesAMostrar.map((plan) => {

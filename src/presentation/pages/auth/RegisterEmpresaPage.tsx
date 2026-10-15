@@ -107,6 +107,7 @@ export function RegisterEmpresaPage() {
 
           <Form.Item
             name="email"
+            extra="Usa este mismo correo al pagar en Hotmart, asi asociamos el pago a tu empresa."
             rules={[
               { required: true, message: "Ingresa tu correo electronico" },
               { type: "email", message: "Correo electronico invalido" },
