@@ -39,6 +39,9 @@ function mensajeErrorSignUp(error: { message: string; code?: string }): string {
   if (error.code === "email_address_invalid" || error.message.includes("is invalid")) {
     return "El correo electronico no es valido porque el dominio no existe. Usa un correo con dominio real (por ejemplo, tu@gmail.com).";
   }
+  if (error.code === "email_rate_limit_exceeded" || error.message.toLowerCase().includes("rate limit")) {
+    return "El servicio de correo de Supabase esta limitado (2 correos por hora). Desactiva 'Confirm email' en Authentication > Providers > Email o configura un SMTP propio en el panel de Supabase, y vuelve a intentar.";
+  }
   if (error.message === "User already registered") {
     return "Este correo electronico ya esta registrado";
   }
