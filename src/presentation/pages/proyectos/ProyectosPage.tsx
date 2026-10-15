@@ -3,7 +3,7 @@ import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProyectos, useEmpresas, useLookup } from "@/presentation/hooks";
+import { useProyectos, useEmpresas, useLookup, usePlanDeEmpresa } from "@/presentation/hooks";
 import type { Proyecto } from "@/domain/proyecto/entities/Proyecto";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -20,6 +20,9 @@ interface ModalState {
 
 export function ProyectosPage() {
   const { data: proyectos, isLoading } = useProyectos();
+  // Limite de proyectos del plan de la empresa (null = sin limite).
+  const plan = usePlanDeEmpresa();
+  const enLimiteProyectos = plan.max_proyectos != null && (proyectos?.length ?? 0) >= plan.max_proyectos;
   const { empresaActual } = useEmpresa();
   const { data: empresas } = useEmpresas();
   const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
@@ -155,7 +158,19 @@ export function ProyectosPage() {
         title="Proyectos"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (enLimiteProyectos) {
+                messageApi.warning(
+                  `Tu plan permite hasta ${plan.max_proyectos} proyecto(s). Amplia tu plan para crear mas.`
+                );
+                return;
+              }
+              setCreateModalOpen(true);
+            }}
+          >
             Nuevo
           </Button>
         }

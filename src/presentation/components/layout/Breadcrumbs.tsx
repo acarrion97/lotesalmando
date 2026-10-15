@@ -21,6 +21,7 @@ const routeLabels: Record<string, string> = {
   "roles-permisos": "Roles y Permisos",
   plataforma: "Plataforma",
   empresas: "Empresas",
+  planes: "Planes",
   prospectos: "Prospectos",
   asesores: "Asesores",
   alertas: "Mando IA",

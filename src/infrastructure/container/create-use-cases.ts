@@ -5,6 +5,10 @@ import { GetEmpresaByIdUseCase } from "@/application/empresa/use-cases/GetEmpres
 import { CreateEmpresaConAdminUseCase } from "@/application/empresa/use-cases/CreateEmpresaConAdminUseCase";
 import { GetPlataformaMetricasUseCase } from "@/application/empresa/use-cases/GetPlataformaMetricasUseCase";
 import { UpdateEmpresaPlanUseCase } from "@/application/empresa/use-cases/UpdateEmpresaPlanUseCase";
+import { GetPlanesUseCase } from "@/application/plan/use-cases/GetPlanesUseCase";
+import { GuardarPlanUseCase } from "@/application/plan/use-cases/GuardarPlanUseCase";
+import { EliminarPlanUseCase } from "@/application/plan/use-cases/EliminarPlanUseCase";
+import { SubirImagenPlanUseCase } from "@/application/plan/use-cases/SubirImagenPlanUseCase";
 import { GetProyectosUseCase } from "@/application/proyectos/use-cases/GetProyectosUseCase";
 import { GetProyectoByIdUseCase } from "@/application/proyectos/use-cases/GetProyectoByIdUseCase";
 import { CreateProyectoUseCase } from "@/application/proyectos/use-cases/CreateProyectoUseCase";
@@ -107,6 +111,10 @@ export interface UseCases {
   getPlataformaMetricas: GetPlataformaMetricasUseCase;
   getEmpresaById: GetEmpresaByIdUseCase;
   updateEmpresaPlan: UpdateEmpresaPlanUseCase;
+  getPlanes: GetPlanesUseCase;
+  guardarPlan: GuardarPlanUseCase;
+  eliminarPlan: EliminarPlanUseCase;
+  subirImagenPlan: SubirImagenPlanUseCase;
   getProyectos: GetProyectosUseCase;
   getProyectoById: GetProyectoByIdUseCase;
   createProyecto: CreateProyectoUseCase;
@@ -218,6 +226,10 @@ export function createUseCases(repos: Repositories): UseCases {
     getPlataformaMetricas: new GetPlataformaMetricasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
     updateEmpresaPlan: new UpdateEmpresaPlanUseCase(repos.empresaRepo),
+    getPlanes: new GetPlanesUseCase(repos.planRepo),
+    guardarPlan: new GuardarPlanUseCase(repos.planRepo, repos.planImageStorage),
+    eliminarPlan: new EliminarPlanUseCase(repos.planRepo, repos.planImageStorage),
+    subirImagenPlan: new SubirImagenPlanUseCase(repos.planImageStorage),
     getProyectos: new GetProyectosUseCase(repos.proyectoRepo),
     getProyectoById: new GetProyectoByIdUseCase(repos.proyectoRepo),
     createProyecto: new CreateProyectoUseCase(repos.proyectoRepo),

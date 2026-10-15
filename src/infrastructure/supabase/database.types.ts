@@ -35,6 +35,53 @@ export interface Database {
           plan?: string | null;
         };
       };
+      plan: {
+        Row: {
+          id_plan: number;
+          clave: string;
+          nombre: string;
+          descripcion: string | null;
+          imagen_url: string | null;
+          url_checkout: string | null;
+          orden: number;
+          activo: boolean;
+          created_at: string;
+          updated_at: string | null;
+          max_proyectos: number | null;
+          max_lotes_por_proyecto: number | null;
+          max_usuarios: number | null;
+        };
+        Insert: {
+          id_plan?: number;
+          clave: string;
+          nombre: string;
+          descripcion?: string | null;
+          imagen_url?: string | null;
+          url_checkout?: string | null;
+          orden?: number;
+          activo?: boolean;
+          created_at?: string;
+          updated_at?: string | null;
+          max_proyectos?: number | null;
+          max_lotes_por_proyecto?: number | null;
+          max_usuarios?: number | null;
+        };
+        Update: {
+          id_plan?: number;
+          clave?: string;
+          nombre?: string;
+          descripcion?: string | null;
+          imagen_url?: string | null;
+          url_checkout?: string | null;
+          orden?: number;
+          activo?: boolean;
+          created_at?: string;
+          updated_at?: string | null;
+          max_proyectos?: number | null;
+          max_lotes_por_proyecto?: number | null;
+          max_usuarios?: number | null;
+        };
+      };
       configuracion: {
         Row: {
           id_configuracion: number;

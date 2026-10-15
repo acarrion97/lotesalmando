@@ -9,7 +9,7 @@ import {
   EyeOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useUsuarios, useRoles, useEmpresas, useLookup, useAsesores } from "@/presentation/hooks";
+import { useUsuarios, useRoles, useEmpresas, useLookup, useAsesores, usePlanDeEmpresa } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -33,6 +33,8 @@ export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
   const { data: roles } = useRoles();
   const { data: asesores } = useAsesores();
+  // Limite de usuarios del plan de la empresa (null = sin limite).
+  const plan = usePlanDeEmpresa();
   const { empresaActual } = useEmpresa();
   const { data: empresas } = useEmpresas();
   const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
@@ -335,7 +337,19 @@ export function UsuariosPage() {
         title="Usuarios"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (plan.max_usuarios != null && (usuarios?.length ?? 0) >= plan.max_usuarios) {
+                messageApi.warning(
+                  `Tu plan permite hasta ${plan.max_usuarios} usuario(s). Amplia tu plan para agregar mas.`
+                );
+                return;
+              }
+              setCreateModalOpen(true);
+            }}
+          >
             Nuevo
           </Button>
         }

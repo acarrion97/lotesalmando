@@ -4,33 +4,62 @@ import { Button, Card, Col, Row, Spin, Tag, Typography, message } from "antd";
 import {
   CheckCircleFilled,
   CrownOutlined,
+  DatabaseOutlined,
   RocketOutlined,
   SafetyCertificateOutlined,
+  TeamOutlined,
   ThunderboltOutlined,
+  UngroupOutlined,
 } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useSeleccionarPlan } from "@/presentation/hooks/useSeleccionarPlan";
-import { PLANES_PAGO, type PlanId, type PlanPago } from "./planesPago";
+import { usePlanes } from "@/presentation/hooks";
+import { PLANES_FALLBACK } from "./planesPago";
+import type { PlanDto } from "@/application/plan/dto/PlanDto";
 
 const { Text, Title } = Typography;
 
-const PLAN_ICONS: Record<PlanId, React.ReactNode> = {
+const PLAN_ICONS: Record<string, React.ReactNode> = {
   basico: <ThunderboltOutlined />,
   inicial: <RocketOutlined />,
   avanzado: <CrownOutlined />,
 };
 
+/** Icono por tipo de limite (fallback: el de la clave del plan). */
+function iconoDePlan(clave: string): React.ReactNode {
+  return PLAN_ICONS[clave] ?? <ThunderboltOutlined />;
+}
+
+/** Lineas de limites del plan para la tarjeta. Vacio si no tiene limites. */
+function limitesDePlan(plan: PlanDto): { icono: React.ReactNode; texto: string }[] {
+  const items: { icono: React.ReactNode; texto: string }[] = [];
+  if (plan.max_proyectos != null) {
+    items.push({
+      icono: <UngroupOutlined />,
+      texto: plan.max_proyectos === 1 ? "1 proyecto" : `Hasta ${plan.max_proyectos} proyectos`,
+    });
+  }
+  if (plan.max_lotes_por_proyecto != null) {
+    items.push({ icono: <DatabaseOutlined />, texto: `Hasta ${plan.max_lotes_por_proyecto} lotes por proyecto` });
+  }
+  if (plan.max_usuarios != null) {
+    items.push({ icono: <TeamOutlined />, texto: `${plan.max_usuarios} usuarios` });
+  }
+  return items;
+}
+
 export function SeleccionarPlanPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { empresaActual } = useEmpresa();
+  const { data: planesBD, isLoading: cargandoPlanes } = usePlanes();
   const seleccionarPlan = useSeleccionarPlan();
-  const [planAbierto, setPlanAbierto] = useState<PlanId | null>(null);
+  const [planAbierto, setPlanAbierto] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
   // Recien salimos del registro: sin sesion no hay plan que elegir.
-  if (loading) {
+  if (loading || cargandoPlanes) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#082B33" }}>
         <Spin size="large" />
@@ -56,14 +85,24 @@ export function SeleccionarPlanPage() {
     );
   }
 
+  // Fuente de verdad: tabla `plan` (activos). Fallback: constantes.
+  const planesDisponibles = (planesBD ?? []).filter((p) => p.activo);
+  const planesAMostrar = planesDisponibles.length > 0 ? planesDisponibles : PLANES_FALLBACK;
+
   const planActual = empresaActual?.plan ?? null;
 
-  const elegirPlan = (plan: PlanPago) => {
-    setPlanAbierto(plan.id);
-    const abrirCheckout = () => window.open(plan.urlCheckout, "_blank", "noopener,noreferrer");
+  const elegirPlan = (plan: PlanDto) => {
+    setPlanAbierto(plan.clave);
+    const abrirCheckout = () => {
+      if (plan.url_checkout) {
+        window.open(plan.url_checkout, "_blank", "noopener,noreferrer");
+      } else {
+        messageApi.warning("Este plan aun no tiene link de pago configurado. Contactanos para activarlo.");
+      }
+    };
 
     seleccionarPlan.mutate(
-      { idEmpresa: user.id_empresa!, plan: plan.id },
+      { idEmpresa: user.id_empresa!, plan: plan.clave },
       {
         onSuccess: () => {
           messageApi.success(`Elegiste el ${plan.nombre}. Te llevamos al pago seguro.`);
@@ -103,10 +142,11 @@ export function SeleccionarPlanPage() {
         </div>
 
         <Row gutter={[16, 16]}>
-          {PLANES_PAGO.map((plan) => {
-            const seleccionado = planActual === plan.id;
+          {planesAMostrar.map((plan) => {
+            const seleccionado = planActual === plan.clave;
+            const limites = limitesDePlan(plan);
             return (
-              <Col xs={24} md={8} key={plan.id}>
+              <Col xs={24} md={8} key={plan.clave}>
                 <Card
                   style={{
                     borderRadius: 16,
@@ -118,8 +158,16 @@ export function SeleccionarPlanPage() {
                   }}
                   styles={{ body: { display: "flex", flexDirection: "column", height: "100%" } }}
                 >
-                  <div style={{ textAlign: "center", fontSize: 32, color: "#10B981", marginBottom: 8 }}>
-                    {PLAN_ICONS[plan.id]}
+                  <div style={{ textAlign: "center", marginBottom: 8, minHeight: 56 }}>
+                    {plan.imagen_url ? (
+                      <img
+                        src={plan.imagen_url}
+                        alt={plan.nombre}
+                        style={{ maxHeight: 56, maxWidth: "100%", objectFit: "contain" }}
+                      />
+                    ) : (
+                      <div style={{ fontSize: 32, color: "#10B981" }}>{iconoDePlan(plan.clave)}</div>
+                    )}
                   </div>
                   <div style={{ textAlign: "center", marginBottom: 8 }}>
                     <Text strong style={{ fontSize: 18 }}>
@@ -131,6 +179,16 @@ export function SeleccionarPlanPage() {
                       </Text>
                     </div>
                   </div>
+
+                  {limites.length > 0 && (
+                    <div style={{ margin: "0 auto 12px", display: "flex", flexDirection: "column", gap: 4 }}>
+                      {limites.map((limite) => (
+                        <Text key={limite.texto} style={{ fontSize: 13, color: "rgba(0,0,0,0.65)" }}>
+                          {limite.icono} {limite.texto}
+                        </Text>
+                      ))}
+                    </div>
+                  )}
 
                   {seleccionado && (
                     <div style={{ textAlign: "center", marginBottom: 12 }}>
@@ -144,7 +202,7 @@ export function SeleccionarPlanPage() {
                   <Button
                     type="primary"
                     block
-                    loading={seleccionarPlan.isPending && planAbierto === plan.id}
+                    loading={seleccionarPlan.isPending && planAbierto === plan.clave}
                     onClick={() => elegirPlan(plan)}
                     style={{
                       height: 44,

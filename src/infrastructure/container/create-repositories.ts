@@ -1,4 +1,5 @@
 import type { EmpresaRepository } from "@/domain/empresa/repositories";
+import type { PlanRepository } from "@/domain/plan/repositories";
 import type { ProyectoRepository } from "@/domain/proyecto/repositories";
 import type { LotRepository } from "@/domain/lote/repositories";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
@@ -21,6 +22,7 @@ import type { ConfiguracionRepository } from "@/domain/configuracion/repositorie
 import type { MapaRepository } from "@/domain/mapa/repositories";
 import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
+import type { PlanImagenStorage } from "@/application/plan/ports/PlanImagenStorage";
 import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
 import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
 import type { RegistrarInteresPublicoPort } from "@/application/prospectos/ports/RegistrarInteresPublicoPort";
@@ -30,6 +32,7 @@ import type { Actividad } from "@/domain/actividad/entities";
 import type { Asesor } from "@/domain/asesor/entities";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
+import { MockPlanRepository } from "@/infrastructure/repositories/mock/MockPlanRepository";
 import { MockProyectoRepository } from "@/infrastructure/repositories/mock/MockProyectoRepository";
 import { MockLotRepository } from "@/infrastructure/repositories/mock/MockLotRepository";
 import { MockClienteRepository } from "@/infrastructure/repositories/mock/MockClienteRepository";
@@ -48,6 +51,7 @@ import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
 import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
+import { MockPlanImagenStorage } from "@/infrastructure/storage/MockPlanImagenStorage";
 import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
 import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
 import { SupabaseAceptarCotizacion } from "@/infrastructure/transactions/SupabaseAceptarCotizacion";
@@ -55,6 +59,7 @@ import { MockRegistrarInteresPublico } from "@/infrastructure/transactions/MockR
 import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/SupabaseRegistrarInteresPublico";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
+import { SupabasePlanRepository } from "@/infrastructure/repositories/supabase/SupabasePlanRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
 import { SupabaseLotRepository } from "@/infrastructure/repositories/supabase/SupabaseLotRepository";
 import { SupabaseClienteRepository } from "@/infrastructure/repositories/supabase/SupabaseClienteRepository";
@@ -77,10 +82,12 @@ import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/s
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
 import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
+import { SupabasePlanImagenStorage } from "@/infrastructure/storage/SupabasePlanImagenStorage";
 import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
+  planRepo: PlanRepository;
   proyectoRepo: ProyectoRepository;
   lotRepository: LotRepository;
   clienteRepo: ClienteRepository;
@@ -104,6 +111,7 @@ export interface Repositories {
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
+  planImageStorage: PlanImagenStorage;
   /** Fotos y videos del proyecto que alimentan la galería pública. */
   proyectoMedioRepo: ProyectoMedioRepository;
   /** Puerto de infraestructura: subida de fotos/videos a Storage. */
@@ -216,6 +224,7 @@ function createMockRepositories(): Repositories {
 
   return {
     empresaRepo: new MockEmpresaRepository(),
+    planRepo: new MockPlanRepository(),
     proyectoRepo: new MockProyectoRepository(),
     lotRepository: new MockLotRepository(),
     clienteRepo: new MockClienteRepository(),
@@ -243,6 +252,7 @@ function createMockRepositories(): Repositories {
     configuracionRepo: new MockConfiguracionRepository(),
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
+    planImageStorage: new MockPlanImagenStorage(),
     proyectoMedioRepo: new MockProyectoMedioRepository(),
     proyectoMedioStorage: new MockProyectoMedioStorage(),
   };
@@ -260,6 +270,7 @@ function createSupabaseRepositories(): Repositories {
 
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
+    planRepo: new SupabasePlanRepository(),
     proyectoRepo: new SupabaseProyectoRepository(),
     lotRepository: new SupabaseLotRepository(),
     clienteRepo: new SupabaseClienteRepository(),
@@ -281,6 +292,7 @@ function createSupabaseRepositories(): Repositories {
     configuracionRepo: new SupabaseConfiguracionRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
+    planImageStorage: new SupabasePlanImagenStorage(),
     proyectoMedioRepo: new SupabaseProyectoMedioRepository(),
     proyectoMedioStorage: new SupabaseProyectoMedioStorage(),
     aceptarCotizacion: new SupabaseAceptarCotizacion(),

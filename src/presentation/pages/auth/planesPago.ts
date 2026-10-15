@@ -1,15 +1,18 @@
-export type PlanId = "basico" | "inicial" | "avanzado";
+import type { PlanDto } from "@/application/plan/dto/PlanDto";
 
+/**
+ * Planes "de respaldo": la fuente de verdad es la tabla `plan`
+ * (administrada desde /planes por el superadmin, migración 028).
+ * Estas constantes se usan solo como fallback si la tabla está vacía
+ * (por ejemplo, modo mock o si la migración no se corrió).
+ */
 export interface PlanPago {
-  /** Valor que se guarda en `empresa.plan`. */
-  id: PlanId;
+  id: string;
   nombre: string;
   descripcion: string;
-  /** Checkout de Hotmart (link de afiliado con el descuento aplicado). */
   urlCheckout: string;
 }
 
-// Links oficiales de pago en Hotmart. Si cambian, se actualizan aca.
 export const PLANES_PAGO: PlanPago[] = [
   {
     id: "basico",
@@ -30,3 +33,18 @@ export const PLANES_PAGO: PlanPago[] = [
     urlCheckout: "https://pay.hotmart.com/F108034424Q?off=zfoh74d7",
   },
 ];
+
+/** Fallback en el mismo formato que devuelve la BD, para la pagina publica. */
+export const PLANES_FALLBACK: PlanDto[] = PLANES_PAGO.map((p, i) => ({
+  id_plan: 0,
+  clave: p.id,
+  nombre: p.nombre,
+  descripcion: p.descripcion,
+  imagen_url: null,
+  url_checkout: p.urlCheckout,
+  orden: i + 1,
+  activo: true,
+  max_proyectos: null,
+  max_lotes_por_proyecto: null,
+  max_usuarios: null,
+}));

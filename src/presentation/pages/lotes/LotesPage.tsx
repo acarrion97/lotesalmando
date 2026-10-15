@@ -33,7 +33,7 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useLotes, useManzanas, useEtapas, useProyectos, useLookup } from "@/presentation/hooks";
+import { useLotes, useManzanas, useEtapas, useProyectos, useLookup, usePlanDeEmpresa } from "@/presentation/hooks";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
@@ -226,6 +226,8 @@ export function LotesPage() {
   const { data: manzanas } = useManzanas();
   const { data: etapas } = useEtapas();
   const { data: proyectos } = useProyectos();
+  // Limite de lotes por proyecto del plan de la empresa (null = sin limite).
+  const plan = usePlanDeEmpresa();
   const manzanaMap = useLookup(manzanas, "id_manzana", "nombre_codigo", "Manzana");
   const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
   const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
@@ -367,6 +369,26 @@ export function LotesPage() {
     if (numeroYaUsado(lotes, numeroLote)) {
       messageApi.error(`Ya existe un lote "${numeroLote}" en esta empresa`);
       return;
+    }
+
+    // Limite de lotes por proyecto del plan de la empresa (null = sin limite).
+    if (plan.max_lotes_por_proyecto != null) {
+      const manzanaDestino = (manzanas ?? []).find((m) => m.id_manzana === idManzana);
+      const etapaDestino = manzanaDestino ? etapas?.find((e) => e.id_etapa === manzanaDestino.id_etapa) : undefined;
+      const idProyectoDestino = etapaDestino?.id_proyecto;
+      if (idProyectoDestino != null) {
+        const lotesDelProyecto = (lotes ?? []).filter((l) => {
+          const mz = (manzanas ?? []).find((m) => m.id_manzana === l.id_manzana);
+          const et = mz ? etapas?.find((e) => e.id_etapa === mz.id_etapa) : undefined;
+          return et?.id_proyecto === idProyectoDestino;
+        }).length;
+        if (lotesDelProyecto >= plan.max_lotes_por_proyecto) {
+          messageApi.warning(
+            `Tu plan permite hasta ${plan.max_lotes_por_proyecto} lotes por proyecto y el proyecto ya llego al limite. Amplia tu plan para cargar mas lotes.`
+          );
+          return;
+        }
+      }
     }
 
     setGuardando(true);
