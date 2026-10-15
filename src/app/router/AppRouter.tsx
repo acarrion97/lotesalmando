@@ -5,6 +5,7 @@ import { LoginPage } from "@/presentation/pages/auth/LoginPage";
 import { RegisterEmpresaPage } from "@/presentation/pages/auth/RegisterEmpresaPage";
 import { OlvideContrasenaPage } from "@/presentation/pages/auth/OlvideContrasenaPage";
 import { ReestablecerContrasenaPage } from "@/presentation/pages/auth/ReestablecerContrasenaPage";
+import { SeleccionarPlanPage } from "@/presentation/pages/auth/SeleccionarPlanPage";
 import { DashboardPage } from "@/presentation/pages/dashboard";
 import { ProyectosPage } from "@/presentation/pages/proyectos";
 import { EtapasPage } from "@/presentation/pages/etapas";
@@ -47,6 +48,7 @@ export function AppRouter() {
         <Route path="/registro/empresa" element={<RegisterEmpresaPage />} />
         <Route path="/olvide-contrasena" element={<OlvideContrasenaPage />} />
         <Route path="/reestablecer-contrasena" element={<ReestablecerContrasenaPage />} />
+        <Route path="/registro/planes" element={<SeleccionarPlanPage />} />
         <Route path="/mapa/:slug" element={<MapaPublicoPage />} />
         <Route
           element={

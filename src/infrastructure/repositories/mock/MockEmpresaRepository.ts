@@ -32,6 +32,7 @@ export class MockEmpresaRepository implements EmpresaRepository {
       razon_social: input.razon_social,
       ruc: input.ruc ?? "",
       estado: "activo",
+      plan: null,
     });
   }
 

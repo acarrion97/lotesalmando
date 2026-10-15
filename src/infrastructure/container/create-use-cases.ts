@@ -4,6 +4,7 @@ import { GetEmpresasUseCase } from "@/application/empresa/use-cases/GetEmpresasU
 import { GetEmpresaByIdUseCase } from "@/application/empresa/use-cases/GetEmpresaByIdUseCase";
 import { CreateEmpresaConAdminUseCase } from "@/application/empresa/use-cases/CreateEmpresaConAdminUseCase";
 import { GetPlataformaMetricasUseCase } from "@/application/empresa/use-cases/GetPlataformaMetricasUseCase";
+import { UpdateEmpresaPlanUseCase } from "@/application/empresa/use-cases/UpdateEmpresaPlanUseCase";
 import { GetProyectosUseCase } from "@/application/proyectos/use-cases/GetProyectosUseCase";
 import { GetProyectoByIdUseCase } from "@/application/proyectos/use-cases/GetProyectoByIdUseCase";
 import { CreateProyectoUseCase } from "@/application/proyectos/use-cases/CreateProyectoUseCase";
@@ -105,6 +106,7 @@ export interface UseCases {
   createEmpresaConAdmin: CreateEmpresaConAdminUseCase;
   getPlataformaMetricas: GetPlataformaMetricasUseCase;
   getEmpresaById: GetEmpresaByIdUseCase;
+  updateEmpresaPlan: UpdateEmpresaPlanUseCase;
   getProyectos: GetProyectosUseCase;
   getProyectoById: GetProyectoByIdUseCase;
   createProyecto: CreateProyectoUseCase;
@@ -215,6 +217,7 @@ export function createUseCases(repos: Repositories): UseCases {
     createEmpresaConAdmin: new CreateEmpresaConAdminUseCase(repos.empresaRepo),
     getPlataformaMetricas: new GetPlataformaMetricasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
+    updateEmpresaPlan: new UpdateEmpresaPlanUseCase(repos.empresaRepo),
     getProyectos: new GetProyectosUseCase(repos.proyectoRepo),
     getProyectoById: new GetProyectoByIdUseCase(repos.proyectoRepo),
     createProyecto: new CreateProyectoUseCase(repos.proyectoRepo),

@@ -16,6 +16,7 @@ export interface Database {
           ruc: string | null;
           estado: string | null;
           created_at: string;
+          plan: string | null;
         };
         Insert: {
           id_empresa?: number;
@@ -23,6 +24,7 @@ export interface Database {
           ruc?: string | null;
           estado?: string | null;
           created_at?: string;
+          plan?: string | null;
         };
         Update: {
           id_empresa?: number;
@@ -30,6 +32,7 @@ export interface Database {
           ruc?: string | null;
           estado?: string | null;
           created_at?: string;
+          plan?: string | null;
         };
       };
       configuracion: {

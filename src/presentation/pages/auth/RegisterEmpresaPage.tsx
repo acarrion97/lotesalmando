@@ -35,7 +35,8 @@ export function RegisterEmpresaPage() {
 
     messageApi.success("Empresa y cuenta creadas correctamente");
     setTimeout(() => {
-      navigate("/dashboard");
+      // Siguiente paso del alta: elegir el plan de pago (Hotmart).
+      navigate("/registro/planes");
     }, 500);
   };
 
