@@ -8,18 +8,20 @@
  *   acceder   -> ver_<recurso>          (menú / ruta)
  *   crear     -> crear_<recurso>        (botón Nuevo)
  *   modificar -> editar_<recurso>       (botón Editar)
+ *   eliminar  -> eliminar_<recurso>     (botón Eliminar)
  *   autorizar -> autorizar_<recurso>    (botón Aprobar / autorizar)
  *
  * El prefijo es fijo por acción para que un permiso generado acá sea
  * indistinguible de uno sembrado en las migraciones 024/025.
  */
 
-export type AccionPermiso = "acceder" | "crear" | "modificar" | "autorizar";
+export type AccionPermiso = "acceder" | "crear" | "modificar" | "eliminar" | "autorizar";
 
 export const ACCIONES: { accion: AccionPermiso; etiqueta: string; prefijo: string; ayuda: string }[] = [
   { accion: "acceder", etiqueta: "Acceder", prefijo: "ver_", ayuda: "Ver el módulo en el menú y poder entrar a su ruta." },
   { accion: "crear", etiqueta: "Crear", prefijo: "crear_", ayuda: "Habilita el botón de crear registros nuevos." },
   { accion: "modificar", etiqueta: "Modificar", prefijo: "editar_", ayuda: "Habilita el botón de editar registros existentes." },
+  { accion: "eliminar", etiqueta: "Eliminar", prefijo: "eliminar_", ayuda: "Habilita el botón de eliminar registros." },
   { accion: "autorizar", etiqueta: "Autorizar", prefijo: "autorizar_", ayuda: "Habilita acciones de aprobación / autorización." },
 ];
 
@@ -27,6 +29,7 @@ const PREFIJO_POR_ACCION: Record<AccionPermiso, string> = {
   acceder: "ver_",
   crear: "crear_",
   modificar: "editar_",
+  eliminar: "eliminar_",
   autorizar: "autorizar_",
 };
 

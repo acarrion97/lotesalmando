@@ -256,7 +256,7 @@ export function RolesPermisosPage() {
         showIcon
         style={{ marginBottom: 16 }}
         message="Convención de permisos"
-        description="Cada permiso se nombra como acción_recurso. Al crear un permiso nuevo, escribí solo la palabra del recurso (ej: proveedores) y marcá con checks las acciones: Acceder (ver_), Crear (crear_), Modificar (editar_) o Autorizar (autorizar_)."
+        description="Cada permiso se nombra como acción_recurso. Al crear un permiso nuevo, escribí solo la palabra del recurso (ej: proveedores) y marcá con checks las acciones: Acceder (ver_), Crear (crear_), Modificar (editar_), Eliminar (eliminar_) o Autorizar (autorizar_)."
       />
 
       {/* ---------------- Constructor de permisos ---------------- */}

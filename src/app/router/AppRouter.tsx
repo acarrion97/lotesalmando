@@ -29,6 +29,7 @@ import { AsesoresPage } from "@/presentation/pages/asesores";
 import { RolesPermisosPage } from "@/presentation/pages/roles-permisos";
 import { EmpresasPage } from "@/presentation/pages/empresas";
 import { PlanesPage } from "@/presentation/pages/planes";
+import { PartnershipsPage } from "@/presentation/pages/partnerships";
 import { PlataformaPage } from "@/presentation/pages/plataforma";
 import { permisoParaRuta } from "@/presentation/permisos/permisosConfig";
 
@@ -82,6 +83,7 @@ export function AppRouter() {
           <Route path="/plataforma" element={<R ruta="/plataforma"><PlataformaPage /></R>} />
           <Route path="/empresas" element={<R ruta="/empresas"><EmpresasPage /></R>} />
           <Route path="/planes" element={<R ruta="/planes"><PlanesPage /></R>} />
+          <Route path="/partnerships" element={<R ruta="/partnerships"><PartnershipsPage /></R>} />
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

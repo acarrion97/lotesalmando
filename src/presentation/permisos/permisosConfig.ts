@@ -62,6 +62,7 @@ export const MODULOS: ItemMenuAuth[] = [
   { key: "/plataforma", label: "Plataforma", permiso: "ver_plataforma" },
   { key: "/empresas", label: "Empresas", permiso: "ver_empresas" },
   { key: "/planes", label: "Planes", permiso: "ver_planes" },
+  { key: "/partnerships", label: "Partners", permiso: "ver_partnerships" },
 ];
 
 /** Estructura de grupos del menú lateral (para renderizar secciones). */
@@ -80,7 +81,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
   { key: "financiero", groupLabel: "FINANCIERO", items: ["/contratos", "/cobranzas", "/pagos", "/proyeccion"] },
   { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas"] },
   { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/roles-permisos"] },
-  { key: "plataforma", groupLabel: "PLATAFORMA", items: ["/plataforma", "/empresas", "/planes"] },
+  { key: "plataforma", groupLabel: "PLATAFORMA", items: ["/plataforma", "/empresas", "/planes", "/partnerships"] },
 ];
 
 /**
