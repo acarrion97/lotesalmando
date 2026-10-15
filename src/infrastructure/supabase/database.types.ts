@@ -18,6 +18,9 @@ export interface Database {
           created_at: string;
           plan: string | null;
           id_partner: number | null;
+          estado_pago: string | null;
+          pagado_en: string | null;
+          transaccion_id: string | null;
         };
         Insert: {
           id_empresa?: number;
@@ -27,6 +30,9 @@ export interface Database {
           created_at?: string;
           plan?: string | null;
           id_partner?: number | null;
+          estado_pago?: string | null;
+          pagado_en?: string | null;
+          transaccion_id?: string | null;
         };
         Update: {
           id_empresa?: number;
@@ -36,6 +42,38 @@ export interface Database {
           created_at?: string;
           plan?: string | null;
           id_partner?: number | null;
+          estado_pago?: string | null;
+          pagado_en?: string | null;
+          transaccion_id?: string | null;
+        };
+      };
+      hotmart_evento: {
+        Row: {
+          id_evento: string;
+          evento: string | null;
+          email_comprador: string | null;
+          transaccion: string | null;
+          resultado: string | null;
+          payload: Json | null;
+          procesado_en: string;
+        };
+        Insert: {
+          id_evento: string;
+          evento?: string | null;
+          email_comprador?: string | null;
+          transaccion?: string | null;
+          resultado?: string | null;
+          payload?: Json | null;
+          procesado_en?: string;
+        };
+        Update: {
+          id_evento?: string;
+          evento?: string | null;
+          email_comprador?: string | null;
+          transaccion?: string | null;
+          resultado?: string | null;
+          payload?: Json | null;
+          procesado_en?: string;
         };
       };
       plan: {

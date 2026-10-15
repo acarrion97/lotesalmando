@@ -376,9 +376,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: sessionCheck } = await supabase.auth.getSession();
       const diag = `sesion=${sessionCheck.session ? "si" : "no"} setSessionUser=${setSessionData.user?.id ?? "null"} getSessionUser=${sessionCheck.session?.user?.id ?? "null"}`;
 
+      // estado_pago: el alta arranca 'pendiente' y el webhook de Hotmart
+      // (api/hotmart-webhook.ts) la pasa a 'pagado' cuando confirma el pago.
       const { data: empresa, error: empresaError } = await supabase
         .from("empresa")
-        .insert({ razon_social: razonSocial, estado: "activo", id_partner: idPartner })
+        .insert({
+          razon_social: razonSocial,
+          estado: "activo",
+          id_partner: idPartner,
+          estado_pago: "pendiente",
+        })
         .select("id_empresa")
         .single();
 

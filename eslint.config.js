@@ -21,12 +21,13 @@ export default tseslint.config(
     },
   },
   {
-    files: ["scripts/**/*.{js,mjs,cjs}"],
+    files: ["api/**/*.ts", "scripts/**/*.{js,mjs,cjs}"],
     languageOptions: {
       globals: {
         console: "readonly",
         process: "readonly",
         URL: "readonly",
+        Buffer: "readonly",
       },
     },
   },
