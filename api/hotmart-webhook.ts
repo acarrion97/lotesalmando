@@ -18,10 +18,19 @@
  *   SUPABASE_SERVICE_ROLE_KEY -> clave service_role (NUNCA la anon key)
  *   HOTMART_SECRET            -> Hottok de tu cuenta de Hotmart
  *                                (Tools -> Webhook) o el secreto de firma.
+ *   EMAIL_USER / EMAIL_PASS   -> Gmail y su contraseña de aplicacion (opcional:
+ *                                sin ellas no se mandan correos y ya esta).
+ *   ADMIN_EMAIL               -> opcional, a quien avisar pagos sin cuenta.
  */
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { createClient } from "@supabase/supabase-js";
+import {
+  avisarPagoConfirmado,
+  avisarPagoSinCuenta,
+  avisarSuscripcionBaja,
+  type EstadoCorreo,
+} from "../lib/correo";
 
 /** Formato que acepta la columna JSONB de `hotmart_evento.payload`. */
 type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
@@ -114,6 +123,14 @@ function emailDelPayload(payload: Record<string, unknown>): string {
   const comprador = (data.buyer ?? data.user ?? {}) as Record<string, unknown>;
   const candidato = comprador.email ?? data.email ?? payload.email;
   return typeof candidato === "string" ? candidato.trim().toLowerCase() : "";
+}
+
+/** Nombre visible del comprador, para personalizar el correo. */
+function nombreDelPayload(payload: Record<string, unknown>): string {
+  const data = (payload?.data ?? {}) as Record<string, unknown>;
+  const comprador = (data.buyer ?? data.user ?? {}) as Record<string, unknown>;
+  const candidato = comprador.name ?? comprador.first_name;
+  return typeof candidato === "string" ? candidato.trim() : "";
 }
 
 /** Normaliza el nombre del evento para comparar sin importar mayusculas. */
@@ -211,8 +228,12 @@ export default async function handler(req: ReqHotmart, res: ServerResponse) {
   const normalizado = normalizarEvento(evento);
   const esPago = EVENTOS_PAGO.has(normalizado);
   const esBaja = EVENTOS_BAJA.has(normalizado);
+  const esSuscripcion = normalizado.startsWith("subscription");
+  const esReembolso = normalizado.includes("refund") || normalizado.includes("chargeback");
+  const nombre = nombreDelPayload(payload);
 
   let resultado = "ignorado";
+  let correo: EstadoCorreo = "omitido";
 
   if ((esPago || esBaja) && !email) {
     resultado = "sin_email";
@@ -233,15 +254,24 @@ export default async function handler(req: ReqHotmart, res: ServerResponse) {
 
     if (!idEmpresa) {
       resultado = "empresa_no_encontrada";
+      // No hay a quien avisarle al cliente: se avisa al dueño de la plataforma
+      // para que asocie el pago a mano o devuelva el dinero.
+      correo = await avisarPagoSinCuenta({
+        emailComprador: email,
+        nombre,
+        evento,
+        transaccion,
+      });
     } else {
-      const { error: errorUpdate } = await supabase
+      const { data: empresaActualizada, error: errorUpdate } = await supabase
         .from("empresa")
         .update({
           estado_pago: esPago ? "pagado" : "cancelado",
           pagado_en: esPago ? new Date().toISOString() : null,
           transaccion_id: transaccion || null,
         })
-        .eq("id_empresa", idEmpresa as number);
+        .eq("id_empresa", idEmpresa as number)
+        .select("razon_social, plan");
 
       if (errorUpdate) {
         return responder(res, 500, {
@@ -249,12 +279,33 @@ export default async function handler(req: ReqHotmart, res: ServerResponse) {
           error: `No se pudo actualizar la empresa: ${errorUpdate.message}`,
         });
       }
+
+      const empresa = (empresaActualizada ?? [])[0] as
+        { razon_social?: string; plan?: string | null } | undefined;
+
       resultado = esPago ? "pagado" : "cancelado";
+      // El cliente se entera por correo: pago confirmado o baja de la suscripcion.
+      correo = esPago
+        ? await avisarPagoConfirmado({
+            para: email,
+            nombre,
+            razonSocial: empresa?.razon_social ?? "",
+            plan: empresa?.plan ?? null,
+            transaccion,
+            suscripcion: esSuscripcion,
+          })
+        : await avisarSuscripcionBaja({
+            para: email,
+            nombre,
+            razonSocial: empresa?.razon_social ?? "",
+            plan: empresa?.plan ?? null,
+            reembolso: esReembolso,
+          });
     }
   }
 
   // Deja traza del resultado para poder auditar despues.
   await supabase.from("hotmart_evento").update({ resultado }).eq("id_evento", clave);
 
-  return responder(res, 200, { ok: true, resultado });
+  return responder(res, 200, { ok: true, resultado, correo });
 }
