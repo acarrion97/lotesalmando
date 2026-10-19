@@ -9,6 +9,10 @@ import { usePermiso } from "@/presentation/providers/PermisoProvider";
  * (para no redirigir a "acceso denegado" de forma falsa). Si falta el permiso,
  * redirige al dashboard —la primera ruta que el usuario sí puede ver— en vez
  * de dejar una pantalla en blanco.
+ *
+ * Además, una cuenta sin roles asignados o con pago pendiente no puede operar:
+ * se la manda a /registro/planes (ruta pública, fuera de este layout, asi que
+ * no hay bucle de redirección).
  */
 export function ProtectedRoute({
   children,
@@ -18,7 +22,7 @@ export function ProtectedRoute({
   /** Permiso requerido para ver la ruta; null/undefined = solo requiere sesión. */
   permiso?: string | null;
 }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, tieneRoles, user } = useAuth();
   const { cargando, tienePermiso } = usePermiso();
   const location = useLocation();
 
@@ -32,6 +36,12 @@ export function ProtectedRoute({
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Sin roles o con el pago de la empresa todavia pendiente: la unica
+  // salida es la pagina de planes.
+  if (tieneRoles === false || user?.estadoPago === "pendiente") {
+    return <Navigate to="/registro/planes" replace />;
   }
 
   if (permiso && !tienePermiso(permiso)) {

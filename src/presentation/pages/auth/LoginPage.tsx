@@ -52,7 +52,10 @@ export function LoginPage() {
 
     messageApi.success("Sesion iniciada correctamente");
     setTimeout(() => {
-      navigate("/dashboard");
+      // Sin roles o con pago pendiente no se entra a la app: la pagina de
+      // planes es el unico destino posible desde el login.
+      const puedeOperar = result.tieneRoles && result.estadoPago !== "pendiente";
+      navigate(puedeOperar ? "/dashboard" : "/registro/planes");
     }, 500);
   };
 

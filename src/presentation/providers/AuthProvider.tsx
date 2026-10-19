@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/infrastructure/supabase/client";
 import { clearOfflinePersistence } from "@/infrastructure/offline/persistQueryClient";
+import { getContainer } from "@/infrastructure/container";
 
 interface AuthUser {
   id: string;
@@ -9,6 +10,8 @@ interface AuthUser {
   nombres: string;
   id_usuario?: number;
   id_empresa?: number;
+  /** estado_pago de la empresa ('pendiente' | 'pagado' | 'cancelado'). */
+  estadoPago?: string | null;
 }
 
 interface UsuarioInvitado {
@@ -27,6 +30,43 @@ function passwordExpirada(hasta: string | null | undefined): boolean {
   if (!hasta) return false;
   const limite = new Date(hasta).getTime();
   return Number.isFinite(limite) && Date.now() > limite;
+}
+
+/**
+ * ¿Tiene el usuario al menos un rol asignado (usuario_rol)? Se consulta
+ * apenas se obtienen los datos de la sesión: sin roles la cuenta todavia
+ * no puede operar y hay que llevarla a /registro/planes.
+ * Devuelve null cuando no se pudo consultar (no hay id_usuario o fallo
+ * transitorio) para no bloquear el acceso por un error de red.
+ */
+async function usuarioTieneRoles(idUsuario: number | undefined): Promise<boolean | null> {
+  if (!idUsuario) return null;
+  try {
+    const roles = await getContainer().getRolesByUsuario.execute(idUsuario);
+    return roles.length > 0;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * estado_pago de la empresa del usuario ('pendiente' | 'pagado' |
+ * 'cancelado'). Mientras siga 'pendiente' (el webhook de Hotmart aun no
+ * confirmo) la cuenta no entra a la app: va a /registro/planes.
+ * Devuelve null si no hay empresa o fallo la consulta (no se bloquea).
+ */
+async function estadoPagoDeEmpresa(idEmpresa: number | undefined): Promise<string | null> {
+  if (!idEmpresa) return null;
+  try {
+    const { data } = await supabase
+      .from("empresa")
+      .select("estado_pago")
+      .eq("id_empresa", idEmpresa)
+      .single();
+    return data?.estado_pago ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -52,7 +92,12 @@ interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  /** false = el usuario no tiene roles asignados; null = todavia no se verifico. */
+  tieneRoles: boolean | null;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string; tieneRoles?: boolean; estadoPago?: string | null }>;
   register: (
     email: string,
     password: string,
@@ -77,6 +122,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tieneRoles, setTieneRoles] = useState<boolean | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -96,9 +142,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (passwordExpirada(usuario?.password_temporal_hasta)) {
           await supabase.auth.signOut();
           setUser(null);
+          setTieneRoles(null);
           setLoading(false);
           return;
         }
+
+        // Restauracion de sesion (recargar la pagina, pestaña abierta de
+        // ayer): se re-verifican roles y estado de pago, no solo al loguear.
+        const [rolesOk, pago] = await Promise.all([
+          usuarioTieneRoles(usuario?.id_usuario),
+          estadoPagoDeEmpresa(usuario?.id_empresa),
+        ]);
+        setTieneRoles(rolesOk);
 
         setUser({
           id: session.user.id,
@@ -107,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
+          estadoPago: pago,
         });
       }
       setLoading(false);
@@ -129,8 +185,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (passwordExpirada(usuario?.password_temporal_hasta)) {
           await supabase.auth.signOut();
           setUser(null);
+          setTieneRoles(null);
           return;
         }
+
+        const [rolesOk, pago] = await Promise.all([
+          usuarioTieneRoles(usuario?.id_usuario),
+          estadoPagoDeEmpresa(usuario?.id_empresa),
+        ]);
+        setTieneRoles(rolesOk);
 
         setUser({
           id: session.user.id,
@@ -139,9 +202,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
+          estadoPago: pago,
         });
       } else {
         setUser(null);
+        setTieneRoles(null);
       }
     });
 
@@ -183,13 +248,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      let tieneRoles = false;
+      if (usuario?.id_usuario) {
+        try {
+          const roles = await getContainer().getRolesByUsuario.execute(usuario.id_usuario);
+          tieneRoles = roles.length > 0;
+        } catch (error) {
+          await supabase.auth.signOut();
+          return {
+            success: false,
+            error: `No se pudieron verificar los roles de tu cuenta. Intenta iniciar sesion de nuevo. ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+      }
+
+      const estadoPago = await estadoPagoDeEmpresa(usuario?.id_empresa);
+      setTieneRoles(tieneRoles);
+
       setUser({
         id: data.user.id,
         email: data.user.email || "",
         nombres: usuario?.nombres || data.user.user_metadata?.nombres || data.user.email || "",
         id_usuario: usuario?.id_usuario,
         id_empresa: usuario?.id_empresa,
+        estadoPago,
       });
+
+      return { success: true, tieneRoles, estadoPago };
     }
 
     return { success: true };
@@ -257,12 +344,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    const [rolesOk, estadoPago] = await Promise.all([
+      usuarioTieneRoles(invitado.id_usuario),
+      estadoPagoDeEmpresa(invitado.id_empresa),
+    ]);
+    setTieneRoles(rolesOk);
+
     setUser({
       id: data.user.id,
       email: data.user.email || "",
       nombres: invitado.nombres || nombres,
       id_usuario: invitado.id_usuario,
       id_empresa: invitado.id_empresa,
+      estadoPago,
     });
 
     return { success: true };
@@ -409,12 +503,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      // Empresa recien creada: arranca con pago pendiente y sin roles
+      // asignados, asi que tras elegir plan el guard la deja entrar cuando
+      // el webhook confirme el pago y un admin le asigne roles.
+      setTieneRoles(false);
+
       setUser({
         id: data.user.id,
         email: data.user.email || "",
         nombres,
         id_usuario: nuevoUsuario.id_usuario,
         id_empresa: nuevoUsuario.id_empresa,
+        estadoPago: "pendiente",
       });
 
       return { success: true };
@@ -451,6 +551,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setTieneRoles(null);
     // offline/tenant-isolation: nothing this device cached offline should
     // survive past the session it belonged to.
     await clearOfflinePersistence(queryClient);
@@ -462,6 +563,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         loading,
+        tieneRoles,
         login,
         register,
         registerNuevaEmpresa,
