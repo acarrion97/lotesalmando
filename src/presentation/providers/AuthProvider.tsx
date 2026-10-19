@@ -114,6 +114,13 @@ interface AuthContextType {
   cambiarPassword: (
     nuevaPassword: string,
   ) => Promise<{ success: boolean; error?: string; aviso?: string }>;
+  /**
+   * Reconsulta el estado_pago de la empresa (el webhook de Hotmart lo
+   * cambia a 'pagado' por fuera de la app). Devuelve el estado nuevo y lo
+   * guarda en la sesion, para que la pagina de planes se entere sin tener
+   * que recargar.
+   */
+  refrescarEstadoPago: () => Promise<string | null>;
   logout: () => Promise<void>;
 }
 
@@ -548,6 +555,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { success: true };
   }, []);
 
+  /**
+   * El pago se confirma por webhook de Hotmart, fuera de la app. Al volver
+   * a /registro/planes hay que reconsultar estado_pago para que la pagina
+   * se entere del pago sin tener que cerrar y abrir sesion.
+   */
+  const refrescarEstadoPago = useCallback(async () => {
+    const pago = await estadoPagoDeEmpresa(user?.id_empresa);
+    setUser((u) => (u ? { ...u, estadoPago: pago } : u));
+    return pago;
+  }, [user?.id_empresa]);
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -568,6 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         registerNuevaEmpresa,
         cambiarPassword,
+        refrescarEstadoPago,
         logout,
       }}
     >

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message, theme } from "antd";
 import {
@@ -55,13 +55,56 @@ function limitesDePlan(plan: PlanDto): { icono: React.ReactNode; texto: string }
 
 export function SeleccionarPlanPage() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, loading, tieneRoles, refrescarEstadoPago } = useAuth();
   const { empresaActual } = useEmpresa();
   const { data: planesBD, isLoading: cargandoPlanes } = usePlanes();
   const seleccionarPlan = useSeleccionarPlan();
   const [planAbierto, setPlanAbierto] = useState<string | null>(null);
+  const [verificandoPago, setVerificandoPago] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { token } = theme.useToken();
+
+  // El pago se confirma por webhook (por fuera de la app). Mientras el
+  // usuario esta en esta pagina, se re-consulta el estado_pago: el checkout
+  // de Hotmart se abre en otra pestana, asi que al volver (focus) o al
+  // montar se checa de nuevo. Si cambio a 'pagado' y hay roles, se manda a
+  // /login para que inicie sesion ya con el pago registrado.
+  const estadoPago = user?.estadoPago;
+  useEffect(() => {
+    if (!user?.id_empresa) return;
+    if (estadoPago === "pagado") return;
+
+    const verificar = async () => {
+      setVerificandoPago(true);
+      try {
+        const pago = await refrescarEstadoPago();
+        if (pago === "pagado") {
+          // Sin roles el login re-botaria a esta misma pagina (bucle), asi
+          // que solo se navega cuando ya puede entrar de verdad.
+          if (tieneRoles) {
+            navigate("/login", {
+              state: { avisoPago: "Pago confirmado. Inicia sesion para entrar." },
+            });
+          }
+        }
+      } finally {
+        setVerificandoPago(false);
+      }
+    };
+
+    const alVolver = () => {
+      if (document.visibilityState === "visible") void verificar();
+    };
+
+    // Revisar apenas entra y cada vez que la pestana vuelve a ser visible.
+    void verificar();
+    window.addEventListener("focus", alVolver);
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      window.removeEventListener("focus", alVolver);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
+  }, [user?.id_empresa, estadoPago, tieneRoles, refrescarEstadoPago, navigate]);
 
   // Recien salimos del registro: sin sesion no hay plan que elegir.
   if (loading || cargandoPlanes) {
@@ -315,6 +358,18 @@ export function SeleccionarPlanPage() {
           >
             <SafetyCertificateOutlined /> Pago seguro procesado por Hotmart
           </Text>
+          {verificandoPago && (
+            <Text
+              style={{
+                color: "rgba(255,255,255,0.6)",
+                fontSize: 13,
+                display: "block",
+                marginTop: 8,
+              }}
+            >
+              <Spin size="small" /> Verificando tu pago...
+            </Text>
+          )}
         </div>
       </div>
     </div>

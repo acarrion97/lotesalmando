@@ -15,13 +15,16 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  // Aviso de llegada desde el flujo de recuperación de contraseña.
+  // Aviso de llegada desde el flujo de recuperación de contraseña o desde
+  // la pagina de planes (pago recien confirmado por webhook).
   const locationState = location.state as {
     contrasenaCambiada?: boolean;
     avisoPassword?: string;
+    avisoPago?: string;
   } | null;
   const contrasenaCambiada = Boolean(locationState?.contrasenaCambiada);
   const avisoPassword = locationState?.avisoPassword;
+  const avisoPago = locationState?.avisoPago;
   useEffect(() => {
     if (contrasenaCambiada) {
       messageApi.success("Contraseña actualizada. Inicia sesión con la nueva.");
@@ -30,6 +33,11 @@ export function LoginPage() {
       }
     }
   }, [contrasenaCambiada, avisoPassword, messageApi]);
+  useEffect(() => {
+    if (avisoPago) {
+      messageApi.success(avisoPago);
+    }
+  }, [avisoPago, messageApi]);
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
