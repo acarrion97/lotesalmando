@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message } from "antd";
+import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message, theme } from "antd";
 import {
   CheckCircleFilled,
   CrownOutlined,
@@ -61,6 +61,7 @@ export function SeleccionarPlanPage() {
   const seleccionarPlan = useSeleccionarPlan();
   const [planAbierto, setPlanAbierto] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const { token } = theme.useToken();
 
   // Recien salimos del registro: sin sesion no hay plan que elegir.
   if (loading || cargandoPlanes) {
@@ -179,10 +180,25 @@ export function SeleccionarPlanPage() {
         <Alert
           type="warning"
           showIcon
-          icon={<MailOutlined />}
-          message="Usa el mismo correo electronico al pagar en Hotmart"
-          description="En el checkout de Hotmart ingresa el correo con el que te registraste aqui. Asi vinculamos tu pago a tu empresa automaticamente; si usas otro correo, el pago no se reconoce."
-          style={{ marginBottom: 24, borderRadius: 12 }}
+          icon={<MailOutlined style={{ color: token.colorWarning }} />}
+          message={
+            <span style={{ color: token.colorText, fontWeight: 600 }}>
+              Usa el mismo correo electronico al pagar en Hotmart
+            </span>
+          }
+          description={
+            <span style={{ color: token.colorTextSecondary }}>
+              En el checkout de Hotmart ingresa el correo con el que te registraste aqui. Asi
+              vinculamos tu pago a tu empresa automaticamente; si usas otro correo, el pago no se
+              reconoce.
+            </span>
+          }
+          style={{
+            marginBottom: 24,
+            borderRadius: 12,
+            background: token.colorBgContainer,
+            border: `1px solid ${token.colorBorderSecondary}`,
+          }}
         />
 
         <Row gutter={[16, 16]}>
@@ -228,7 +244,7 @@ export function SeleccionarPlanPage() {
 
                   {plan.precio != null && (
                     <div style={{ textAlign: "center", marginBottom: 12 }}>
-                      <Text strong style={{ fontSize: 30, color: "#082B33", lineHeight: 1.2 }}>
+                      <Text strong style={{ fontSize: 30, color: token.colorText, lineHeight: 1.2 }}>
                         USD {Number.isInteger(plan.precio) ? plan.precio : plan.precio.toFixed(2)}
                       </Text>
                       <div>
@@ -251,7 +267,7 @@ export function SeleccionarPlanPage() {
                       {limites.map((limite) => (
                         <Text
                           key={limite.texto}
-                          style={{ fontSize: 13, color: "rgba(0,0,0,0.65)" }}
+                          style={{ fontSize: 13, color: token.colorTextSecondary }}
                         >
                           {limite.icono} {limite.texto}
                         </Text>
@@ -295,14 +311,10 @@ export function SeleccionarPlanPage() {
               color: "rgba(255,255,255,0.6)",
               fontSize: 13,
               display: "block",
-              marginBottom: 12,
             }}
           >
             <SafetyCertificateOutlined /> Pago seguro procesado por Hotmart
           </Text>
-          <Button size="large" onClick={() => navigate("/dashboard")}>
-            Continuar sin pagar por ahora
-          </Button>
         </div>
       </div>
     </div>
