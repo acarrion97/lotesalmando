@@ -10,6 +10,12 @@ import {
 } from "@ant-design/icons";
 import type { LoteEstado, PuntoPlano } from "@/domain/lote/entities";
 import type { PlanoLote } from "@/domain/mapa/entities";
+import { identificadorPublicoLote } from "@/utils/mapas/identificadorLote";
+import {
+  TAMANO_FUENTE_ETIQUETA_PX,
+  centroPoligono,
+  etiquetaVisible,
+} from "@/utils/mapas/visibilidadEtiquetas";
 
 /**
  * Color de cada estado sobre el plano. Los disponibles van transparentes
@@ -41,6 +47,8 @@ const ZOOM_MAX = 6;
 const PASO_ZOOM = 1.5;
 /** Radio (px de pantalla) dentro del cual un clic se pega a un vértice existente. */
 const RADIO_IMAN = 9;
+/** Grosor del halo blanco que deja la etiqueta legible sobre cualquier estado. */
+const HALO_ETIQUETA_PX = 3;
 
 export interface DibujoPlano {
   puntos: PuntoPlano[];
@@ -58,6 +66,25 @@ interface PlanoInteractivoProps {
   /** Modo edición: cada clic en el plano agrega un vértice. */
   dibujo?: DibujoPlano | null;
   mostrarPrecio?: boolean;
+  /**
+   * Pinta sobre cada lote su identificador público, que es su número de lote
+   * (`H1`, `H10`, `L1.10`): ya identifica la manzana por su prefijo y es único
+   * en el proyecto, así que no se compone con el nombre de la manzana. Apagado
+   * por defecto: el mapa interno no lo usa y así no cambia su aspecto.
+   *
+   * Una etiqueta solo se pinta si **su propio texto cabe en su propio
+   * polígono**, proyectado a píxeles de pantalla con holgura a los lados
+   * (`etiquetaVisible`, en `utils/mapas/visibilidadEtiquetas`). La regla es por
+   * lote y no por nivel de zoom, porque los lotes de un mismo plano no miden
+   * igual y el texto tampoco. Los lotes sin número no reciben etiqueta: no se
+   * inventa ningún identificador, ni tampoco uno derivado de su posición en la
+   * lista, que cambia al filtrar.
+   *
+   * El texto no intercepta el puntero (`pointerEvents: "none"` y `aria-hidden`),
+   * porque el polígono de debajo ya es el que se selecciona y el que anuncia su
+   * estado.
+   */
+  mostrarEtiquetas?: boolean;
   onImagenError?: () => void;
   /** Alto máximo del visor fuera de pantalla completa (px). */
   alturaMaxima?: number;
@@ -76,6 +103,7 @@ export function PlanoInteractivo({
   resaltados,
   dibujo,
   mostrarPrecio = false,
+  mostrarEtiquetas = false,
   onImagenError,
   alturaMaxima,
 }: PlanoInteractivoProps) {
@@ -126,16 +154,16 @@ export function PlanoInteractivo({
 
   const anchoLienzo = anchoBase * zoom;
   const pxPorUnidad = natural ? anchoLienzo / natural.w : 1;
+  const altoLienzo = natural && anchoLienzo ? (anchoLienzo * natural.h) / natural.w : 0;
 
   useLayoutEffect(() => {
     const el = visorRef.current;
     const centro = centroZoom.current;
     if (!el || !centro || !natural) return;
     centroZoom.current = null;
-    const altoLienzo = (anchoLienzo * natural.h) / natural.w;
     el.scrollLeft = centro.x * anchoLienzo - el.clientWidth / 2;
     el.scrollTop = centro.y * altoLienzo - el.clientHeight / 2;
-  }, [anchoLienzo, natural]);
+  }, [anchoLienzo, altoLienzo, natural]);
 
   const cambiarZoom = useCallback(
     (siguiente: number) => {
@@ -394,6 +422,45 @@ export function PlanoInteractivo({
                   />
                 );
               })}
+
+              {/*
+                Etiquetas de los lotes: van después de los polígonos para quedar
+                por encima, pero sin recibir el puntero, que sigue siendo del
+                contorno de debajo. El tamaño de fuente y del halo se divide
+                entre pxPorUnidad para que midan píxeles de pantalla y no
+                unidades del lienzo.
+              */}
+              {mostrarEtiquetas && !dibujo && (
+                <g style={{ pointerEvents: "none", userSelect: "none" }}>
+                  {lotesDibujados.map((lote) => {
+                    if (!lote.poligono) return null;
+                    const etiqueta = identificadorPublicoLote(lote);
+                    if (!etiqueta) return null;
+                    if (!etiquetaVisible(lote.poligono, { ancho: anchoLienzo, alto: altoLienzo }, etiqueta))
+                      return null;
+                    const centro = centroPoligono(lote.poligono);
+                    if (!centro) return null;
+                    return (
+                      <text
+                        key={lote.id_lote}
+                        x={centro[0] * natural.w}
+                        y={centro[1] * natural.h}
+                        textAnchor="middle"
+                        dominantBaseline="central"
+                        fontSize={TAMANO_FUENTE_ETIQUETA_PX / pxPorUnidad}
+                        fontWeight={700}
+                        fill="#1f1f1f"
+                        stroke="#fff"
+                        strokeWidth={HALO_ETIQUETA_PX / pxPorUnidad}
+                        paintOrder="stroke"
+                        aria-hidden="true"
+                      >
+                        {etiqueta}
+                      </text>
+                    );
+                  })}
+                </g>
+              )}
 
               {dibujo && dibujo.puntos.length > 0 && (
                 <g style={{ pointerEvents: "none" }}>

@@ -212,6 +212,7 @@ export function MapaPublicoPage() {
                           imagenUrl={mapa.url_publica}
                           lotes={mapa.lotes}
                           onLoteClick={abrirFicha}
+                          mostrarEtiquetas
                           onImagenError={() => setImagenFallida(true)}
                           alturaMaxima={Math.max(360, window.innerHeight - 260)}
                         />
