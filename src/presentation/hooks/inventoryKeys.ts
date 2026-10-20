@@ -21,6 +21,8 @@ export const inventoryKeys = {
   ventas: (empresaId: number) => ["ventas", empresaId] as const,
   cobranzas: (empresaId: number) => ["cobranzas", empresaId] as const,
   pagos: (empresaId: number) => ["pagos", empresaId] as const,
+  /** Entradas (señas) cobradas al reservar un lote. */
+  entradasReserva: (empresaId: number) => ["entradasReserva", empresaId] as const,
   asesores: (empresaId: number) => ["asesores", empresaId] as const,
   configuracion: (empresaId: number) => ["configuracion", empresaId] as const,
   /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */
@@ -29,4 +31,7 @@ export const inventoryKeys = {
   /** Lotes del proyecto con su contorno sobre el plano. */
   lotesPlano: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId, "lotes"] as const,
+  /** Fotos y videos del proyecto (galería pública). */
+  mediosProyecto: (empresaId: number, proyectoId: number) =>
+    ["medios", empresaId, proyectoId] as const,
 };

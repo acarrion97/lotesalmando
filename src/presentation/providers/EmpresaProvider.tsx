@@ -10,6 +10,8 @@ interface Empresa {
   razon_social: string;
   ruc: string;
   estado: string;
+  /** Plan de pago elegido al registrarse ('basico' | 'inicial' | 'avanzado'). */
+  plan: string | null;
 }
 
 interface EmpresaContextValue {
@@ -40,9 +42,14 @@ export function EmpresaProvider({ children }: EmpresaProviderProps) {
   const [manualEmpresaId, setManualEmpresaId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
+  // Cada usuario solo ve la empresa a la que pertenece. Un usuario sin empresa
+  // asignada no ve ninguna, en lugar de ver las de otros.
   const empresas = useMemo(
-    () => (isAuthenticated ? (empresasData ?? []) : []),
-    [isAuthenticated, empresasData]
+    () =>
+      isAuthenticated
+        ? (empresasData ?? []).filter((e) => e.id_empresa === user?.id_empresa)
+        : [],
+    [isAuthenticated, empresasData, user?.id_empresa]
   );
 
   const empresaActual = useMemo(() => {

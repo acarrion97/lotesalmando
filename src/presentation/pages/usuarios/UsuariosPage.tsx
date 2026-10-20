@@ -1,14 +1,21 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Tag, Modal, Form, Select, Descriptions, message } from "antd";
+import { Button, Space, Input, Tag, Modal, Form, Select, Descriptions, message, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  SearchOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  EyeOutlined,
+} from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useUsuarios, useRoles, useEmpresas, useLookup } from "@/presentation/hooks";
+import { useUsuarios, useRoles, useEmpresas, useLookup, useAsesores, usePlanDeEmpresa } from "@/presentation/hooks";
 import type { Usuario, UsuarioEstado } from "@/domain/usuario/entities/Usuario";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { usuarioSchema } from "@/presentation/validations";
+import { esRolVendedor, passwordDeEmail } from "@/utils";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 
 const estadoColorMap: Record<UsuarioEstado, string> = {
@@ -25,6 +32,9 @@ interface ModalState {
 export function UsuariosPage() {
   const { data: usuarios, isLoading } = useUsuarios();
   const { data: roles } = useRoles();
+  const { data: asesores } = useAsesores();
+  // Limite de usuarios del plan de la empresa (null = sin limite).
+  const plan = usePlanDeEmpresa();
   const { empresaActual } = useEmpresa();
   const { data: empresas } = useEmpresas();
   const empresaMap = useLookup(empresas, "id_empresa", "razon_social");
@@ -32,6 +42,7 @@ export function UsuariosPage() {
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const emailNuevo = Form.useWatch("email", createForm);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const [rolesAsignados, setRolesAsignados] = useState<number[]>([]);
@@ -40,13 +51,52 @@ export function UsuariosPage() {
 
   const refreshUsuarios = () => queryClient.invalidateQueries({ queryKey: ["usuarios"] });
 
+  // Ids del rol "Vendedor" del catálogo (el catálogo es editable por empresa,
+  // así que se reconoce por nombre, no por id).
+  const idsRolVendedor = (roles ?? [])
+    .filter((r) => esRolVendedor(r.nombre_rol))
+    .map((r) => r.id_rol);
+
+  const esRolDeVendedor = (id: number) => idsRolVendedor.includes(id);
+
+  /**
+   * El rol Vendedor es el que garantiza un asesor para firmar ventas y
+   * prospectos: al entrar se crea (o reutiliza/reactiva) el asesor vinculado y
+   * al salir se desactiva —nunca se borra— porque ventas y prospectos lo
+   * referencian.
+   */
+  const sincronizarAsesorDeUsuario = async (usuario: Usuario, conRolVendedor: boolean) => {
+    if (!empresaActual) return;
+    try {
+      if (conRolVendedor) {
+        await container.asignarAsesorParaUsuario.execute({
+          id_usuario: usuario.id_usuario,
+          id_empresa: usuario.id_empresa,
+          nombres: usuario.nombres,
+        });
+        return;
+      }
+
+      const vinculado = asesores?.find((a) => a.id_usuario === usuario.id_usuario) ?? null;
+      if (vinculado?.estado === "activo") {
+        await container.updateAsesor.execute(vinculado.id_asesor, { estado: "inactivo" });
+      }
+    } catch (error) {
+      messageApi.warning(
+        error instanceof Error
+          ? `Rol guardado, pero no se pudo sincronizar el asesor: ${error.message}`
+          : "Rol guardado, pero no se pudo sincronizar el asesor",
+      );
+    }
+  };
+
   const filteredData = useMemo(() => {
     if (!usuarios) return [];
     return usuarios.filter(
       (u) =>
         u.nombres.toLowerCase().includes(searchText.toLowerCase()) ||
         u.email.toLowerCase().includes(searchText.toLowerCase()) ||
-        u.estado.toLowerCase().includes(searchText.toLowerCase())
+        u.estado.toLowerCase().includes(searchText.toLowerCase()),
     );
   }, [usuarios, searchText]);
 
@@ -56,7 +106,12 @@ export function UsuariosPage() {
       const rolesDelUsuario = await container.getRolesByUsuario.execute(record.id_usuario);
       const rolIds = rolesDelUsuario.map((r) => r.id_rol);
       setRolesAsignados(rolIds);
-      editForm.setFieldsValue({ nombres: record.nombres, email: record.email, estado: record.estado, roles: rolIds });
+      editForm.setFieldsValue({
+        nombres: record.nombres,
+        email: record.email,
+        estado: record.estado,
+        roles: rolIds,
+      });
     }
   };
 
@@ -81,7 +136,15 @@ export function UsuariosPage() {
         ...removidos.map((id) => container.removeRol.execute(modal.record!.id_usuario, id)),
       ]);
 
+      // Entrar o salir del rol Vendedor crea/desactiva el asesor vinculado.
+      const teniaVendedor = rolesAsignados.some(esRolDeVendedor);
+      const tieneVendedor = nuevos.some(esRolDeVendedor);
+      if (teniaVendedor !== tieneVendedor) {
+        await sincronizarAsesorDeUsuario(modal.record, tieneVendedor);
+      }
+
       await refreshUsuarios();
+      await queryClient.invalidateQueries({ queryKey: ["asesores"] });
       messageApi.success("Usuario actualizado correctamente");
       closeModal();
     } catch (error) {
@@ -109,13 +172,73 @@ export function UsuariosPage() {
     }
 
     try {
-      const values = await createForm.validateFields();
+      const { roles: rolesSeleccionados, ...values } = await createForm.validateFields();
       const parsed = usuarioSchema.parse(values);
-      await container.createUsuario.execute({ ...parsed, id_empresa: empresaActual.id_empresa });
+      const password = passwordDeEmail(parsed.email);
+
+      const creado = await container.createUsuario.execute({
+        ...parsed,
+        id_empresa: empresaActual.id_empresa,
+      });
+
+      // La invitacion (fila usuario) ya existe, asi que ahora si se puede
+      // dar de alta la cuenta de acceso en Supabase Auth con la password
+      // temporal. Si esto falla se borra la fila recien creada: no tiene
+      // sentido invitar a alguien que no va a poder entrar.
+      try {
+        await container.createUsuarioAuth.execute({
+          email: parsed.email,
+          password,
+          nombres: parsed.nombres,
+        });
+      } catch (authError) {
+        await container.deleteUsuario.execute(creado.id_usuario).catch(() => undefined);
+        throw new Error(
+          `No se pudo crear la cuenta de acceso: ${
+            authError instanceof Error ? authError.message : "error desconocido"
+          }`,
+          { cause: authError },
+        );
+      }
+
+      const seleccionados: number[] = rolesSeleccionados ?? [];
+      if (seleccionados.length > 0) {
+        await Promise.all(
+          seleccionados.map((id) => container.assignRol.execute(creado.id_usuario, id)),
+        );
+        if (seleccionados.some(esRolDeVendedor)) {
+          await sincronizarAsesorDeUsuario(creado, true);
+        }
+      }
+
       await refreshUsuarios();
-      messageApi.success("Usuario creado correctamente");
+      await queryClient.invalidateQueries({ queryKey: ["asesores"] });
       setCreateModalOpen(false);
       createForm.resetFields();
+
+      // La contrasena no se puede volver a consultar desde la app, asi
+      // que se muestra aca para que el admin se la pase al usuario.
+      Modal.success({
+        title: "Usuario y cuenta de acceso creados",
+        content: (
+          <div>
+            <p>
+              <strong>{creado.nombres}</strong> ya puede iniciar sesion con:
+            </p>
+            <p>
+              Correo: <strong>{parsed.email}</strong>
+            </p>
+            <p>
+              Contrasena temporal: <strong>{password}</strong>
+            </p>
+            <p style={{ color: "#888" }}>
+              Vale 24 horas: pasado ese plazo el usuario debera restablecer su contrasena desde
+              &quot;Olvidé mi contraseña&quot;. El panel no guarda la contrasena, pasasela para que
+              entre desde la pantalla de login.
+            </p>
+          </div>
+        ),
+      });
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : "No se pudo crear el usuario");
     }
@@ -141,8 +264,11 @@ export function UsuariosPage() {
           </Button>
         </div>
       ),
-      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />,
-      onFilter: (value, record) => record.nombres.toLowerCase().includes(String(value).toLowerCase()),
+      filterIcon: (filtered) => (
+        <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />
+      ),
+      onFilter: (value, record) =>
+        record.nombres.toLowerCase().includes(String(value).toLowerCase()),
     },
     {
       title: "Email",
@@ -162,7 +288,9 @@ export function UsuariosPage() {
           </Button>
         </div>
       ),
-      filterIcon: (filtered) => <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />,
+      filterIcon: (filtered) => (
+        <SearchOutlined style={{ color: filtered ? "#1677ff" : undefined }} />
+      ),
       onFilter: (value, record) => record.email.toLowerCase().includes(String(value).toLowerCase()),
     },
     {
@@ -174,16 +302,29 @@ export function UsuariosPage() {
         { text: "Inactivo", value: "inactivo" },
       ],
       onFilter: (value, record) => record.estado === value,
-      render: (estado: UsuarioEstado) => <Tag color={estadoColorMap[estado]}>{(estado ?? "sin estado").toUpperCase()}</Tag>,
+      render: (estado: UsuarioEstado) => (
+        <Tag color={estadoColorMap[estado]}>{(estado ?? "sin estado").toUpperCase()}</Tag>
+      ),
     },
     {
       title: "Acciones",
       key: "acciones",
       render: (_: unknown, record: Usuario) => (
         <Space>
-          <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
+          <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>
+            Ver
+          </Button>
+          <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>
+            Editar
+          </Button>
+          <Button
+            type="link"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => openModal("delete", record)}
+          >
+            Eliminar
+          </Button>
         </Space>
       ),
     },
@@ -196,7 +337,19 @@ export function UsuariosPage() {
         title="Usuarios"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              if (plan.max_usuarios != null && (usuarios?.length ?? 0) >= plan.max_usuarios) {
+                messageApi.warning(
+                  `Tu plan permite hasta ${plan.max_usuarios} usuario(s). Amplia tu plan para agregar mas.`
+                );
+                return;
+              }
+              setCreateModalOpen(true);
+            }}
+          >
             Nuevo
           </Button>
         }
@@ -214,7 +367,9 @@ export function UsuariosPage() {
         open={modal.visible && modal.type === "view"}
         onCancel={closeModal}
         footer={[
-          <Button key="close" onClick={closeModal}>Cerrar</Button>,
+          <Button key="close" onClick={closeModal}>
+            Cerrar
+          </Button>,
         ]}
       >
         {modal.record && (
@@ -226,7 +381,9 @@ export function UsuariosPage() {
                 {(modal.record.estado ?? "sin estado").toUpperCase()}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Empresa">{empresaMap[modal.record.id_empresa] ?? modal.record.id_empresa}</Descriptions.Item>
+            <Descriptions.Item label="Empresa">
+              {empresaMap[modal.record.id_empresa] ?? modal.record.id_empresa}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
@@ -284,7 +441,10 @@ export function UsuariosPage() {
       <Modal
         title="Nuevo Usuario"
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
+        onCancel={() => {
+          setCreateModalOpen(false);
+          createForm.resetFields();
+        }}
         onOk={handleCreate}
         okText="Crear"
         cancelText="Cancelar"
@@ -307,6 +467,16 @@ export function UsuariosPage() {
           >
             <Input />
           </Form.Item>
+          {emailNuevo?.includes("@") && (
+            <Form.Item label="Contrasena temporal">
+              <Alert
+                type="info"
+                showIcon
+                message={`Se creara con la contrasena: ${passwordDeEmail(emailNuevo)}`}
+                description="Es el usuario del correo + * al final, y vence en 24 horas: pasado ese plazo el usuario debera restablecerla desde 'Olvidé mi contraseña' en la pantalla de login."
+              />
+            </Form.Item>
+          )}
           <Form.Item
             name="estado"
             label="Estado"
@@ -317,6 +487,17 @@ export function UsuariosPage() {
                 { value: "activo", label: "Activo" },
                 { value: "inactivo", label: "Inactivo" },
               ]}
+            />
+          </Form.Item>
+          <Form.Item
+            name="roles"
+            label="Roles"
+            extra="Con el rol Vendedor se crea automáticamente un asesor vinculado."
+          >
+            <Select
+              mode="multiple"
+              placeholder="Selecciona los roles del usuario"
+              options={(roles ?? []).map((r) => ({ value: r.id_rol, label: r.nombre_rol }))}
             />
           </Form.Item>
         </Form>

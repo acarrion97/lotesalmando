@@ -82,6 +82,11 @@ export function AlertasPage() {
           <Text strong>{text}</Text>
           <br />
           <Text type="secondary" style={{ fontSize: 12 }}>{record.descripcion}</Text>
+          {record.detalle?.map((linea) => (
+            <div key={linea}>
+              <Text style={{ fontSize: 12 }}>• {linea}</Text>
+            </div>
+          ))}
         </div>
       ),
     },

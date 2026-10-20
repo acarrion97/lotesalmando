@@ -1,10 +1,4 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export interface Database {
   public: {
@@ -15,18 +9,141 @@ export interface Database {
           razon_social: string;
           ruc: string | null;
           estado: string | null;
+          created_at: string;
+          plan: string | null;
+          id_partner: number | null;
+          estado_pago: string | null;
+          pagado_en: string | null;
+          transaccion_id: string | null;
         };
         Insert: {
           id_empresa?: number;
           razon_social: string;
           ruc?: string | null;
           estado?: string | null;
+          created_at?: string;
+          plan?: string | null;
+          id_partner?: number | null;
+          estado_pago?: string | null;
+          pagado_en?: string | null;
+          transaccion_id?: string | null;
         };
         Update: {
           id_empresa?: number;
           razon_social?: string;
           ruc?: string | null;
           estado?: string | null;
+          created_at?: string;
+          plan?: string | null;
+          id_partner?: number | null;
+          estado_pago?: string | null;
+          pagado_en?: string | null;
+          transaccion_id?: string | null;
+        };
+      };
+      hotmart_evento: {
+        Row: {
+          id_evento: string;
+          evento: string | null;
+          email_comprador: string | null;
+          transaccion: string | null;
+          resultado: string | null;
+          payload: Json | null;
+          procesado_en: string;
+        };
+        Insert: {
+          id_evento: string;
+          evento?: string | null;
+          email_comprador?: string | null;
+          transaccion?: string | null;
+          resultado?: string | null;
+          payload?: Json | null;
+          procesado_en?: string;
+        };
+        Update: {
+          id_evento?: string;
+          evento?: string | null;
+          email_comprador?: string | null;
+          transaccion?: string | null;
+          resultado?: string | null;
+          payload?: Json | null;
+          procesado_en?: string;
+        };
+      };
+      plan: {
+        Row: {
+          id_plan: number;
+          clave: string;
+          nombre: string;
+          descripcion: string | null;
+          imagen_url: string | null;
+          url_checkout: string | null;
+          orden: number;
+          activo: boolean;
+          created_at: string;
+          updated_at: string | null;
+          max_proyectos: number | null;
+          max_lotes_por_proyecto: number | null;
+          max_usuarios: number | null;
+          precio: number | null;
+        };
+        Insert: {
+          id_plan?: number;
+          clave: string;
+          nombre: string;
+          descripcion?: string | null;
+          imagen_url?: string | null;
+          url_checkout?: string | null;
+          orden?: number;
+          activo?: boolean;
+          created_at?: string;
+          updated_at?: string | null;
+          max_proyectos?: number | null;
+          max_lotes_por_proyecto?: number | null;
+          max_usuarios?: number | null;
+          precio?: number | null;
+        };
+        Update: {
+          id_plan?: number;
+          clave?: string;
+          nombre?: string;
+          descripcion?: string | null;
+          imagen_url?: string | null;
+          url_checkout?: string | null;
+          orden?: number;
+          activo?: boolean;
+          created_at?: string;
+          updated_at?: string | null;
+          max_proyectos?: number | null;
+          max_lotes_por_proyecto?: number | null;
+          max_usuarios?: number | null;
+          precio?: number | null;
+        };
+      };
+      partnership: {
+        Row: {
+          id_partner: number;
+          nombre: string;
+          codigo: string;
+          email: string | null;
+          estado: string;
+          created_at: string;
+        };
+        Insert: {
+          id_partner?: number;
+          nombre: string;
+          codigo: string;
+          email?: string | null;
+          estado?: string;
+          created_at?: string;
+        };
+        Update: {
+          id_partner?: number;
+          nombre?: string;
+          codigo?: string;
+          email?: string | null;
+          estado?: string;
+          created_at?: string;
         };
       };
       configuracion: {
@@ -136,6 +253,9 @@ export interface Database {
           numero_lote: string;
           precio_lista: number | null;
           estado: string | null;
+          superficie_m2: number | null;
+          codigo_catastral: string | null;
+          medidas: string | null;
         };
         Insert: {
           id_lote?: number;
@@ -143,6 +263,9 @@ export interface Database {
           numero_lote: string;
           precio_lista?: number | null;
           estado?: string | null;
+          superficie_m2?: number | null;
+          codigo_catastral?: string | null;
+          medidas?: string | null;
         };
         Update: {
           id_lote?: number;
@@ -150,6 +273,9 @@ export interface Database {
           numero_lote?: string;
           precio_lista?: number | null;
           estado?: string | null;
+          superficie_m2?: number | null;
+          codigo_catastral?: string | null;
+          medidas?: string | null;
         };
       };
       usuario: {
@@ -159,6 +285,7 @@ export interface Database {
           nombres: string;
           email: string;
           estado: string | null;
+          created_at: string;
         };
         Insert: {
           id_usuario?: number;
@@ -166,6 +293,7 @@ export interface Database {
           nombres: string;
           email: string;
           estado?: string | null;
+          created_at?: string;
         };
         Update: {
           id_usuario?: number;
@@ -173,6 +301,7 @@ export interface Database {
           nombres?: string;
           email?: string;
           estado?: string | null;
+          created_at?: string;
         };
       };
       cliente: {
@@ -181,18 +310,21 @@ export interface Database {
           nombres: string;
           cedula_ruc: string | null;
           email: string | null;
+          telefono: string | null;
         };
         Insert: {
           id_cliente?: number;
           nombres: string;
           cedula_ruc?: string | null;
           email?: string | null;
+          telefono?: string | null;
         };
         Update: {
           id_cliente?: number;
           nombres?: string;
           cedula_ruc?: string | null;
           email?: string | null;
+          telefono?: string | null;
         };
       };
       inventario: {
@@ -225,6 +357,9 @@ export interface Database {
           id_lote: number;
           precio_ofertado: number;
           estado: string | null;
+          id_asesor: number | null;
+          monto_entrada: number;
+          num_cuotas: number;
         };
         Insert: {
           id_cotizacion?: number;
@@ -232,6 +367,9 @@ export interface Database {
           id_lote: number;
           precio_ofertado: number;
           estado?: string | null;
+          id_asesor?: number | null;
+          monto_entrada?: number;
+          num_cuotas?: number;
         };
         Update: {
           id_cotizacion?: number;
@@ -239,6 +377,9 @@ export interface Database {
           id_lote?: number;
           precio_ofertado?: number;
           estado?: string | null;
+          id_asesor?: number | null;
+          monto_entrada?: number;
+          num_cuotas?: number;
         };
       };
       ventas: {
@@ -250,6 +391,8 @@ export interface Database {
           id_usuario: number;
           precio_final: number;
           estado: string | null;
+          created_at: string | null;
+          id_asesor: number | null;
         };
         Insert: {
           id_venta?: number;
@@ -259,6 +402,8 @@ export interface Database {
           id_usuario: number;
           precio_final: number;
           estado?: string | null;
+          created_at?: string | null;
+          id_asesor?: number | null;
         };
         Update: {
           id_venta?: number;
@@ -268,6 +413,8 @@ export interface Database {
           id_usuario?: number;
           precio_final?: number;
           estado?: string | null;
+          created_at?: string | null;
+          id_asesor?: number | null;
         };
       };
       contratos: {
@@ -276,18 +423,21 @@ export interface Database {
           id_venta: number;
           numero_contrato: string;
           monto_total: number;
+          created_at: string | null;
         };
         Insert: {
           id_contrato?: number;
           id_venta: number;
           numero_contrato: string;
           monto_total: number;
+          created_at?: string | null;
         };
         Update: {
           id_contrato?: number;
           id_venta?: number;
           numero_contrato?: string;
           monto_total?: number;
+          created_at?: string | null;
         };
       };
       cobranzas: {
@@ -340,6 +490,38 @@ export interface Database {
           id_usuario?: number;
           monto_pagado?: number;
           fecha_pago?: string;
+        };
+      };
+      entradas_reserva: {
+        Row: {
+          id_entrada: number;
+          id_lote: number;
+          id_prospecto: number | null;
+          id_empresa: number | null;
+          id_usuario: number;
+          monto: number;
+          fecha_pago: string;
+          created_at: string;
+        };
+        Insert: {
+          id_entrada?: number;
+          id_lote: number;
+          id_prospecto?: number | null;
+          id_empresa?: number | null;
+          id_usuario: number;
+          monto: number;
+          fecha_pago?: string;
+          created_at?: string;
+        };
+        Update: {
+          id_entrada?: number;
+          id_lote?: number;
+          id_prospecto?: number | null;
+          id_empresa?: number | null;
+          id_usuario?: number;
+          monto?: number;
+          fecha_pago?: string;
+          created_at?: string;
         };
       };
       roles: {

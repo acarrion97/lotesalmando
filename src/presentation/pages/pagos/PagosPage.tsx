@@ -1,15 +1,26 @@
 import { useState, useMemo } from "react";
-import { Card, Button, Tag, Descriptions, Modal, Form, InputNumber, Select, message, Row, Col, Statistic, Tooltip } from "antd";
+import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip } from "antd";
 import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useQueryClient } from "@tanstack/react-query";
-import { usePagos, useOnlineStatus, useCobranzas, useContratos, useLookup } from "@/presentation/hooks";
-import { getContainer } from "@/infrastructure/container";
-import { useAuth } from "@/presentation/providers";
-import { pagoSchema } from "@/presentation/validations";
+import {
+  usePagos,
+  useOnlineStatus,
+  useCobranzas,
+  useContratos,
+  useLookup,
+  useInfoContratos,
+} from "@/presentation/hooks";
+import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import {
+  FiltroRangoFechas,
+  FILTRO_FECHAS_INICIAL,
+  type FiltroFechas,
+} from "@/presentation/components/ventas/FiltroRangoFechas";
+import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
+import { dentroDelRango, diaEnEmpresa, formatDateOnly } from "@/utils";
 
 type PagoRow = {
   id_pago: number;
@@ -21,78 +32,71 @@ type PagoRow = {
 
 export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
-  const { user } = useAuth();
   const { data: cobranzas } = useCobranzas();
   const { data: contratos } = useContratos();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
+  const { infoDeCobranza } = useInfoContratos();
+  const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
-  const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({ visible: false, record: null });
+  const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({
+    visible: false,
+    record: null,
+  });
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const [createForm] = Form.useForm();
-  const [messageApi, contextHolder] = message.useMessage();
-  const queryClient = useQueryClient();
 
-  const stats = useMemo(() => {
-    if (!pagos) return { total: 0, montoTotal: 0 };
-    return {
-      total: pagos.length,
-      montoTotal: pagos.reduce((sum, p) => sum + p.monto_pagado, 0),
-    };
-  }, [pagos]);
+  const pagosEnRango = useMemo(
+    () => (pagos ?? []).filter((p) => dentroDelRango(p.fecha_pago, filtroFechas.rango)),
+    [pagos, filtroFechas],
+  );
 
-  const cobranzaOptions = useMemo(
+  const stats = useMemo(
+    () => ({
+      total: pagosEnRango.length,
+      // Centavos enteros para que los flotantes no ensucien el total.
+      montoTotal: pagosEnRango.reduce((sum, p) => sum + Math.round(p.monto_pagado * 100), 0) / 100,
+    }),
+    [pagosEnRango],
+  );
+
+  // Cuotas cobrables con su cliente resuelto: es lo que alimenta el selector
+  // del modal de registro (así se ve de quién es cada cobranza).
+  const cobranzasAPagar = useMemo<CobranzaAPagar[]>(
     () =>
       (cobranzas ?? [])
         .filter((c) => c.estado !== "pagada")
-        .map((c) => ({
-          value: c.id_cobranza,
-          label: `${contratoMap[c.id_contrato] ?? `Contrato #${c.id_contrato}`} - Cuota ${c.numero_cuota} - $${c.monto_cuota.toLocaleString()} (vence ${new Date(c.fecha_vencimiento).toLocaleDateString()})`,
-        })),
-    [cobranzas, contratoMap]
+        .map((c) => {
+          const info = infoDeCobranza(c.id_cobranza);
+          return {
+            id_cobranza: c.id_cobranza,
+            numero_cuota: c.numero_cuota,
+            monto_cuota: c.monto_cuota,
+            estado: c.estado,
+            fecha_vencimiento: c.fecha_vencimiento ?? null,
+            cliente: info?.cliente,
+            cedula: info?.cedula,
+            lote: info?.lote,
+            numero_contrato: contratoMap[c.id_contrato] ?? `Contrato #${c.id_contrato}`,
+          };
+        }),
+    [cobranzas, infoDeCobranza, contratoMap],
   );
 
   const filteredData = useMemo(() => {
-    if (!pagos) return [];
-    return pagos.filter(
+    return pagosEnRango.filter(
       (p) =>
         String(p.id_cobranza).includes(searchText) ||
+        (infoDeCobranza(p.id_cobranza)?.cliente ?? "")
+          .toLowerCase()
+          .includes(searchText.toLowerCase()) ||
+        (infoDeCobranza(p.id_cobranza)?.lote ?? "")
+          .toLowerCase()
+          .includes(searchText.toLowerCase()) ||
         String(p.monto_pagado).includes(searchText) ||
-        p.fecha_pago.includes(searchText)
+        p.fecha_pago.includes(searchText),
     );
-  }, [pagos, searchText]);
-
-  const handleCreate = async () => {
-    if (!isOnline) {
-      messageApi.error("Sin conexión: no se puede registrar un pago");
-      return;
-    }
-    if (!user?.id_usuario) {
-      messageApi.error("No se pudo identificar al usuario actual, vuelva a iniciar sesión");
-      return;
-    }
-    try {
-      const values = await createForm.validateFields();
-      const parsed = pagoSchema.parse(values);
-      const container = getContainer();
-      await container.registerPago.execute({
-        id_cobranza: parsed.id_cobranza,
-        id_usuario: user.id_usuario,
-        monto_pagado: parsed.monto_pagado,
-        fecha_pago: new Date().toISOString(),
-      });
-      await queryClient.invalidateQueries({ queryKey: ["pagos"] });
-      await queryClient.invalidateQueries({ queryKey: ["cobranzas"] });
-      await queryClient.invalidateQueries({ queryKey: ["carteraMetricas"] });
-      messageApi.success("Pago registrado correctamente");
-      setCreateModalOpen(false);
-      createForm.resetFields();
-    } catch (error) {
-      if (error instanceof Error) messageApi.error(error.message);
-      else messageApi.error("Error al registrar pago");
-    }
-  };
+  }, [pagosEnRango, searchText, infoDeCobranza]);
 
   const columns: TableColumnType<PagoRow>[] = [
     {
@@ -106,28 +110,58 @@ export function PagosPage() {
       dataIndex: "id_cobranza",
       key: "id_cobranza",
       sorter: (a, b) => a.id_cobranza - b.id_cobranza,
-      render: (id: number) => <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>,
+      // Bajo la cuota, el cliente al que pertenece: es lo que responde
+      // "de quién es esta cobranza" sin tener que mirar otra columna.
+      render: (id: number, record: PagoRow) => (
+        <div>
+          <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>
+          <div style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>
+            {infoDeCobranza(record.id_cobranza)?.cliente ?? "-"}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Cliente",
+      key: "cliente",
+      render: (_: unknown, record: PagoRow) => infoDeCobranza(record.id_cobranza)?.cliente ?? "-",
+      sorter: (a, b) =>
+        (infoDeCobranza(a.id_cobranza)?.cliente ?? "").localeCompare(
+          infoDeCobranza(b.id_cobranza)?.cliente ?? "",
+        ),
+    },
+    {
+      title: "Lote",
+      key: "lote",
+      render: (_: unknown, record: PagoRow) => infoDeCobranza(record.id_cobranza)?.lote ?? "-",
     },
     {
       title: "Monto Pagado",
       dataIndex: "monto_pagado",
       key: "monto_pagado",
       sorter: (a, b) => a.monto_pagado - b.monto_pagado,
-      render: (monto: number) => <span style={{ fontWeight: 600, color: "#52c41a" }}>${monto.toLocaleString()}</span>,
+      render: (monto: number) => (
+        <span style={{ fontWeight: 600, color: "#52c41a" }}>${monto.toLocaleString()}</span>
+      ),
     },
     {
       title: "Fecha",
       dataIndex: "fecha_pago",
       key: "fecha_pago",
       sorter: (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
-      render: (fecha: string) => fecha ? new Date(fecha).toLocaleDateString() : "-",
+      render: (fecha: string) => (fecha ? formatDateOnly(diaEnEmpresa(fecha)) : "-"),
     },
     {
       title: "Acciones",
       key: "acciones",
       width: 80,
       render: (_: unknown, record: PagoRow) => (
-        <Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => setViewModal({ visible: true, record })} />
+        <Button
+          type="text"
+          icon={<EyeOutlined />}
+          style={{ color: "#1677ff" }}
+          onClick={() => setViewModal({ visible: true, record })}
+        />
       ),
     },
   ];
@@ -138,29 +172,51 @@ export function PagosPage() {
 
   return (
     <div>
-      {contextHolder}
       <PageToolbar
         title="Pagos"
         subtitle="Registro de pagos recibidos"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar pago..." }}
+        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
         actions={
           <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
-            <Button type="primary" icon={<PlusOutlined />} disabled={!isOnline} onClick={() => setCreateModalOpen(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              disabled={!isOnline}
+              onClick={() => setCreateModalOpen(true)}
+            >
               Registrar Pago
             </Button>
           </Tooltip>
         }
       />
 
+      <ResumenRangoFechas
+        filtro={filtroFechas}
+        cantidad={stats.total}
+        singular="pago"
+        plural="pagos"
+      />
+
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10 }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Total Pagos</span>} value={stats.total} styles={{ content: { fontWeight: 700, fontSize: 22 } }} prefix={<DollarOutlined style={{ color: "#52c41a" }} />} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Total Pagos</span>}
+              value={stats.total}
+              styles={{ content: { fontWeight: 700, fontSize: 22 } }}
+              prefix={<DollarOutlined style={{ color: "#52c41a" }} />}
+            />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small" style={{ borderRadius: 10, border: "1px solid #b7eb8f" }}>
-            <Statistic title={<span style={{ fontSize: 12 }}>Monto Total Recibido</span>} value={stats.montoTotal} styles={{ content: { fontWeight: 700, fontSize: 18, color: "#52c41a" } }} formatter={(val) => `$${(val as number).toLocaleString()}`} />
+            <Statistic
+              title={<span style={{ fontSize: 12 }}>Monto Total Recibido</span>}
+              value={stats.montoTotal}
+              styles={{ content: { fontWeight: 700, fontSize: 18, color: "#52c41a" } }}
+              formatter={(val) => `$${(val as number).toLocaleString()}`}
+            />
           </Card>
         </Col>
       </Row>
@@ -173,37 +229,52 @@ export function PagosPage() {
       />
 
       {/* View Modal */}
-      <Modal title="Detalle del Pago" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>
+      <Modal
+        title="Detalle del Pago"
+        open={viewModal.visible}
+        onCancel={() => setViewModal({ visible: false, record: null })}
+        footer={[
+          <Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>
+            Cerrar
+          </Button>,
+        ]}
+        width={500}
+      >
         {viewModal.record && (
           <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
             <Descriptions.Item label="# Pago">{viewModal.record.id_pago}</Descriptions.Item>
-            <Descriptions.Item label="Cobranza"><Tag>#{viewModal.record.id_cobranza}</Tag></Descriptions.Item>
-            <Descriptions.Item label="Monto Pagado"><span style={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }}>${viewModal.record.monto_pagado.toLocaleString()}</span></Descriptions.Item>
-            <Descriptions.Item label="Fecha">{viewModal.record.fecha_pago ? new Date(viewModal.record.fecha_pago).toLocaleDateString() : "-"}</Descriptions.Item>
+            <Descriptions.Item label="Cobranza">
+              <Tag>#{viewModal.record.id_cobranza}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Cliente" span={2}>
+              {infoDeCobranza(viewModal.record.id_cobranza)?.cliente ?? "-"}
+              {infoDeCobranza(viewModal.record.id_cobranza)?.cedula
+                ? ` · ${infoDeCobranza(viewModal.record.id_cobranza)?.cedula}`
+                : ""}
+            </Descriptions.Item>
+            <Descriptions.Item label="Lote" span={2}>
+              {infoDeCobranza(viewModal.record.id_cobranza)?.lote ?? "-"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Monto Pagado">
+              <span style={{ fontWeight: 700, fontSize: 18, color: "#52c41a" }}>
+                ${viewModal.record.monto_pagado.toLocaleString()}
+              </span>
+            </Descriptions.Item>
+            <Descriptions.Item label="Fecha">
+              {viewModal.record.fecha_pago
+                ? formatDateOnly(diaEnEmpresa(viewModal.record.fecha_pago))
+                : "-"}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
 
-      {/* Create Modal */}
-      <Modal title="Registrar Pago" open={createModalOpen} onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }} onOk={handleCreate} okText="Registrar" cancelText="Cancelar">
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="id_cobranza" label="Cobranza" rules={[{ required: true, message: "Seleccione la cobranza" }]}>
-            <Select
-              showSearch
-              placeholder="Seleccione la cobranza a pagar"
-              optionFilterProp="label"
-              options={cobranzaOptions}
-              onChange={(id: number) => {
-                const cobranza = cobranzas?.find((c) => c.id_cobranza === id);
-                if (cobranza) createForm.setFieldValue("monto_pagado", cobranza.monto_cuota);
-              }}
-            />
-          </Form.Item>
-          <Form.Item name="monto_pagado" label="Monto a Pagar" rules={[{ required: true, message: "Ingrese el monto" }]}>
-            <InputNumber style={{ width: "100%" }} min={0} step={100} prefix="$" />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* Registrar pago: selector de cuota con el cliente de cada cobranza */}
+      <RegistrarPagoModal
+        open={createModalOpen}
+        opciones={cobranzasAPagar}
+        onClose={() => setCreateModalOpen(false)}
+      />
     </div>
   );
 }

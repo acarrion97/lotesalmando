@@ -19,6 +19,8 @@ export class GetEmpresasUseCase {
       razon_social: empresa.razon_social,
       ruc: empresa.ruc,
       estado: empresa.estado,
+      plan: empresa.plan,
+      id_partner: empresa.id_partner ?? null,
     };
   }
 }

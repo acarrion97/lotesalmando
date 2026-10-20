@@ -1,4 +1,5 @@
 export { prospectoSchema, type ProspectoFormData } from "./prospectoSchema";
+export { clienteSchema, type ClienteFormData } from "./clienteSchema";
 export { asesorSchema, type AsesorFormData } from "./asesorSchema";
 export { cotizacionSchema, type CotizacionFormData } from "./cotizacionSchema";
 export { ventaSchema, type VentaFormData } from "./ventaSchema";
@@ -9,3 +10,4 @@ export { configuracionSchema, type ConfiguracionFormData } from "./configuracion
 export { loginSchema, type LoginFormData } from "./loginSchema";
 export { registroSchema, type RegistroFormData } from "./registroSchema";
 export { registroEmpresaSchema, type RegistroEmpresaFormData } from "./registroEmpresaSchema";
+export { nuevaContrasenaSchema, type NuevaContrasenaFormData } from "./nuevaContrasenaSchema";

@@ -6,4 +6,7 @@ export interface CotizacionDto {
   id_lote: number;
   precio_ofertado: number;
   estado: CotizacionEstado;
+  id_asesor: number | null;
+  monto_entrada: number;
+  num_cuotas: number;
 }

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/infrastructure/supabase/client";
 import { clearOfflinePersistence } from "@/infrastructure/offline/persistQueryClient";
+import { getContainer } from "@/infrastructure/container";
 
 interface AuthUser {
   id: string;
@@ -9,6 +10,8 @@ interface AuthUser {
   nombres: string;
   id_usuario?: number;
   id_empresa?: number;
+  /** estado_pago de la empresa ('pendiente' | 'pagado' | 'cancelado'). */
+  estadoPago?: string | null;
 }
 
 interface UsuarioInvitado {
@@ -17,18 +20,107 @@ interface UsuarioInvitado {
   id_empresa: number;
 }
 
+/**
+ * Vencio la contraseña temporal (la que otorga el panel al crear la
+ * cuenta: usuario del correo + "*", ver passwordDeEmail)? La fecha vive
+ * en usuario.password_temporal_hasta (migración 022) y se compara contra
+ * el reloj del dispositivo. NULL = el usuario ya definió la suya.
+ */
+function passwordExpirada(hasta: string | null | undefined): boolean {
+  if (!hasta) return false;
+  const limite = new Date(hasta).getTime();
+  return Number.isFinite(limite) && Date.now() > limite;
+}
+
+/**
+ * ¿Tiene el usuario al menos un rol asignado (usuario_rol)? Se consulta
+ * apenas se obtienen los datos de la sesión: sin roles la cuenta todavia
+ * no puede operar y hay que llevarla a /registro/planes.
+ * Devuelve null cuando no se pudo consultar (no hay id_usuario o fallo
+ * transitorio) para no bloquear el acceso por un error de red.
+ */
+async function usuarioTieneRoles(idUsuario: number | undefined): Promise<boolean | null> {
+  if (!idUsuario) return null;
+  try {
+    const roles = await getContainer().getRolesByUsuario.execute(idUsuario);
+    return roles.length > 0;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * estado_pago de la empresa del usuario ('pendiente' | 'pagado' |
+ * 'cancelado'). Mientras siga 'pendiente' (el webhook de Hotmart aun no
+ * confirmo) la cuenta no entra a la app: va a /registro/planes.
+ * Devuelve null si no hay empresa o fallo la consulta (no se bloquea).
+ */
+async function estadoPagoDeEmpresa(idEmpresa: number | undefined): Promise<string | null> {
+  if (!idEmpresa) return null;
+  try {
+    const { data } = await supabase
+      .from("empresa")
+      .select("estado_pago")
+      .eq("id_empresa", idEmpresa)
+      .single();
+    return data?.estado_pago ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mensajes amigables para los errores de signUp() de Supabase Auth.
+ * `email_address_invalid`: desde 2025 Auth valida que el dominio del
+ * correo exista (DNS) y rechaza dominios inventados como `@epruebas.com`
+ * aunque el formato sea correcto (ver supabase/auth#2252).
+ */
+function mensajeErrorSignUp(error: { message: string; code?: string }): string {
+  if (error.code === "email_address_invalid" || error.message.includes("is invalid")) {
+    return "El correo electronico no es valido porque el dominio no existe. Usa un correo con dominio real (por ejemplo, tu@gmail.com).";
+  }
+  if (error.code === "email_rate_limit_exceeded" || error.message.toLowerCase().includes("rate limit")) {
+    return "El servicio de correo de Supabase esta limitado (2 correos por hora). Desactiva 'Confirm email' en Authentication > Providers > Email o configura un SMTP propio en el panel de Supabase, y vuelve a intentar.";
+  }
+  if (error.message === "User already registered") {
+    return "Este correo electronico ya esta registrado";
+  }
+  return error.message;
+}
+
 interface AuthContextType {
   user: AuthUser | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  register: (email: string, password: string, nombres: string) => Promise<{ success: boolean; error?: string }>;
+  /** false = el usuario no tiene roles asignados; null = todavia no se verifico. */
+  tieneRoles: boolean | null;
+  login: (
+    email: string,
+    password: string,
+  ) => Promise<{ success: boolean; error?: string; tieneRoles?: boolean; estadoPago?: string | null }>;
+  register: (
+    email: string,
+    password: string,
+    nombres: string,
+  ) => Promise<{ success: boolean; error?: string }>;
   registerNuevaEmpresa: (
     email: string,
     password: string,
     nombres: string,
-    razonSocial: string
+    razonSocial: string,
+    /** Codigo de partnership (vendedor de la plataforma), opcional. */
+    codigoPartner?: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  cambiarPassword: (
+    nuevaPassword: string,
+  ) => Promise<{ success: boolean; error?: string; aviso?: string }>;
+  /**
+   * Reconsulta el estado_pago de la empresa (el webhook de Hotmart lo
+   * cambia a 'pagado' por fuera de la app). Devuelve el estado nuevo y lo
+   * guarda en la sesion, para que la pagina de planes se entere sin tener
+   * que recargar.
+   */
+  refrescarEstadoPago: () => Promise<string | null>;
   logout: () => Promise<void>;
 }
 
@@ -37,24 +129,47 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tieneRoles, setTieneRoles] = useState<boolean | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: usuario } = await supabase
           .from("usuario")
-          .select("id_usuario, id_empresa, nombres")
+          .select("id_usuario, id_empresa, nombres, password_temporal_hasta")
           .eq("email", session.user.email)
           .single();
+
+        // Contraseña temporal vencida: no se puede seguir con la sesión
+        // aunque el token de GoTrue siga siendo válido.
+        if (passwordExpirada(usuario?.password_temporal_hasta)) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setTieneRoles(null);
+          setLoading(false);
+          return;
+        }
+
+        // Restauracion de sesion (recargar la pagina, pestaña abierta de
+        // ayer): se re-verifican roles y estado de pago, no solo al loguear.
+        const [rolesOk, pago] = await Promise.all([
+          usuarioTieneRoles(usuario?.id_usuario),
+          estadoPagoDeEmpresa(usuario?.id_empresa),
+        ]);
+        setTieneRoles(rolesOk);
 
         setUser({
           id: session.user.id,
           email: session.user.email || "",
-          nombres: usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
+          nombres:
+            usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
+          estadoPago: pago,
         });
       }
       setLoading(false);
@@ -62,23 +177,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         const { data: usuario } = await supabase
           .from("usuario")
-          .select("id_usuario, id_empresa, nombres")
+          .select("id_usuario, id_empresa, nombres, password_temporal_hasta")
           .eq("email", session.user.email)
           .single();
+
+        // Mismo vencimiento que en initAuth, aplicado a sesiones que ya
+        // estaban abiertas (por ejemplo, la pestaña quedó de ayer).
+        if (passwordExpirada(usuario?.password_temporal_hasta)) {
+          await supabase.auth.signOut();
+          setUser(null);
+          setTieneRoles(null);
+          return;
+        }
+
+        const [rolesOk, pago] = await Promise.all([
+          usuarioTieneRoles(usuario?.id_usuario),
+          estadoPagoDeEmpresa(usuario?.id_empresa),
+        ]);
+        setTieneRoles(rolesOk);
 
         setUser({
           id: session.user.id,
           email: session.user.email || "",
-          nombres: usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
+          nombres:
+            usuario?.nombres || session.user.user_metadata?.nombres || session.user.email || "",
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
+          estadoPago: pago,
         });
       } else {
         setUser(null);
+        setTieneRoles(null);
       }
     });
 
@@ -92,15 +227,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
-      return { success: false, error: error.message === "Invalid login credentials" ? "Correo electronico o contrasena incorrectos" : error.message };
+      return {
+        success: false,
+        error:
+          error.message === "Invalid login credentials"
+            ? "Correo electronico o contrasena incorrectos"
+            : error.message,
+      };
     }
 
     if (data.user) {
       const { data: usuario } = await supabase
         .from("usuario")
-        .select("id_usuario, id_empresa, nombres")
+        .select("id_usuario, id_empresa, nombres, password_temporal_hasta")
         .eq("email", data.user.email)
         .single();
+
+      // GoTrue aceptó la contraseña temporal, pero si ya venció (24h) la
+      // app no deja pasar: se cierra la sesión recién abierta y se pide
+      // restablecer la contraseña.
+      if (passwordExpirada(usuario?.password_temporal_hasta)) {
+        await supabase.auth.signOut();
+        return {
+          success: false,
+          error:
+            "Tu contraseña temporal venció (24 horas). Restablecela desde 'Olvidé mi contraseña' para volver a entrar.",
+        };
+      }
+
+      let tieneRoles = false;
+      if (usuario?.id_usuario) {
+        try {
+          const roles = await getContainer().getRolesByUsuario.execute(usuario.id_usuario);
+          tieneRoles = roles.length > 0;
+        } catch (error) {
+          await supabase.auth.signOut();
+          return {
+            success: false,
+            error: `No se pudieron verificar los roles de tu cuenta. Intenta iniciar sesion de nuevo. ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          };
+        }
+      }
+
+      const estadoPago = await estadoPagoDeEmpresa(usuario?.id_empresa);
+      setTieneRoles(tieneRoles);
 
       setUser({
         id: data.user.id,
@@ -108,7 +280,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         nombres: usuario?.nombres || data.user.user_metadata?.nombres || data.user.email || "",
         id_usuario: usuario?.id_usuario,
         id_empresa: usuario?.id_empresa,
+        estadoPago,
       });
+
+      return { success: true, tieneRoles, estadoPago };
     }
 
     return { success: true };
@@ -122,16 +297,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // el RPC `usuario_invitado` (no una consulta directa a `usuario`)
     // porque en este punto todavia no hay sesion (rol anon) y las
     // politicas RLS de `usuario` solo permiten lectura a `authenticated`.
-    const { data: invitado, error: invitadoError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle<UsuarioInvitado>();
+    const { data: invitado, error: invitadoError } = await supabase
+      .rpc("usuario_invitado", { p_email: email })
+      .maybeSingle<UsuarioInvitado>();
 
     if (invitadoError) {
-      return { success: false, error: "No se pudo verificar tu invitacion. Intenta de nuevo en un momento." };
+      return {
+        success: false,
+        error: "No se pudo verificar tu invitacion. Intenta de nuevo en un momento.",
+      };
     }
 
     if (!invitado) {
       return {
         success: false,
-        error: "Tu empresa todavia no te invito. Si queres crear tu propia empresa, usa la opcion 'Crea tu empresa'.",
+        error:
+          "Tu empresa todavia no te invito. Si queres crear tu propia empresa, usa la opcion 'Crea tu empresa'.",
       };
     }
 
@@ -144,7 +325,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (error) {
-      return { success: false, error: error.message === "User already registered" ? "Este correo electronico ya esta registrado" : error.message };
+      return {
+        success: false,
+        error: mensajeErrorSignUp(error),
+      };
     }
 
     // Supabase no rechaza signUp() con un email ya registrado (para evitar
@@ -167,30 +351,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     }
 
+    const [rolesOk, estadoPago] = await Promise.all([
+      usuarioTieneRoles(invitado.id_usuario),
+      estadoPagoDeEmpresa(invitado.id_empresa),
+    ]);
+    setTieneRoles(rolesOk);
+
     setUser({
       id: data.user.id,
       email: data.user.email || "",
       nombres: invitado.nombres || nombres,
       id_usuario: invitado.id_usuario,
       id_empresa: invitado.id_empresa,
+      estadoPago,
     });
 
     return { success: true };
   }, []);
 
   const registerNuevaEmpresa = useCallback(
-    async (email: string, password: string, nombres: string, razonSocial: string) => {
-      const { data: existente, error: existenteError } = await supabase.rpc("usuario_invitado", { p_email: email }).maybeSingle<UsuarioInvitado>();
+    async (email: string, password: string, nombres: string, razonSocial: string, codigoPartner?: string) => {
+      const { data: existente, error: existenteError } = await supabase
+        .rpc("usuario_invitado", { p_email: email })
+        .maybeSingle<UsuarioInvitado>();
 
       if (existenteError) {
-        return { success: false, error: "No se pudo verificar el correo. Intenta de nuevo en un momento." };
+        return {
+          success: false,
+          error: "No se pudo verificar el correo. Intenta de nuevo en un momento.",
+        };
       }
 
       if (existente) {
         return {
           success: false,
-          error: "Ya existe una cuenta con este correo. Si tu empresa ya te invito, inicia sesion o registrate normalmente.",
+          error:
+            "Ya existe una cuenta con este correo. Si tu empresa ya te invito, inicia sesion o registrate normalmente.",
         };
+      }
+
+      // Opcional: codigo de partnership (vendedor de la plataforma) que el
+      // usuario puede ingresar al registrarse. Se valida ANTES de crear la
+      // cuenta para no dejar usuarios huerfanos por un codigo mal escrito.
+      // (La RPC existe desde la migracion 029: si no se corrio, solo falla
+      // cuando alguien escribe un codigo.)
+      let idPartner: number | null = null;
+      const codigo = (codigoPartner ?? "").trim();
+      if (codigo) {
+        const { data: partnerId, error: partnerError } = await supabase.rpc("validar_codigo_partner", {
+          p_codigo: codigo,
+        });
+
+        if (partnerError) {
+          return {
+            success: false,
+            error:
+              "No se pudo verificar el codigo de partnership. Intenta de nuevo en un momento, o dejalo vacio para continuar.",
+          };
+        }
+
+        if (!partnerId) {
+          return {
+            success: false,
+            error: `El codigo de partnership "${codigo.toUpperCase()}" no es valido. Corrigelo o dejalo vacio para continuar sin partner.`,
+          };
+        }
+
+        idPartner = Number(partnerId);
       }
 
       const { data, error } = await supabase.auth.signUp({
@@ -202,7 +429,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (error) {
-        return { success: false, error: error.message === "User already registered" ? "Este correo electronico ya esta registrado" : error.message };
+        return {
+          success: false,
+          error: mensajeErrorSignUp(error),
+        };
       }
 
       // Mismo caso que en register(): un email ya registrado no siempre
@@ -220,7 +450,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.session) {
         return {
           success: false,
-          error: "Tu cuenta necesita confirmacion por correo antes de crear la empresa. Confirma tu correo y pedile a un administrador que te cree la empresa manualmente, o desactiva 'Confirm email' en Supabase para usar este flujo de punta a punta.",
+          error:
+            "Tu cuenta necesita confirmacion por correo antes de crear la empresa. Confirma tu correo y pedile a un administrador que te cree la empresa manualmente, o desactiva 'Confirm email' en Supabase para usar este flujo de punta a punta.",
         };
       }
 
@@ -234,7 +465,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (setSessionError) {
-        return { success: false, error: `No se pudo establecer la sesion: ${setSessionError.message}` };
+        return {
+          success: false,
+          error: `No se pudo establecer la sesion: ${setSessionError.message}`,
+        };
       }
 
       // Diagnostico: confirma que el cliente realmente tiene la sesion
@@ -243,9 +477,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: sessionCheck } = await supabase.auth.getSession();
       const diag = `sesion=${sessionCheck.session ? "si" : "no"} setSessionUser=${setSessionData.user?.id ?? "null"} getSessionUser=${sessionCheck.session?.user?.id ?? "null"}`;
 
+      // estado_pago: el alta arranca 'pendiente' y el webhook de Hotmart
+      // (api/hotmart-webhook.ts) la pasa a 'pagado' cuando confirma el pago.
       const { data: empresa, error: empresaError } = await supabase
         .from("empresa")
-        .insert({ razon_social: razonSocial, estado: "activo" })
+        .insert({
+          razon_social: razonSocial,
+          estado: "activo",
+          id_partner: idPartner,
+          estado_pago: "pendiente",
+        })
         .select("id_empresa")
         .single();
 
@@ -269,29 +510,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      // Empresa recien creada: arranca con pago pendiente y sin roles
+      // asignados, asi que tras elegir plan el guard la deja entrar cuando
+      // el webhook confirme el pago y un admin le asigne roles.
+      setTieneRoles(false);
+
       setUser({
         id: data.user.id,
         email: data.user.email || "",
         nombres,
         id_usuario: nuevoUsuario.id_usuario,
         id_empresa: nuevoUsuario.id_empresa,
+        estadoPago: "pendiente",
       });
 
       return { success: true };
     },
-    []
+    [],
   );
+
+  /**
+   * El usuario define su propia contraseña: se guarda en Supabase Auth y
+   * se borra el sello de vencimiento (RPC password_definitiva) para que
+   * deje de correr el reloj de 24h.
+   */
+  const cambiarPassword = useCallback(async (nuevaPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: nuevaPassword });
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    // Si el sello no se puede borrar no se corta el flujo: la contraseña
+    // ya quedó guardada en Supabase Auth. Se avisa igual, porque sin ese
+    // aviso el reloj de 24h seguiría corriendo y el usuario se encontraría
+    // con el vencimiento más adelante.
+    const { error: selloError } = await supabase.rpc("password_definitiva");
+    if (selloError) {
+      return {
+        success: true,
+        aviso: `La contraseña se guardó, pero no se pudo quitar el vencimiento de 24 h (${selloError.message}). Si se te vence, repetí el proceso desde "Olvidé mi contraseña".`,
+      };
+    }
+
+    return { success: true };
+  }, []);
+
+  /**
+   * El pago se confirma por webhook de Hotmart, fuera de la app. Al volver
+   * a /registro/planes hay que reconsultar estado_pago para que la pagina
+   * se entere del pago sin tener que cerrar y abrir sesion.
+   */
+  const refrescarEstadoPago = useCallback(async () => {
+    const pago = await estadoPagoDeEmpresa(user?.id_empresa);
+    setUser((u) => (u ? { ...u, estadoPago: pago } : u));
+    return pago;
+  }, [user?.id_empresa]);
 
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setTieneRoles(null);
     // offline/tenant-isolation: nothing this device cached offline should
     // survive past the session it belonged to.
     await clearOfflinePersistence(queryClient);
   }, [queryClient]);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, registerNuevaEmpresa, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        loading,
+        tieneRoles,
+        login,
+        register,
+        registerNuevaEmpresa,
+        cambiarPassword,
+        refrescarEstadoPago,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

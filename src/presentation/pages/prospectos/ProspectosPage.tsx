@@ -1,15 +1,17 @@
-import { useState, useMemo } from "react";
-import { Card, Button, Space, Input, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip } from "antd";
+import { useState, useMemo, useEffect } from "react";
+import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProspectos } from "@/presentation/hooks";
+import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva } from "@/presentation/hooks";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+import { useAuth } from "@/presentation/providers";
+import { compararNumeroLote, detectarLoteEnNotas, formatCurrency } from "@/utils";
 
 const { Text } = Typography;
 
@@ -33,10 +35,22 @@ interface ModalState {
 export function ProspectosPage() {
   const { data: prospectos, isLoading } = useProspectos();
   const { empresaActual } = useEmpresa();
+  const { user } = useAuth();
+  const { idAsesor } = useAsesorDeSesion();
+  const { data: lotes } = useLotes();
+  const { data: manzanas } = useManzanas();
+  const { data: oportunidades } = useOportunidades();
+  const { data: entradasReserva } = useEntradasReserva();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
+  // Modal de reserva: se abre al pasar (o volver) a estado "reserva" y solo
+  // persiste el cambio cuando se confirma (design D2).
+  const [reservaAbierta, setReservaAbierta] = useState(false);
+  const [reservaProspecto, setReservaProspecto] = useState<Prospecto | null>(null);
+  const [reservaSubmitting, setReservaSubmitting] = useState(false);
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const [reservaForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
@@ -61,6 +75,16 @@ export function ProspectosPage() {
     return stats;
   }, [prospectos]);
 
+  // Entradas (señas) que dio el prospecto en estado "reserva"; se suma el
+  // total cobrado para mostrarlo en el modal de detalle.
+  const entradasDelProspecto = useMemo(() => {
+    if (!modal.record || modal.record.estado !== "reserva" || !entradasReserva) return null;
+    const monto = entradasReserva
+      .filter((e) => e.id_prospecto === modal.record?.id_prospecto)
+      .reduce((s, e) => s + Math.round(e.monto * 100), 0) / 100;
+    return monto;
+  }, [modal.record, entradasReserva]);
+
   const sinSeguimiento = useMemo(() => {
     if (!prospectos) return [];
     const now = new Date();
@@ -71,6 +95,85 @@ export function ProspectosPage() {
     });
   }, [prospectos]);
 
+  // Datos para el modal de reserva: lotes disponibles con su etiqueta.
+  const lotesDisponibles = useMemo(
+    () =>
+      (lotes ?? [])
+        .filter((l) => l.estado === "disponible")
+        .slice()
+        .sort(compararNumeroLote),
+    [lotes],
+  );
+
+  const nombreManzana = useMemo(
+    () => Object.fromEntries((manzanas ?? []).map((m) => [m.id_manzana, m.nombre_codigo])),
+    [manzanas],
+  );
+
+  const opcionesLotes = useMemo(
+    () =>
+      lotesDisponibles.map((l) => {
+        const numero = String(l.numero_lote ?? "").trim();
+        const manzana = nombreManzana[l.id_manzana];
+        // Si el numero ya trae letras (H3, L1.7) basta con el; si es solo
+        // numerico se antepone la manzana para ubicarlo.
+        const etiqueta = /[A-Za-z]/.test(numero) || !manzana ? numero : `${manzana} - ${numero}`;
+        return { value: l.id_lote, label: `${etiqueta || `Lote #${l.id_lote}`} · ${formatCurrency(l.precio_lista)}` };
+      }),
+    [lotesDisponibles, nombreManzana],
+  );
+
+  const loteElegido = Form.useWatch("id_lote", reservaForm);
+  const loteResumen = lotesDisponibles.find((l) => l.id_lote === loteElegido) ?? null;
+
+  // Lote deducido de las notas cuando el prospecto es nuevo: sirve tanto para
+  // pre-seleccionarlo al abrir el modal como para mostrar el aviso en el form.
+  const loteDetectadoNota = useMemo(
+    () =>
+      reservaProspecto?.estado === "nuevo"
+        ? detectarLoteEnNotas(reservaProspecto.notas, lotesDisponibles)
+        : null,
+    [reservaProspecto, lotesDisponibles],
+  );
+
+  const tieneLoteAsignado = (prospecto: Prospecto) =>
+    (oportunidades ?? []).some(
+      (o) => o.id_prospecto === prospecto.id_prospecto && o.id_lote != null,
+    );
+
+  // Un prospecto se puede reservar mientras no esté ya en "reserva" ni
+  // "perdido". Mismo criterio que el flujo de Editar → Estado = Reserva.
+  const puedeReservar = (prospecto: Prospecto) =>
+    prospecto.estado !== "reserva" && prospecto.estado !== "perdido";
+
+  const abrirReserva = (prospecto: Prospecto) => {
+    setReservaProspecto(prospecto);
+    setReservaAbierta(true);
+  };
+
+  const cerrarReserva = () => {
+    setReservaAbierta(false);
+    setReservaProspecto(null);
+    reservaForm.resetFields();
+  };
+
+  // Los datos del prospecto se cargan después de montar el modal: setear el
+  // form antes de que exista el campo no siempre deja valores.
+  useEffect(() => {
+    if (!reservaAbierta || !reservaProspecto) return;
+    // Si el prospecto recién llega (estado "nuevo") y en sus notas se anotó
+    // un lote ("lote 5", "lote H3"), se pre-selecciona para agilizar la
+    // reserva. En los demás estados el lote queda en blanco como siempre.
+    reservaForm.setFieldsValue({
+      id_lote: loteDetectadoNota?.id_lote ?? null,
+      nombres: reservaProspecto.nombres,
+      email: reservaProspecto.email ?? "",
+      telefono: reservaProspecto.telefono ?? "",
+      cedula_ruc: "",
+      entrada: 0,
+    });
+  }, [reservaAbierta, reservaProspecto, reservaForm, loteDetectadoNota]);
+
   const openModal = (type: "view" | "edit" | "delete", record: Prospecto) => {
     setModal({ type, visible: true, record });
     if (type === "edit") editForm.setFieldsValue({ nombres: record.nombres, email: record.email, telefono: record.telefono, origen: record.origen, estado: record.estado, notas: record.notas });
@@ -80,13 +183,51 @@ export function ProspectosPage() {
 
   const handleEdit = async () => {
     if (!modal.record) return;
+    const record = modal.record;
     try {
       const values = await editForm.validateFields();
       const parsed = prospectoSchema.partial().parse(values);
-      await container.updateProspecto.execute(modal.record.id_prospecto, parsed);
+
+      // Pasar a "Reserva" (y todavía sin lote) abre el modal: los demás datos
+      // se guardan aquí y el estado se persiste recién al confirmar, así que
+      // cancelar deja el prospecto como estaba.
+      if (values.estado === "reserva" && !tieneLoteAsignado(record)) {
+        const conservado = await container.updateProspecto.execute(record.id_prospecto, {
+          ...parsed,
+          estado: record.estado,
+        });
+        await refresh();
+        closeModal();
+        abrirReserva(conservado);
+        return;
+      }
+
+      await container.updateProspecto.execute(record.id_prospecto, parsed);
       await refresh();
       messageApi.success("Prospecto actualizado");
       closeModal();
+    } catch (error) {
+      if (error instanceof Error) messageApi.error(error.message);
+      else messageApi.error("Error al actualizar");
+    }
+  };
+
+  // Guarda lo que se haya editado y de ahí sigue directo al modal de reserva.
+  // El estado no se fuerza a "reserva": ese estado lo pone el modal al
+  // confirmar, así que cancelar deja el prospecto como estaba.
+  const handleEditAndReserve = async () => {
+    if (!modal.record) return;
+    const record = modal.record;
+    try {
+      const values = await editForm.validateFields();
+      const parsed = prospectoSchema.partial().parse(values);
+      const conservado = await container.updateProspecto.execute(record.id_prospecto, {
+        ...parsed,
+        estado: record.estado,
+      });
+      await refresh();
+      closeModal();
+      abrirReserva(conservado);
     } catch (error) {
       if (error instanceof Error) messageApi.error(error.message);
       else messageApi.error("Error al actualizar");
@@ -114,14 +255,79 @@ export function ProspectosPage() {
     try {
       const values = await createForm.validateFields();
       const parsed = prospectoSchema.parse(values);
-      await container.createProspecto.execute({ ...parsed, id_empresa: empresaActual.id_empresa, id_asesor: null, fecha_ultimo_seguimiento: null });
+      const registraReserva = parsed.estado === "reserva";
+      const creado = await container.createProspecto.execute({
+        ...parsed,
+        // Si el alta pide reserva nace en "nuevo": el estado "reserva" lo pone
+        // el modal al confirmar, y cancelar deja el prospecto sin reserva.
+        estado: registraReserva ? "nuevo" : parsed.estado,
+        id_empresa: empresaActual.id_empresa,
+        id_asesor: idAsesor,
+        fecha_ultimo_seguimiento: null,
+      });
       await refresh();
       messageApi.success("Prospecto creado");
       setCreateModalOpen(false);
       createForm.resetFields();
+      if (registraReserva) abrirReserva(creado);
     } catch (error) {
       if (error instanceof Error) messageApi.error(error.message);
       else messageApi.error("Error al crear");
+    }
+  };
+
+  const confirmarReserva = async () => {
+    const prospecto = reservaProspecto;
+    if (!prospecto) return;
+    if (!user?.id_usuario) {
+      messageApi.error("No se pudo identificar el usuario actual");
+      return;
+    }
+
+    let values: {
+      id_lote: number;
+      nombres: string;
+      cedula_ruc: string;
+      email?: string;
+      telefono?: string;
+      entrada?: number;
+    };
+    try {
+      values = await reservaForm.validateFields();
+    } catch {
+      return;
+    }
+
+    setReservaSubmitting(true);
+    try {
+      await container.reservarProspecto.execute({
+        idProspecto: prospecto.id_prospecto,
+        idLote: values.id_lote,
+        usuarioId: user.id_usuario,
+        idAsesor,
+        cliente: {
+          nombres: values.nombres,
+          cedula_ruc: values.cedula_ruc,
+          email: values.email ?? "",
+          telefono: values.telefono?.trim() ? values.telefono : null,
+        },
+        // Entrada (seña) opcional: 0 o ausente = sin cobro, la reserva avanza igual.
+        entrada: (values.entrada ?? 0) > 0 ? { monto: values.entrada ?? 0 } : null,
+      });
+      await refresh();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["lotes"] }),
+        queryClient.invalidateQueries({ queryKey: ["clientes"] }),
+        queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
+        queryClient.invalidateQueries({ queryKey: ["inventario"] }),
+        queryClient.invalidateQueries({ queryKey: ["entradasReserva"] }),
+      ]);
+      messageApi.success(`Reserva confirmada: ${prospecto.nombres} paso a etapa Reserva`);
+      cerrarReserva();
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : "No se pudo reservar el lote");
+    } finally {
+      setReservaSubmitting(false);
     }
   };
 
@@ -166,6 +372,11 @@ export function ProspectosPage() {
       width: 150,
       render: (_: unknown, record: Prospecto) => (
         <Space size={4}>
+          {puedeReservar(record) && (
+            <Tooltip title="Reservar lote">
+              <Button type="text" icon={<ClockCircleOutlined />} style={{ color: "#722ed1" }} onClick={() => abrirReserva(record)} />
+            </Tooltip>
+          )}
           <Tooltip title="Ver"><Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => openModal("view", record)} /></Tooltip>
           <Tooltip title="Editar"><Button type="text" icon={<EditOutlined />} style={{ color: "#faad14" }} onClick={() => openModal("edit", record)} /></Tooltip>
           <Tooltip title="Eliminar"><Button type="text" icon={<DeleteOutlined />} style={{ color: "#ff4d4f" }} onClick={() => openModal("delete", record)} /></Tooltip>
@@ -238,6 +449,13 @@ export function ProspectosPage() {
               <Descriptions.Item label="Telefono">{modal.record.telefono || "N/A"}</Descriptions.Item>
               <Descriptions.Item label="Origen">{modal.record.origen}</Descriptions.Item>
               <Descriptions.Item label="Estado"><Tag color={estadoConfig[modal.record.estado]?.color}>{estadoConfig[modal.record.estado]?.label}</Tag></Descriptions.Item>
+              {modal.record.estado === "reserva" && entradasDelProspecto !== null && (
+                <Descriptions.Item label="Entrada" span={2}>
+                  <Text strong style={{ color: entradasDelProspecto > 0 ? "#389e0d" : undefined }}>
+                    {entradasDelProspecto > 0 ? formatCurrency(entradasDelProspecto) : "Sin entrada registrada"}
+                  </Text>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="Notas" span={2}>{modal.record.notas || "Sin notas"}</Descriptions.Item>
             </Descriptions>
           </div>
@@ -252,6 +470,17 @@ export function ProspectosPage() {
         onOk={handleEdit}
         okText="Guardar"
         cancelText="Cancelar"
+        footer={(_, { OkBtn, CancelBtn }) => (
+          <Space>
+            {modal.record && puedeReservar(modal.record) && (
+              <Button icon={<ClockCircleOutlined />} onClick={handleEditAndReserve}>
+                Reservar ahora
+              </Button>
+            )}
+            <CancelBtn />
+            <OkBtn />
+          </Space>
+        )}
       >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="nombres" label="Nombres" rules={[{ required: true, message: "Ingrese el nombre" }]}>
@@ -282,6 +511,135 @@ export function ProspectosPage() {
         <p style={{ marginTop: 16 }}>¿Eliminar prospecto <strong>{modal.record?.nombres}</strong>?</p>
       </Modal>
 
+      {/* Modal Reserva */}
+      <Modal
+        title="Reservar lote"
+        open={reservaAbierta}
+        onCancel={cerrarReserva}
+        onOk={confirmarReserva}
+        okText="Confirmar Reserva"
+        cancelText="Cancelar"
+        confirmLoading={reservaSubmitting}
+        okButtonProps={{ disabled: !loteElegido || lotesDisponibles.length === 0 }}
+        width={560}
+      >
+        {reservaProspecto && (
+          <div style={{ marginTop: 16 }}>
+            <p style={{ marginBottom: 16 }}>
+              <strong>{reservaProspecto.nombres}</strong> pasa a etapa{" "}
+              <Tag color="purple">Reserva</Tag>. Seleccione el lote a reservar.
+            </p>
+
+            {lotesDisponibles.length === 0 ? (
+              <Alert
+                type="warning"
+                showIcon
+                message="No hay lotes disponibles"
+                description="No se puede confirmar la reserva hasta que haya al menos un lote en estado Disponible."
+              />
+            ) : (
+              <Form form={reservaForm} layout="vertical">
+                <Form.Item
+                  name="id_lote"
+                  label="Lote"
+                  rules={[{ required: true, message: "Seleccione el lote" }]}
+                >
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    placeholder="Seleccionar lote disponible"
+                    loading={!lotes}
+                    options={opcionesLotes}
+                  />
+                </Form.Item>
+
+                {loteDetectadoNota && loteElegido === loteDetectadoNota.id_lote && (
+                  <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message={`Lote ${loteDetectadoNota.numero_lote} tomado de las notas`}
+                    description="Se pre-seleccionó el lote anotado en las notas del prospecto. Confírmelo o cámbielo si es otro."
+                  />
+                )}
+
+                {loteResumen && (
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      background: "#fafafa",
+                      border: "1px solid #f0f0f0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 8,
+                    }}
+                  >
+                    <Text type="secondary">Precio de lista</Text>
+                    <Text strong>{formatCurrency(loteResumen.precio_lista)}</Text>
+                  </div>
+                )}
+
+                <Form.Item
+                  name="nombres"
+                  label="Nombre del cliente"
+                  rules={[{ required: true, message: "Ingrese el nombre del cliente" }]}
+                >
+                  <Input prefix={<UserOutlined />} />
+                </Form.Item>
+                <Form.Item
+                  name="cedula_ruc"
+                  label="Cedula / RUC"
+                  rules={[
+                    { required: true, message: "Ingrese la cedula o RUC" },
+                    { min: 5, message: "Minimo 5 caracteres" },
+                  ]}
+                >
+                  <Input />
+                </Form.Item>
+                <Form.Item
+                  name="email"
+                  label="Email"
+                  rules={[{ type: "email", message: "Email invalido" }]}
+                >
+                  <Input placeholder="email@ejemplo.com" />
+                </Form.Item>
+                <Form.Item
+                  name="telefono"
+                  label="Telefono"
+                  rules={[
+                    { required: true, message: "Ingrese el telefono" },
+                    { max: 50, message: "Maximo 50 caracteres" },
+                  ]}
+                >
+                  <Input placeholder="0991234567" />
+                </Form.Item>
+                <Form.Item
+                  name="entrada"
+                  label="Entrada (opcional)"
+                  extra={
+                    loteResumen
+                      ? `Si se cobra una seña al reservar, ingrésela aquí. Máximo ${formatCurrency(
+                          Math.max(0, (loteResumen.precio_lista ?? 0) - 1)
+                        )}. Dejar en 0 si no se cobra nada.`
+                      : "Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                  }
+                >
+                  <InputNumber
+                    style={{ width: "100%" }}
+                    min={0}
+                    max={loteResumen ? Math.max(0, (loteResumen.precio_lista ?? 0) - 1) : undefined}
+                    step={100}
+                    placeholder="0"
+                  />
+                </Form.Item>
+              </Form>
+            )}
+          </div>
+        )}
+      </Modal>
+
       {/* Create Modal */}
       <Modal
         title="Nuevo Prospecto"
@@ -299,6 +657,9 @@ export function ProspectosPage() {
           <Form.Item name="telefono" label="Telefono"><Input placeholder="0991234567" /></Form.Item>
           <Form.Item name="origen" label="Origen" initialValue="directo">
             <Select options={[{ value: "directo", label: "Directo" }, { value: "referido", label: "Referido" }, { value: "web", label: "Web" }, { value: "publicidad", label: "Publicidad" }]} />
+          </Form.Item>
+          <Form.Item name="estado" label="Estado" initialValue="nuevo">
+            <Select options={pipelineEtapas.map((e) => ({ value: e, label: estadoConfig[e].label }))} />
           </Form.Item>
         </Form>
       </Modal>

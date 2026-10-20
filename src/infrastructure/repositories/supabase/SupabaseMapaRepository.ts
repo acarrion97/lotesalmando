@@ -9,6 +9,8 @@ interface LotePlanoRow {
   numero_lote: string;
   estado: LoteEstado;
   precio_lista: number | null;
+  superficie_m2: number | null;
+  medidas: string | null;
   poligono: PuntoPlano[] | null;
   manzana_bloque: { nombre_codigo: string | null } | null;
 }
@@ -56,7 +58,7 @@ export class SupabaseMapaRepository implements MapaRepository {
     const { data, error } = await supabase
       .from("lotes")
       .select(
-        "id_lote, id_manzana, numero_lote, estado, precio_lista, poligono, manzana_bloque!inner(nombre_codigo, etapas!inner(id_proyecto))",
+        "id_lote, id_manzana, numero_lote, estado, precio_lista, superficie_m2, medidas, poligono, manzana_bloque!inner(nombre_codigo, etapas!inner(id_proyecto))",
       )
       .eq("manzana_bloque.etapas.id_proyecto", proyectoId);
     if (error) throw error;
@@ -67,6 +69,8 @@ export class SupabaseMapaRepository implements MapaRepository {
       numero_lote: row.numero_lote,
       estado: row.estado,
       precio_lista: row.precio_lista ?? undefined,
+      superficie_m2: row.superficie_m2,
+      medidas: row.medidas,
       poligono: row.poligono,
       manzana: row.manzana_bloque?.nombre_codigo ?? `${row.id_manzana}`,
     }));
@@ -109,6 +113,22 @@ export class SupabaseMapaRepository implements MapaRepository {
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const { data, error } = await supabase.rpc("mapa_publico", { p_slug: slug });
     if (error) throw error;
-    return (data as MapaPublico | null) ?? null;
+    if (!data) return null;
+
+    // El RPC devuelve JSON: se normaliza para que la página pública no se
+    // rompa si un campo opcional viene ausente (p. ej. migración 011 sin
+    // aplicar todavía).
+    const crudo = data as Partial<MapaPublico> & Record<string, unknown>;
+    return {
+      proyecto: crudo.proyecto ?? "",
+      url_publica: crudo.url_publica ?? null,
+      moneda: crudo.moneda ?? "USD",
+      medios: Array.isArray(crudo.medios) ? crudo.medios : [],
+      estadisticas: crudo.estadisticas ?? undefined,
+      centro_lat: crudo.centro_lat ?? null,
+      centro_lng: crudo.centro_lng ?? null,
+      ancho_m: crudo.ancho_m ?? null,
+      lotes: Array.isArray(crudo.lotes) ? crudo.lotes : [],
+    };
   }
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Form, Input, Button, Typography, Alert, message } from "antd";
 import { MailOutlined, LockOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
@@ -9,10 +9,35 @@ const { Text } = Typography;
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+
+  // Aviso de llegada desde el flujo de recuperación de contraseña o desde
+  // la pagina de planes (pago recien confirmado por webhook).
+  const locationState = location.state as {
+    contrasenaCambiada?: boolean;
+    avisoPassword?: string;
+    avisoPago?: string;
+  } | null;
+  const contrasenaCambiada = Boolean(locationState?.contrasenaCambiada);
+  const avisoPassword = locationState?.avisoPassword;
+  const avisoPago = locationState?.avisoPago;
+  useEffect(() => {
+    if (contrasenaCambiada) {
+      messageApi.success("Contraseña actualizada. Inicia sesión con la nueva.");
+      if (avisoPassword) {
+        messageApi.warning(avisoPassword);
+      }
+    }
+  }, [contrasenaCambiada, avisoPassword, messageApi]);
+  useEffect(() => {
+    if (avisoPago) {
+      messageApi.success(avisoPago);
+    }
+  }, [avisoPago, messageApi]);
 
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
@@ -35,7 +60,10 @@ export function LoginPage() {
 
     messageApi.success("Sesion iniciada correctamente");
     setTimeout(() => {
-      navigate("/dashboard");
+      // Sin roles o con pago pendiente no se entra a la app: la pagina de
+      // planes es el unico destino posible desde el login.
+      const puedeOperar = result.tieneRoles && result.estadoPago !== "pendiente";
+      navigate(puedeOperar ? "/dashboard" : "/registro/planes");
     }, 500);
   };
 
@@ -97,18 +125,17 @@ export function LoginPage() {
             />
           </Form.Item>
 
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: "Ingresa tu contrasena" }]}
-          >
+          <Form.Item name="password" rules={[{ required: true, message: "Ingresa tu contrasena" }]}>
             <Input.Password
               prefix={<LockOutlined style={{ color: "#bfbfbf" }} />}
               placeholder="Contrasena"
-              iconRender={(visible) =>
-                visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-              }
+              iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
             />
           </Form.Item>
+
+          <div style={{ textAlign: "right", marginTop: -12, marginBottom: 16 }}>
+            <Link to="/olvide-contrasena">Olvidaste tu contraseña?</Link>
+          </div>
 
           <Form.Item style={{ marginBottom: 16 }}>
             <Button
@@ -128,12 +155,6 @@ export function LoginPage() {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            No tienes cuenta? <Link to="/registro">Registrate aqui</Link>
-          </Text>
-        </div>
       </div>
     </div>
   );

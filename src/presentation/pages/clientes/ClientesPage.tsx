@@ -1,17 +1,20 @@
 import { useState, useMemo } from "react";
 import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
+import { usePuede } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { getContainer } from "@/infrastructure/container";
+import { clienteSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { ClienteDeudasModal } from "./ClienteDeudasModal";
 
 interface ModalState {
-  type: "view" | "edit" | "delete" | null;
+  type: "view" | "edit" | "delete" | "deudas" | null;
   visible: boolean;
   record: Cliente | null;
 }
@@ -28,6 +31,9 @@ export function ClientesPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
+  const puedeCrear = usePuede("crear_clientes");
+  const puedeEditar = usePuede("editar_clientes");
+  const puedeEliminar = usePuede("eliminar_clientes");
 
   const refreshClientes = () => queryClient.invalidateQueries({ queryKey: ["clientes", empresaId] });
 
@@ -41,10 +47,15 @@ export function ClientesPage() {
     );
   }, [clientes, searchText]);
 
-  const openModal = (type: "view" | "edit" | "delete", record: Cliente) => {
+  const openModal = (type: "view" | "edit" | "delete" | "deudas", record: Cliente) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ nombres: record.nombres, cedula_ruc: record.cedula_ruc, email: record.email });
+      editForm.setFieldsValue({
+        nombres: record.nombres,
+        cedula_ruc: record.cedula_ruc,
+        email: record.email,
+        telefono: record.telefono ?? "",
+      });
     }
   };
 
@@ -58,7 +69,8 @@ export function ClientesPage() {
 
     try {
       const values = await editForm.validateFields();
-      await container.updateCliente.execute(modal.record.id_cliente, values);
+      const parsed = clienteSchema.parse(values);
+      await container.updateCliente.execute(modal.record.id_cliente, parsed);
       await refreshClientes();
       messageApi.success("Cliente actualizado correctamente");
       closeModal();
@@ -83,7 +95,13 @@ export function ClientesPage() {
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
-      await container.createCliente.execute(values);
+      const parsed = clienteSchema.parse(values);
+      await container.createCliente.execute({
+        ...parsed,
+        // El cliente nace en la empresa seleccionada (migración 019): es lo
+        // que después filtra el listado y los selectores de cotización.
+        id_empresa: empresaActual?.id_empresa ?? null,
+      });
       await refreshClientes();
       messageApi.success("Cliente creado correctamente");
       setCreateModalOpen(false);
@@ -159,13 +177,32 @@ export function ClientesPage() {
       onFilter: (value, record) => record.email.toLowerCase().includes(String(value).toLowerCase()),
     },
     {
+      title: "Telefono",
+      dataIndex: "telefono",
+      key: "telefono",
+      width: 140,
+      render: (telefono?: string | null) =>
+        telefono ? (
+          <span>{telefono}</span>
+        ) : (
+          <span style={{ color: "#bfbfbf" }} aria-label="Sin telefono">
+            —
+          </span>
+        ),
+    },
+    {
       title: "Acciones",
       key: "acciones",
       render: (_: unknown, record: Cliente) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
-          <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
-          <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
+          <Button type="link" icon={<WalletOutlined />} onClick={() => openModal("deudas", record)}>Deudas</Button>
+          {puedeEditar && (
+            <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
+          )}
+          {puedeEliminar && (
+            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
+          )}
         </Space>
       ),
     },
@@ -178,9 +215,11 @@ export function ClientesPage() {
         title="Clientes"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-            Nuevo
-          </Button>
+          puedeCrear ? (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+              Nuevo
+            </Button>
+          ) : null
         }
       />
       <DataTable<Cliente>
@@ -204,9 +243,23 @@ export function ClientesPage() {
             <Descriptions.Item label="Nombres">{modal.record.nombres}</Descriptions.Item>
             <Descriptions.Item label="Cedula / RUC">{modal.record.cedula_ruc}</Descriptions.Item>
             <Descriptions.Item label="Email">{modal.record.email}</Descriptions.Item>
+            <Descriptions.Item label="Telefono">
+              {modal.record.telefono ?? (
+                <span style={{ color: "#bfbfbf" }} aria-label="Sin telefono">
+                  Sin registrar
+                </span>
+              )}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
+
+      {/* Deudas Modal */}
+      <ClienteDeudasModal
+        cliente={modal.record}
+        open={modal.visible && modal.type === "deudas"}
+        onClose={closeModal}
+      />
 
       {/* Edit Modal */}
       <Modal
@@ -241,6 +294,13 @@ export function ClientesPage() {
             ]}
           >
             <Input />
+          </Form.Item>
+          <Form.Item
+            name="telefono"
+            label="Telefono"
+            rules={[{ max: 50, message: "Maximo 50 caracteres" }]}
+          >
+            <Input placeholder="0991234567" />
           </Form.Item>
         </Form>
       </Modal>
@@ -278,6 +338,13 @@ export function ClientesPage() {
             ]}
           >
             <Input />
+          </Form.Item>
+          <Form.Item
+            name="telefono"
+            label="Telefono"
+            rules={[{ max: 50, message: "Maximo 50 caracteres" }]}
+          >
+            <Input placeholder="0991234567" />
           </Form.Item>
         </Form>
       </Modal>

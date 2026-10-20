@@ -2,6 +2,16 @@ import type { Repositories } from "./create-repositories";
 
 import { GetEmpresasUseCase } from "@/application/empresa/use-cases/GetEmpresasUseCase";
 import { GetEmpresaByIdUseCase } from "@/application/empresa/use-cases/GetEmpresaByIdUseCase";
+import { CreateEmpresaConAdminUseCase } from "@/application/empresa/use-cases/CreateEmpresaConAdminUseCase";
+import { GetPlataformaMetricasUseCase } from "@/application/empresa/use-cases/GetPlataformaMetricasUseCase";
+import { UpdateEmpresaPlanUseCase } from "@/application/empresa/use-cases/UpdateEmpresaPlanUseCase";
+import { GetPlanesUseCase } from "@/application/plan/use-cases/GetPlanesUseCase";
+import { GuardarPlanUseCase } from "@/application/plan/use-cases/GuardarPlanUseCase";
+import { EliminarPlanUseCase } from "@/application/plan/use-cases/EliminarPlanUseCase";
+import { SubirImagenPlanUseCase } from "@/application/plan/use-cases/SubirImagenPlanUseCase";
+import { GetPartnershipsUseCase } from "@/application/partnership/use-cases/GetPartnershipsUseCase";
+import { GuardarPartnershipUseCase } from "@/application/partnership/use-cases/GuardarPartnershipUseCase";
+import { EliminarPartnershipUseCase } from "@/application/partnership/use-cases/EliminarPartnershipUseCase";
 import { GetProyectosUseCase } from "@/application/proyectos/use-cases/GetProyectosUseCase";
 import { GetProyectoByIdUseCase } from "@/application/proyectos/use-cases/GetProyectoByIdUseCase";
 import { CreateProyectoUseCase } from "@/application/proyectos/use-cases/CreateProyectoUseCase";
@@ -14,6 +24,9 @@ import { UpdateLoteUseCase } from "@/application/lotes/use-cases/UpdateLoteUseCa
 import { DeleteLoteUseCase } from "@/application/lotes/use-cases/DeleteLoteUseCase";
 import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
+import { ReservarProspectoUseCase } from "@/application/prospectos/use-cases/ReservarProspectoUseCase";
+import { RegistrarEntradaReservaUseCase } from "@/application/entradas/use-cases/RegistrarEntradaReservaUseCase";
+import { GetEntradasReservaUseCase } from "@/application/entradas/use-cases/GetEntradasReservaUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
 import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
@@ -22,19 +35,23 @@ import { DeleteClienteUseCase } from "@/application/clientes/use-cases/DeleteCli
 import { GetCotizacionesUseCase } from "@/application/cotizaciones/use-cases/GetCotizacionesUseCase";
 import { CreateCotizacionUseCase } from "@/application/cotizaciones/use-cases/CreateCotizacionUseCase";
 import { UpdateCotizacionUseCase } from "@/application/cotizaciones/use-cases/UpdateCotizacionUseCase";
+import { AceptarCotizacionUseCase } from "@/application/cotizaciones/use-cases/AceptarCotizacionUseCase";
 import { GetVentasUseCase } from "@/application/ventas/use-cases/GetVentasUseCase";
-import { CreateVentaUseCase } from "@/application/ventas/use-cases/CreateVentaUseCase";
 import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContratosUseCase";
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
+import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
+import { GetProyeccionFinancieraUseCase } from "@/application/proyecciones/use-cases/GetProyeccionFinancieraUseCase";
 import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
 import { GenerarAlertasUseCase } from "@/application/alertas/use-cases/GenerarAlertasUseCase";
 import { GetUsuariosUseCase } from "@/application/usuarios/use-cases/GetUsuariosUseCase";
 import { CreateUsuarioUseCase } from "@/application/usuarios/use-cases/CreateUsuarioUseCase";
+import { CreateUsuarioAuthUseCase } from "@/application/usuarios/use-cases/CreateUsuarioAuthUseCase";
 import { UpdateUsuarioUseCase } from "@/application/usuarios/use-cases/UpdateUsuarioUseCase";
 import { DeleteUsuarioUseCase } from "@/application/usuarios/use-cases/DeleteUsuarioUseCase";
+import { AsignarAsesorParaUsuarioUseCase } from "@/application/usuarios/use-cases/AsignarAsesorParaUsuarioUseCase";
 import { GetEtapasByProyectoUseCase } from "@/application/etapas/use-cases/GetEtapasByProyectoUseCase";
 import { GetAllEtapasUseCase } from "@/application/etapas/use-cases/GetAllEtapasUseCase";
 import { CreateEtapaUseCase } from "@/application/etapas/use-cases/CreateEtapaUseCase";
@@ -49,6 +66,7 @@ import { GetProspectosUseCase } from "@/application/prospectos/use-cases/GetPros
 import { CreateProspectoUseCase } from "@/application/prospectos/use-cases/CreateProspectoUseCase";
 import { UpdateProspectoUseCase } from "@/application/prospectos/use-cases/UpdateProspectoUseCase";
 import { DeleteProspectoUseCase } from "@/application/prospectos/use-cases/DeleteProspectoUseCase";
+import { RegistrarInteresPublicoUseCase } from "@/application/prospectos/use-cases/RegistrarInteresPublicoUseCase";
 import { GetOportunidadesUseCase } from "@/application/oportunidades/use-cases/GetOportunidadesUseCase";
 import { CreateOportunidadUseCase } from "@/application/oportunidades/use-cases/CreateOportunidadUseCase";
 import { UpdateOportunidadUseCase } from "@/application/oportunidades/use-cases/UpdateOportunidadUseCase";
@@ -60,9 +78,19 @@ import { UpdateAsesorUseCase } from "@/application/asesores/use-cases/UpdateAses
 import { DeleteAsesorUseCase } from "@/application/asesores/use-cases/DeleteAsesorUseCase";
 import { GetRolesUseCase } from "@/application/roles/use-cases/GetRolesUseCase";
 import { GetRolesByUsuarioUseCase } from "@/application/roles/use-cases/GetRolesByUsuarioUseCase";
+import { GetRolesPorUsuariosUseCase } from "@/application/roles/use-cases/GetRolesPorUsuariosUseCase";
+import { GetPermisosByUsuarioUseCase } from "@/application/roles/use-cases/GetPermisosByUsuarioUseCase";
+import { CreateRolUseCase } from "@/application/roles/use-cases/CreateRolUseCase";
+import { UpdateRolUseCase } from "@/application/roles/use-cases/UpdateRolUseCase";
+import { DeleteRolUseCase } from "@/application/roles/use-cases/DeleteRolUseCase";
+import { GetAllPermisosUseCase } from "@/application/roles/use-cases/GetAllPermisosUseCase";
+import { CreatePermisoUseCase } from "@/application/roles/use-cases/CreatePermisoUseCase";
+import { DeletePermisoUseCase } from "@/application/roles/use-cases/DeletePermisoUseCase";
+import { GetPermisoIdsByRolUseCase } from "@/application/roles/use-cases/GetPermisoIdsByRolUseCase";
+import { AssignPermisoARolUseCase } from "@/application/roles/use-cases/AssignPermisoARolUseCase";
+import { RemovePermisoDeRolUseCase } from "@/application/roles/use-cases/RemovePermisoDeRolUseCase";
 import { AssignRolUseCase } from "@/application/roles/use-cases/AssignRolUseCase";
 import { RemoveRolUseCase } from "@/application/roles/use-cases/RemoveRolUseCase";
-import { SupabaseCreateSaleTransaction } from "@/infrastructure/transactions/SupabaseCreateSaleTransaction";
 import { GetInventarioUseCase } from "@/application/inventario/use-cases/GetInventarioUseCase";
 import { CreateInventarioUseCase } from "@/application/inventario/use-cases/CreateInventarioUseCase";
 import { UpdateInventarioUseCase } from "@/application/inventario/use-cases/UpdateInventarioUseCase";
@@ -77,10 +105,23 @@ import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/Guarda
 import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
 import { DefinirUbicacionMapaUseCase } from "@/application/mapas/use-cases/DefinirUbicacionMapaUseCase";
 import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
+import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
+import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
+import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/QuitarMedioProyectoUseCase";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
+  createEmpresaConAdmin: CreateEmpresaConAdminUseCase;
+  getPlataformaMetricas: GetPlataformaMetricasUseCase;
   getEmpresaById: GetEmpresaByIdUseCase;
+  updateEmpresaPlan: UpdateEmpresaPlanUseCase;
+  getPlanes: GetPlanesUseCase;
+  guardarPlan: GuardarPlanUseCase;
+  eliminarPlan: EliminarPlanUseCase;
+  subirImagenPlan: SubirImagenPlanUseCase;
+  getPartnerships: GetPartnershipsUseCase;
+  guardarPartnership: GuardarPartnershipUseCase;
+  eliminarPartnership: EliminarPartnershipUseCase;
   getProyectos: GetProyectosUseCase;
   getProyectoById: GetProyectoByIdUseCase;
   createProyecto: CreateProyectoUseCase;
@@ -93,6 +134,9 @@ export interface UseCases {
   deleteLote: DeleteLoteUseCase;
   reservarLote: ReservarLoteUseCase;
   cancelarReserva: CancelarReservaUseCase;
+  reservarProspecto: ReservarProspectoUseCase;
+  registrarEntrada: RegistrarEntradaReservaUseCase;
+  getEntradasReserva: GetEntradasReservaUseCase;
   getClientes: GetClientesUseCase;
   getAllClientes: GetAllClientesUseCase;
   createCliente: CreateClienteUseCase;
@@ -102,18 +146,22 @@ export interface UseCases {
   createCotizacion: CreateCotizacionUseCase;
   updateCotizacion: UpdateCotizacionUseCase;
   getVentas: GetVentasUseCase;
-  createVenta: CreateVentaUseCase;
+  aceptarCotizacion: AceptarCotizacionUseCase;
   getContratos: GetContratosUseCase;
   getCobranzas: GetCobranzasUseCase;
+  getCobranzasByContrato: GetCobranzasByContratoUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
+  getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
   generarAlertas: GenerarAlertasUseCase;
   getUsuarios: GetUsuariosUseCase;
   createUsuario: CreateUsuarioUseCase;
+  createUsuarioAuth: CreateUsuarioAuthUseCase;
   updateUsuario: UpdateUsuarioUseCase;
   deleteUsuario: DeleteUsuarioUseCase;
+  asignarAsesorParaUsuario: AsignarAsesorParaUsuarioUseCase;
   getAllEtapas: GetAllEtapasUseCase;
   getEtapasByProyecto: GetEtapasByProyectoUseCase;
   createEtapa: CreateEtapaUseCase;
@@ -128,6 +176,8 @@ export interface UseCases {
   createProspecto: CreateProspectoUseCase;
   updateProspecto: UpdateProspectoUseCase;
   deleteProspecto: DeleteProspectoUseCase;
+  /** Registro de interés de un visitante del mapa público (RPC en Supabase). */
+  registrarInteresPublico: RegistrarInteresPublicoUseCase;
   getOportunidades: GetOportunidadesUseCase;
   createOportunidad: CreateOportunidadUseCase;
   updateOportunidad: UpdateOportunidadUseCase;
@@ -139,6 +189,17 @@ export interface UseCases {
   deleteAsesor: DeleteAsesorUseCase;
   getRoles: GetRolesUseCase;
   getRolesByUsuario: GetRolesByUsuarioUseCase;
+  getRolesPorUsuarios: GetRolesPorUsuariosUseCase;
+  getPermisosByUsuario: GetPermisosByUsuarioUseCase;
+  createRol: CreateRolUseCase;
+  updateRol: UpdateRolUseCase;
+  deleteRol: DeleteRolUseCase;
+  getAllPermisos: GetAllPermisosUseCase;
+  createPermiso: CreatePermisoUseCase;
+  deletePermiso: DeletePermisoUseCase;
+  getPermisoIdsByRol: GetPermisoIdsByRolUseCase;
+  assignPermisoARol: AssignPermisoARolUseCase;
+  removePermisoDeRol: RemovePermisoDeRolUseCase;
   assignRol: AssignRolUseCase;
   removeRol: RemoveRolUseCase;
   getInventario: GetInventarioUseCase;
@@ -155,20 +216,31 @@ export interface UseCases {
   publicarMapa: PublicarMapaUseCase;
   definirUbicacionMapa: DefinirUbicacionMapaUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
+  getMediosProyecto: GetMediosProyectoUseCase;
+  subirMedioProyecto: SubirMedioProyectoUseCase;
+  quitarMedioProyecto: QuitarMedioProyectoUseCase;
 }
 
 export function createUseCases(repos: Repositories): UseCases {
-  const createSaleTransaction = new SupabaseCreateSaleTransaction(
+  const reservarLote = new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo);
+  const registrarEntrada = new RegistrarEntradaReservaUseCase(
+    repos.entradaRepo,
     repos.lotRepository,
-    repos.saleRepo,
-    repos.inventarioRepo,
-    repos.contractRepo,
-    repos.cobranzaRepo,
   );
 
   return {
     getEmpresas: new GetEmpresasUseCase(repos.empresaRepo),
+    createEmpresaConAdmin: new CreateEmpresaConAdminUseCase(repos.empresaRepo),
+    getPlataformaMetricas: new GetPlataformaMetricasUseCase(repos.empresaRepo),
     getEmpresaById: new GetEmpresaByIdUseCase(repos.empresaRepo),
+    updateEmpresaPlan: new UpdateEmpresaPlanUseCase(repos.empresaRepo),
+    getPlanes: new GetPlanesUseCase(repos.planRepo),
+    guardarPlan: new GuardarPlanUseCase(repos.planRepo, repos.planImageStorage),
+    eliminarPlan: new EliminarPlanUseCase(repos.planRepo, repos.planImageStorage),
+    subirImagenPlan: new SubirImagenPlanUseCase(repos.planImageStorage),
+    getPartnerships: new GetPartnershipsUseCase(repos.partnershipRepo),
+    guardarPartnership: new GuardarPartnershipUseCase(repos.partnershipRepo),
+    eliminarPartnership: new EliminarPartnershipUseCase(repos.partnershipRepo),
     getProyectos: new GetProyectosUseCase(repos.proyectoRepo),
     getProyectoById: new GetProyectoByIdUseCase(repos.proyectoRepo),
     createProyecto: new CreateProyectoUseCase(repos.proyectoRepo),
@@ -179,8 +251,19 @@ export function createUseCases(repos: Repositories): UseCases {
     createLote: new CreateLoteUseCase(repos.lotRepository),
     updateLote: new UpdateLoteUseCase(repos.lotRepository),
     deleteLote: new DeleteLoteUseCase(repos.lotRepository),
-    reservarLote: new ReservarLoteUseCase(repos.lotRepository, repos.inventarioRepo),
+    reservarLote,
     cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
+    registrarEntrada,
+    getEntradasReserva: new GetEntradasReservaUseCase(repos.entradaRepo),
+    reservarProspecto: new ReservarProspectoUseCase({
+      prospectoRepo: repos.prospectoRepo,
+      clienteRepo: repos.clienteRepo,
+      lotRepo: repos.lotRepository,
+      inventarioRepo: repos.inventarioRepo,
+      oportunidadRepo: repos.oportunidadRepo,
+      reservarLote,
+      registrarEntrada,
+    }),
     getClientes: new GetClientesUseCase(repos.clienteRepo),
     getAllClientes: new GetAllClientesUseCase(repos.clienteRepo),
     createCliente: new CreateClienteUseCase(repos.clienteRepo),
@@ -190,18 +273,36 @@ export function createUseCases(repos: Repositories): UseCases {
     createCotizacion: new CreateCotizacionUseCase(repos.cotizacionRepo),
     updateCotizacion: new UpdateCotizacionUseCase(repos.cotizacionRepo),
     getVentas: new GetVentasUseCase(repos.saleRepo),
-    createVenta: new CreateVentaUseCase(createSaleTransaction),
+    aceptarCotizacion: new AceptarCotizacionUseCase(repos.aceptarCotizacion),
     getContratos: new GetContratosUseCase(repos.contractRepo),
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
+    getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
+    getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
+      repos.etapaRepo,
+      repos.manzanaRepo,
+      repos.lotRepository,
+      repos.saleRepo,
+      repos.contractRepo,
+      repos.cobranzaRepo,
+    ),
     detectarCuotasVencidas: new DetectarCuotasVencidasUseCase(repos.cobranzaRepo),
-    generarAlertas: new GenerarAlertasUseCase(repos.lotRepository, repos.prospectoRepo, repos.cobranzaRepo),
+    generarAlertas: new GenerarAlertasUseCase(
+      repos.lotRepository,
+      repos.prospectoRepo,
+      repos.cobranzaRepo,
+      repos.contractRepo,
+      repos.saleRepo,
+      repos.clienteRepo,
+    ),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
+    createUsuarioAuth: new CreateUsuarioAuthUseCase(repos.usuarioRepo),
     updateUsuario: new UpdateUsuarioUseCase(repos.usuarioRepo),
     deleteUsuario: new DeleteUsuarioUseCase(repos.usuarioRepo),
+    asignarAsesorParaUsuario: new AsignarAsesorParaUsuarioUseCase(repos.asesorRepo),
     getAllEtapas: new GetAllEtapasUseCase(repos.etapaRepo),
     getEtapasByProyecto: new GetEtapasByProyectoUseCase(repos.etapaRepo),
     createEtapa: new CreateEtapaUseCase(repos.etapaRepo),
@@ -216,6 +317,7 @@ export function createUseCases(repos: Repositories): UseCases {
     createProspecto: new CreateProspectoUseCase(repos.prospectoRepo),
     updateProspecto: new UpdateProspectoUseCase(repos.prospectoRepo),
     deleteProspecto: new DeleteProspectoUseCase(repos.prospectoRepo),
+    registrarInteresPublico: new RegistrarInteresPublicoUseCase(repos.registrarInteresPublico),
     getOportunidades: new GetOportunidadesUseCase(repos.oportunidadRepo),
     createOportunidad: new CreateOportunidadUseCase(repos.oportunidadRepo),
     updateOportunidad: new UpdateOportunidadUseCase(repos.oportunidadRepo),
@@ -227,6 +329,17 @@ export function createUseCases(repos: Repositories): UseCases {
     deleteAsesor: new DeleteAsesorUseCase(repos.asesorRepo),
     getRoles: new GetRolesUseCase(repos.rolRepo),
     getRolesByUsuario: new GetRolesByUsuarioUseCase(repos.rolRepo),
+    getRolesPorUsuarios: new GetRolesPorUsuariosUseCase(repos.rolRepo),
+    getPermisosByUsuario: new GetPermisosByUsuarioUseCase(repos.rolRepo),
+    createRol: new CreateRolUseCase(repos.rolRepo),
+    updateRol: new UpdateRolUseCase(repos.rolRepo),
+    deleteRol: new DeleteRolUseCase(repos.rolRepo),
+    getAllPermisos: new GetAllPermisosUseCase(repos.rolRepo),
+    createPermiso: new CreatePermisoUseCase(repos.rolRepo),
+    deletePermiso: new DeletePermisoUseCase(repos.rolRepo),
+    getPermisoIdsByRol: new GetPermisoIdsByRolUseCase(repos.rolRepo),
+    assignPermisoARol: new AssignPermisoARolUseCase(repos.rolRepo),
+    removePermisoDeRol: new RemovePermisoDeRolUseCase(repos.rolRepo),
     assignRol: new AssignRolUseCase(repos.rolRepo),
     removeRol: new RemoveRolUseCase(repos.rolRepo),
     getInventario: new GetInventarioUseCase(repos.inventarioRepo),
@@ -243,5 +356,14 @@ export function createUseCases(repos: Repositories): UseCases {
     publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
     definirUbicacionMapa: new DefinirUbicacionMapaUseCase(repos.mapaRepo),
     getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
+    getMediosProyecto: new GetMediosProyectoUseCase(repos.proyectoMedioRepo),
+    subirMedioProyecto: new SubirMedioProyectoUseCase(
+      repos.proyectoMedioRepo,
+      repos.proyectoMedioStorage,
+    ),
+    quitarMedioProyecto: new QuitarMedioProyectoUseCase(
+      repos.proyectoMedioRepo,
+      repos.proyectoMedioStorage,
+    ),
   };
 }

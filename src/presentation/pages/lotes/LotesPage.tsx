@@ -33,13 +33,15 @@ import {
   MoreOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useLotes, useManzanas, useEtapas, useProyectos, useLookup } from "@/presentation/hooks";
+import { useLotes, useManzanas, useEtapas, useProyectos, useLookup, usePlanDeEmpresa } from "@/presentation/hooks";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { loteSchema } from "@/presentation/validations";
+import { compararNumeroLote } from "@/utils";
+import { ZodError } from "zod";
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
@@ -79,6 +81,52 @@ const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: stri
     icon: <StopOutlined />,
   },
 };
+
+/** Texto opcional: trim y `undefined` cuando quedo vacio (asi no se persiste "" en columnas con indice unico). */
+function textoOpcional(value: unknown): string | undefined {
+  const texto = typeof value === "string" ? value.trim() : "";
+  return texto === "" ? undefined : texto;
+}
+
+/** Normaliza un numero de lote para comparar (trim + minusculas). */
+function normalizarNumero(numero: unknown): string {
+  return typeof numero === "string" ? numero.trim().toLowerCase() : "";
+}
+
+/**
+ * El numero de lote es unico dentro de la empresa: no puede repetirse en ninguna
+ * manzana ni proyecto. `idLoteExcluido` evita que la edicion de un lote choque
+ * consigo mismo.
+ */
+function numeroYaUsado(
+  lotes: Array<{ id_lote: number; numero_lote: string }> | undefined,
+  numero: unknown,
+  idLoteExcluido?: number,
+): boolean {
+  const buscado = normalizarNumero(numero);
+  if (!buscado) return false;
+  return (
+    lotes?.some(
+      (l) => l.id_lote !== idLoteExcluido && normalizarNumero(l.numero_lote) === buscado,
+    ) ?? false
+  );
+}
+
+/** Convierte el error capturado en un mensaje que el usuario pueda entender. */
+function mensajeErrorLote(error: unknown, fallback: string): string {
+  if (error instanceof ZodError) {
+    return error.issues[0]?.message ?? fallback;
+  }
+  if (typeof error === "object" && error !== null && "code" in error) {
+    // 23505 = unique_violation (numero de lote repetido en la empresa o codigo catastral duplicado).
+    if ((error as { code?: string }).code === "23505") {
+      return "Ya existe un lote con esos datos: revisa el numero de lote en la manzana y el codigo catastral.";
+    }
+    const mensaje = (error as { message?: string }).message;
+    if (mensaje) return mensaje;
+  }
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -178,6 +226,8 @@ export function LotesPage() {
   const { data: manzanas } = useManzanas();
   const { data: etapas } = useEtapas();
   const { data: proyectos } = useProyectos();
+  // Limite de lotes por proyecto del plan de la empresa (null = sin limite).
+  const plan = usePlanDeEmpresa();
   const manzanaMap = useLookup(manzanas, "id_manzana", "nombre_codigo", "Manzana");
   const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
   const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
@@ -187,6 +237,8 @@ export function LotesPage() {
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  // Evita doble envio mientras se persiste: sin esto, dos clics en "Crear" daban dos lotes.
+  const [guardando, setGuardando] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
@@ -222,17 +274,27 @@ export function LotesPage() {
 
   const filteredData = useMemo(() => {
     if (!lotes) return [];
-    return lotes.filter(
-      (l) =>
-        l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
-        l.estado.toLowerCase().includes(searchText.toLowerCase()),
-    );
+    return lotes
+      .filter(
+        (l) =>
+          l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
+          l.estado.toLowerCase().includes(searchText.toLowerCase()),
+      )
+      .sort(compararNumeroLote);
   }, [lotes, searchText]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
     setModal({ type, visible: true, record });
     if (type === "edit") {
-      editForm.setFieldsValue({ numero_lote: record.numero_lote, precio_lista: record.precio_lista, estado: record.estado, id_manzana: record.id_manzana });
+      editForm.setFieldsValue({
+        numero_lote: record.numero_lote,
+        precio_lista: record.precio_lista,
+        estado: record.estado,
+        id_manzana: record.id_manzana,
+        superficie_m2: record.superficie_m2 ?? null,
+        codigo_catastral: record.codigo_catastral ?? null,
+        medidas: record.medidas ?? null,
+      });
     }
   };
 
@@ -244,15 +306,38 @@ export function LotesPage() {
   const handleEdit = async () => {
     if (!modal.record) return;
 
+    let values: Record<string, unknown>;
     try {
-      const values = await editForm.validateFields();
-      const parsed = loteSchema.partial().parse({ ...values, id_manzana: values.id_manzana !== undefined ? Number(values.id_manzana) : undefined });
+      values = await editForm.validateFields();
+    } catch {
+      // Ya quedaron marcados en rojo los campos obligatorios: no hay nada que enviar.
+      return;
+    }
+
+    const numeroEditado = textoOpcional(values.numero_lote) ?? modal.record.numero_lote;
+    if (numeroYaUsado(lotes, numeroEditado, modal.record.id_lote)) {
+      messageApi.error(`Ya existe un lote "${numeroEditado}" en esta empresa`);
+      return;
+    }
+
+    setGuardando(true);
+    try {
+      const parsed = loteSchema.partial().parse({
+        ...values,
+        numero_lote: numeroEditado,
+        id_manzana: values.id_manzana !== undefined ? Number(values.id_manzana) : undefined,
+        // En edicion un campo vacio significa borrarlo: se manda `null` (ni "" ni omitido).
+        codigo_catastral: textoOpcional(values.codigo_catastral) ?? null,
+        medidas: textoOpcional(values.medidas) ?? null,
+      });
       await container.updateLote.execute(modal.record.id_lote, parsed);
       await refreshLotes();
       messageApi.success("Lote actualizado correctamente");
       closeModal();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "No se pudo actualizar el lote");
+      messageApi.error(mensajeErrorLote(error, "No se pudo actualizar el lote"));
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -270,16 +355,60 @@ export function LotesPage() {
   };
 
   const handleCreate = async () => {
+    let values: Record<string, unknown>;
     try {
-      const values = await createForm.validateFields();
-      const parsed = loteSchema.parse({ ...values, id_manzana: Number(values.id_manzana) });
+      values = await createForm.validateFields();
+    } catch {
+      // Ya quedaron marcados en rojo los campos obligatorios: no hay nada que enviar.
+      return;
+    }
+
+    const numeroLote = textoOpcional(values.numero_lote) ?? "";
+    const idManzana = Number(values.id_manzana);
+
+    if (numeroYaUsado(lotes, numeroLote)) {
+      messageApi.error(`Ya existe un lote "${numeroLote}" en esta empresa`);
+      return;
+    }
+
+    // Limite de lotes por proyecto del plan de la empresa (null = sin limite).
+    if (plan.max_lotes_por_proyecto != null) {
+      const manzanaDestino = (manzanas ?? []).find((m) => m.id_manzana === idManzana);
+      const etapaDestino = manzanaDestino ? etapas?.find((e) => e.id_etapa === manzanaDestino.id_etapa) : undefined;
+      const idProyectoDestino = etapaDestino?.id_proyecto;
+      if (idProyectoDestino != null) {
+        const lotesDelProyecto = (lotes ?? []).filter((l) => {
+          const mz = (manzanas ?? []).find((m) => m.id_manzana === l.id_manzana);
+          const et = mz ? etapas?.find((e) => e.id_etapa === mz.id_etapa) : undefined;
+          return et?.id_proyecto === idProyectoDestino;
+        }).length;
+        if (lotesDelProyecto >= plan.max_lotes_por_proyecto) {
+          messageApi.warning(
+            `Tu plan permite hasta ${plan.max_lotes_por_proyecto} lotes por proyecto y el proyecto ya llego al limite. Amplia tu plan para cargar mas lotes.`
+          );
+          return;
+        }
+      }
+    }
+
+    setGuardando(true);
+    try {
+      const parsed = loteSchema.parse({
+        ...values,
+        numero_lote: numeroLote,
+        id_manzana: idManzana,
+        codigo_catastral: textoOpcional(values.codigo_catastral),
+        medidas: textoOpcional(values.medidas),
+      });
       await container.createLote.execute(parsed);
       await refreshLotes();
       messageApi.success("Lote creado correctamente");
       setCreateModalOpen(false);
       createForm.resetFields();
     } catch (error) {
-      messageApi.error(error instanceof Error ? error.message : "No se pudo crear el lote");
+      messageApi.error(mensajeErrorLote(error, "No se pudo crear el lote"));
+    } finally {
+      setGuardando(false);
     }
   };
 
@@ -288,7 +417,7 @@ export function LotesPage() {
       title: "Numero",
       dataIndex: "numero_lote",
       key: "numero_lote",
-      sorter: (a, b) => a.numero_lote.localeCompare(b.numero_lote),
+      sorter: compararNumeroLote,
       render: (text: string) => (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div
@@ -332,6 +461,21 @@ export function LotesPage() {
       render: (precio: number) => (
         <span style={{ fontWeight: 600, color: "#1a1a1a" }}>${precio.toLocaleString()}</span>
       ),
+    },
+    {
+      title: "Superficie",
+      dataIndex: "superficie_m2",
+      key: "superficie_m2",
+      sorter: (a, b) => (a.superficie_m2 ?? 0) - (b.superficie_m2 ?? 0),
+      render: (m2: number | null | undefined) =>
+        m2 != null ? `${m2.toLocaleString("es")} m²` : <span style={{ color: "#bfbfbf" }}>—</span>,
+    },
+    {
+      title: "Cód. catastral",
+      dataIndex: "codigo_catastral",
+      key: "codigo_catastral",
+      render: (codigo: string | null | undefined) =>
+        codigo || <span style={{ color: "#bfbfbf" }}>—</span>,
     },
     {
       title: "Estado",
@@ -584,6 +728,11 @@ export function LotesPage() {
             <Descriptions.Item label="Precio de Lista">
               ${modal.record.precio_lista.toLocaleString()}
             </Descriptions.Item>
+            <Descriptions.Item label="Superficie">
+              {modal.record.superficie_m2 != null ? `${modal.record.superficie_m2.toLocaleString("es")} m²` : "—"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Código catastral">{modal.record.codigo_catastral || "—"}</Descriptions.Item>
+            <Descriptions.Item label="Medidas">{modal.record.medidas || "—"}</Descriptions.Item>
             <Descriptions.Item label="Estado">
               <Tag color={(estadoConfig[modal.record.estado] ?? estadoConfig.disponible).color}>
                 {(modal.record.estado ?? "sin estado").toUpperCase()}
@@ -599,6 +748,7 @@ export function LotesPage() {
         open={modal.visible && modal.type === "edit"}
         onCancel={closeModal}
         onOk={handleEdit}
+        confirmLoading={guardando}
         okText="Guardar"
         cancelText="Cancelar"
       >
@@ -628,13 +778,28 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber<number>
+            <InputNumber<string | number>
               style={{ width: "100%" }}
               min={0}
               step={100}
-              formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
+              formatter={(value) =>
+                value == null || value === ""
+                  ? ""
+                  : `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              // El parser DEBE devolver string: si devuelve un number, rc-input-number pierde el
+              // contexto de tipeo y el precio se guarda mal (tipear "50000" guardaba 500.000).
+              parser={(value) => value?.replace(/[^\d.-]/g, "") ?? ""}
             />
+          </Form.Item>
+          <Form.Item name="superficie_m2" label="Superficie (m²)">
+            <InputNumber<number> style={{ width: "100%" }} min={0} step={0.01} decimalSeparator="," />
+          </Form.Item>
+          <Form.Item name="codigo_catastral" label="Código catastral">
+            <Input maxLength={50} />
+          </Form.Item>
+          <Form.Item name="medidas" label="Medidas" extra="Lados del lote, p. ej. 8,00 x 18,00">
+            <Input maxLength={255} />
           </Form.Item>
           <Form.Item
             name="estado"
@@ -661,6 +826,7 @@ export function LotesPage() {
         open={createModalOpen}
         onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
         onOk={handleCreate}
+        confirmLoading={guardando}
         okText="Crear"
         cancelText="Cancelar"
       >
@@ -690,13 +856,28 @@ export function LotesPage() {
             label="Precio de Lista"
             rules={[{ required: true, message: "Ingrese el precio" }]}
           >
-            <InputNumber<number>
+            <InputNumber<string | number>
               style={{ width: "100%" }}
               min={0}
               step={100}
-              formatter={(value) => `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-              parser={(value) => Number(value?.replace(/\$\s?|[,]/g, "") || 0)}
+              formatter={(value) =>
+                value == null || value === ""
+                  ? ""
+                  : `$ ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+              }
+              // El parser DEBE devolver string: si devuelve un number, rc-input-number pierde el
+              // contexto de tipeo y el precio se guarda mal (tipear "50000" guardaba 500.000).
+              parser={(value) => value?.replace(/[^\d.-]/g, "") ?? ""}
             />
+          </Form.Item>
+          <Form.Item name="superficie_m2" label="Superficie (m²)">
+            <InputNumber<number> style={{ width: "100%" }} min={0} step={0.01} decimalSeparator="," />
+          </Form.Item>
+          <Form.Item name="codigo_catastral" label="Código catastral">
+            <Input maxLength={50} />
+          </Form.Item>
+          <Form.Item name="medidas" label="Medidas" extra="Lados del lote, p. ej. 8,00 x 18,00">
+            <Input maxLength={255} />
           </Form.Item>
           <Form.Item
             name="estado"

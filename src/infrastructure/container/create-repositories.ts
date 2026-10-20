@@ -1,4 +1,6 @@
 import type { EmpresaRepository } from "@/domain/empresa/repositories";
+import type { PlanRepository } from "@/domain/plan/repositories";
+import type { PartnershipRepository } from "@/domain/partnership/repositories";
 import type { ProyectoRepository } from "@/domain/proyecto/repositories";
 import type { LotRepository } from "@/domain/lote/repositories";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
@@ -7,6 +9,7 @@ import type { SaleRepository } from "@/domain/venta/repositories";
 import type { ContractRepository } from "@/domain/contrato/repositories";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
 import type { PagoRepository } from "@/domain/pago/repositories";
+import type { EntradaReservaRepository } from "@/domain/entrada/repositories";
 import type { UsuarioRepository } from "@/domain/usuario/repositories";
 import type { InventarioRepository } from "@/domain/inventario/repositories";
 import type { EtapaRepository } from "@/domain/etapa/repositories";
@@ -18,13 +21,20 @@ import type { AsesorRepository } from "@/domain/asesor/repositories";
 import type { RolRepository } from "@/domain/rol/repositories";
 import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
 import type { MapaRepository } from "@/domain/mapa/repositories";
+import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
+import type { PlanImagenStorage } from "@/application/plan/ports/PlanImagenStorage";
+import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
+import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
+import type { RegistrarInteresPublicoPort } from "@/application/prospectos/ports/RegistrarInteresPublicoPort";
 import type { Prospecto } from "@/domain/prospecto/entities";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
 import type { Actividad } from "@/domain/actividad/entities";
 import type { Asesor } from "@/domain/asesor/entities";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
+import { MockPlanRepository } from "@/infrastructure/repositories/mock/MockPlanRepository";
+import { MockPartnershipRepository } from "@/infrastructure/repositories/mock/MockPartnershipRepository";
 import { MockProyectoRepository } from "@/infrastructure/repositories/mock/MockProyectoRepository";
 import { MockLotRepository } from "@/infrastructure/repositories/mock/MockLotRepository";
 import { MockClienteRepository } from "@/infrastructure/repositories/mock/MockClienteRepository";
@@ -33,6 +43,7 @@ import { MockSaleRepository } from "@/infrastructure/repositories/mock/MockSaleR
 import { MockContractRepository } from "@/infrastructure/repositories/mock/MockContractRepository";
 import { MockCobranzaRepository } from "@/infrastructure/repositories/mock/MockCobranzaRepository";
 import { MockPagoRepository } from "@/infrastructure/repositories/mock/MockPagoRepository";
+import { MockEntradaReservaRepository } from "@/infrastructure/repositories/mock/MockEntradaReservaRepository";
 import { MockUsuarioRepository } from "@/infrastructure/repositories/mock/MockUsuarioRepository";
 import { MockInventarioRepository } from "@/infrastructure/repositories/mock/MockInventarioRepository";
 import { MockEtapaRepository } from "@/infrastructure/repositories/mock/MockEtapaRepository";
@@ -40,9 +51,18 @@ import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockMa
 import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
 import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/MockConfiguracionRepository";
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
+import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
+import { MockPlanImagenStorage } from "@/infrastructure/storage/MockPlanImagenStorage";
+import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
+import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
+import { SupabaseAceptarCotizacion } from "@/infrastructure/transactions/SupabaseAceptarCotizacion";
+import { MockRegistrarInteresPublico } from "@/infrastructure/transactions/MockRegistrarInteresPublico";
+import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/SupabaseRegistrarInteresPublico";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
+import { SupabasePlanRepository } from "@/infrastructure/repositories/supabase/SupabasePlanRepository";
+import { SupabasePartnershipRepository } from "@/infrastructure/repositories/supabase/SupabasePartnershipRepository";
 import { SupabaseProyectoRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoRepository";
 import { SupabaseLotRepository } from "@/infrastructure/repositories/supabase/SupabaseLotRepository";
 import { SupabaseClienteRepository } from "@/infrastructure/repositories/supabase/SupabaseClienteRepository";
@@ -51,6 +71,7 @@ import { SupabaseSaleRepository } from "@/infrastructure/repositories/supabase/S
 import { SupabaseContractRepository } from "@/infrastructure/repositories/supabase/SupabaseContractRepository";
 import { SupabaseCobranzaRepository } from "@/infrastructure/repositories/supabase/SupabaseCobranzaRepository";
 import { SupabasePagoRepository } from "@/infrastructure/repositories/supabase/SupabasePagoRepository";
+import { SupabaseEntradaReservaRepository } from "@/infrastructure/repositories/supabase/SupabaseEntradaReservaRepository";
 import { SupabaseUsuarioRepository } from "@/infrastructure/repositories/supabase/SupabaseUsuarioRepository";
 import { SupabaseInventarioRepository } from "@/infrastructure/repositories/supabase/SupabaseInventarioRepository";
 import { SupabaseEtapaRepository } from "@/infrastructure/repositories/supabase/SupabaseEtapaRepository";
@@ -62,10 +83,15 @@ import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase
 import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
 import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
+import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
+import { SupabasePlanImagenStorage } from "@/infrastructure/storage/SupabasePlanImagenStorage";
+import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
 
 export interface Repositories {
   empresaRepo: EmpresaRepository;
+  planRepo: PlanRepository;
+  partnershipRepo: PartnershipRepository;
   proyectoRepo: ProyectoRepository;
   lotRepository: LotRepository;
   clienteRepo: ClienteRepository;
@@ -74,6 +100,8 @@ export interface Repositories {
   contractRepo: ContractRepository;
   cobranzaRepo: CobranzaRepository;
   pagoRepo: PagoRepository;
+  /** Entradas (señas) cobradas al reservar un lote; no apuntan a cuota. */
+  entradaRepo: EntradaReservaRepository;
   usuarioRepo: UsuarioRepository;
   inventarioRepo: InventarioRepository;
   etapaRepo: EtapaRepository;
@@ -87,9 +115,33 @@ export interface Repositories {
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
+  planImageStorage: PlanImagenStorage;
+  /** Fotos y videos del proyecto que alimentan la galería pública. */
+  proyectoMedioRepo: ProyectoMedioRepository;
+  /** Puerto de infraestructura: subida de fotos/videos a Storage. */
+  proyectoMedioStorage: ProyectoMedioStorage;
+  /** Puerto de infraestructura: aceptación atómica de una cotización (RPC en Supabase). */
+  aceptarCotizacion: AceptarCotizacionPort;
+  /** Puerto de infraestructura: registro de interés del mapa público (RPC en Supabase). */
+  registrarInteresPublico: RegistrarInteresPublicoPort;
 }
 
 function createMockRepositories(): Repositories {
+  const cotizacionRepo = new MockCotizacionRepository();
+  const lotRepository = new MockLotRepository();
+  const saleRepo = new MockSaleRepository();
+  const contractRepo = new MockContractRepository();
+  const cobranzaRepo = new MockCobranzaRepository();
+  const inventarioRepo = new MockInventarioRepository();
+  const aceptarCotizacion = new MockAceptarCotizacion(
+    cotizacionRepo,
+    lotRepository,
+    saleRepo,
+    inventarioRepo,
+    contractRepo,
+    cobranzaRepo,
+  );
+
   const prospectoRepo: ProspectoRepository = {
     getAll: async () => [],
     getByEmpresaId: async () => [],
@@ -121,7 +173,9 @@ function createMockRepositories(): Repositories {
     getByEmpresaId: async () => [],
     getByProspectoId: async () => [],
     getById: async () => null,
-    create: async (data: Omit<Oportunidad, "id_oportunidad" | "created_at">): Promise<Oportunidad> => ({
+    create: async (
+      data: Omit<Oportunidad, "id_oportunidad" | "created_at">,
+    ): Promise<Oportunidad> => ({
       ...data,
       id_oportunidad: 1,
       created_at: "",
@@ -174,26 +228,38 @@ function createMockRepositories(): Repositories {
 
   return {
     empresaRepo: new MockEmpresaRepository(),
+    planRepo: new MockPlanRepository(),
+    partnershipRepo: new MockPartnershipRepository(),
     proyectoRepo: new MockProyectoRepository(),
     lotRepository: new MockLotRepository(),
     clienteRepo: new MockClienteRepository(),
-    cotizacionRepo: new MockCotizacionRepository(),
-    saleRepo: new MockSaleRepository(),
-    contractRepo: new MockContractRepository(),
-    cobranzaRepo: new MockCobranzaRepository(),
+    cotizacionRepo,
+    saleRepo,
+    contractRepo,
+    cobranzaRepo,
+    inventarioRepo,
     pagoRepo: new MockPagoRepository(),
+    entradaRepo: new MockEntradaReservaRepository(),
     usuarioRepo: new MockUsuarioRepository(),
-    inventarioRepo: new MockInventarioRepository(),
+    aceptarCotizacion,
     etapaRepo: new MockEtapaRepository(),
     manzanaRepo: new MockManzanaRepository(),
     prospectoRepo,
     oportunidadRepo,
+    registrarInteresPublico: new MockRegistrarInteresPublico(
+      prospectoRepo,
+      oportunidadRepo,
+      lotRepository,
+    ),
     actividadRepo,
     asesorRepo,
     rolRepo: new MockRolRepository(),
     configuracionRepo: new MockConfiguracionRepository(),
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
+    planImageStorage: new MockPlanImagenStorage(),
+    proyectoMedioRepo: new MockProyectoMedioRepository(),
+    proyectoMedioStorage: new MockProyectoMedioStorage(),
   };
 }
 
@@ -203,12 +269,14 @@ function createSupabaseRepositories(): Repositories {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(
-      "Supabase provider selected but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required."
+      "Supabase provider selected but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required.",
     );
   }
 
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
+    planRepo: new SupabasePlanRepository(),
+    partnershipRepo: new SupabasePartnershipRepository(),
     proyectoRepo: new SupabaseProyectoRepository(),
     lotRepository: new SupabaseLotRepository(),
     clienteRepo: new SupabaseClienteRepository(),
@@ -217,6 +285,7 @@ function createSupabaseRepositories(): Repositories {
     contractRepo: new SupabaseContractRepository(),
     cobranzaRepo: new SupabaseCobranzaRepository(),
     pagoRepo: new SupabasePagoRepository(),
+    entradaRepo: new SupabaseEntradaReservaRepository(),
     usuarioRepo: new SupabaseUsuarioRepository(),
     inventarioRepo: new SupabaseInventarioRepository(),
     etapaRepo: new SupabaseEtapaRepository(),
@@ -229,6 +298,11 @@ function createSupabaseRepositories(): Repositories {
     configuracionRepo: new SupabaseConfiguracionRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
+    planImageStorage: new SupabasePlanImagenStorage(),
+    proyectoMedioRepo: new SupabaseProyectoMedioRepository(),
+    proyectoMedioStorage: new SupabaseProyectoMedioStorage(),
+    aceptarCotizacion: new SupabaseAceptarCotizacion(),
+    registrarInteresPublico: new SupabaseRegistrarInteresPublico(),
   };
 }
 
@@ -245,9 +319,7 @@ function resolveDataProvider(): "mock" | "supabase" {
     return "mock";
   }
 
-  throw new Error(
-    `Unsupported VITE_DATA_PROVIDER "${provider}". Expected "supabase" or "mock".`
-  );
+  throw new Error(`Unsupported VITE_DATA_PROVIDER "${provider}". Expected "supabase" or "mock".`);
 }
 
 export function createRepositories(): Repositories {

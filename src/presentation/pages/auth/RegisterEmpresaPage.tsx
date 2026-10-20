@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Form, Input, Button, Typography, Alert, message } from "antd";
-import { MailOutlined, LockOutlined, UserOutlined, BankOutlined, EyeInvisibleOutlined, EyeTwoTone } from "@ant-design/icons";
+import { MailOutlined, LockOutlined, UserOutlined, BankOutlined, EyeInvisibleOutlined, EyeTwoTone, TagsOutlined } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
 import { registroEmpresaSchema } from "@/presentation/validations";
 
@@ -14,7 +14,7 @@ export function RegisterEmpresaPage() {
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  const onFinish = async (values: { email: string; password: string; nombres: string; razon_social: string }) => {
+  const onFinish = async (values: { email: string; password: string; nombres: string; razon_social: string; codigo_partner?: string }) => {
     setLoading(true);
     setError(null);
 
@@ -25,7 +25,7 @@ export function RegisterEmpresaPage() {
       return;
     }
 
-    const result = await registerNuevaEmpresa(parsed.data.email, parsed.data.password, parsed.data.nombres, parsed.data.razon_social);
+    const result = await registerNuevaEmpresa(parsed.data.email, parsed.data.password, parsed.data.nombres, parsed.data.razon_social, values.codigo_partner);
 
     if (!result.success) {
       setError(result.error || "Error al crear la empresa");
@@ -35,7 +35,8 @@ export function RegisterEmpresaPage() {
 
     messageApi.success("Empresa y cuenta creadas correctamente");
     setTimeout(() => {
-      navigate("/dashboard");
+      // Siguiente paso del alta: elegir el plan de pago (Hotmart).
+      navigate("/registro/planes");
     }, 500);
   };
 
@@ -106,6 +107,7 @@ export function RegisterEmpresaPage() {
 
           <Form.Item
             name="email"
+            extra="Usa este mismo correo al pagar en Hotmart, asi asociamos el pago a tu empresa."
             rules={[
               { required: true, message: "Ingresa tu correo electronico" },
               { type: "email", message: "Correo electronico invalido" },
@@ -133,6 +135,14 @@ export function RegisterEmpresaPage() {
             />
           </Form.Item>
 
+          <Form.Item name="codigo_partner" tooltip="Si un partner (vendedor de la plataforma) te compartio su codigo, ingresalo aqui. Es opcional.">
+            <Input
+              prefix={<TagsOutlined style={{ color: "#bfbfbf" }} />}
+              placeholder="Codigo de partner (opcional)"
+              allowClear
+            />
+          </Form.Item>
+
           <Form.Item style={{ marginBottom: 16 }}>
             <Button
               type="primary"
@@ -151,12 +161,6 @@ export function RegisterEmpresaPage() {
             </Button>
           </Form.Item>
         </Form>
-
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <Text type="secondary" style={{ fontSize: 13 }}>
-            Ya tienes una invitacion? <Link to="/registro">Registrate aqui</Link>
-          </Text>
-        </div>
         <div style={{ textAlign: "center", marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 13 }}>
             Ya tienes cuenta? <Link to="/login">Inicia sesion</Link>

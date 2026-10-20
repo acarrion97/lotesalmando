@@ -24,6 +24,10 @@ export class MockUsuarioRepository implements UsuarioRepository {
     return usuario;
   }
 
+  async createAuthUser(): Promise<void> {
+    // En modo mock no hay Supabase Auth que crear.
+  }
+
   async update(id: number, data: Partial<Usuario>): Promise<Usuario> {
     const index = this.data.findIndex((u) => u.id_usuario === id);
     if (index === -1) throw new Error(`Usuario ${id} not found`);

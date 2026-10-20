@@ -25,6 +25,7 @@ export class GetVentasUseCase {
       precio_final: venta.precio_final,
       estado: venta.estado,
       created_at: venta.created_at,
+      id_asesor: venta.id_asesor ?? null,
     };
   }
 }
