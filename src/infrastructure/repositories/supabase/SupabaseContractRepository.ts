@@ -35,4 +35,29 @@ export class SupabaseContractRepository implements ContractRepository {
     if (error) throw error;
     return created as Contrato;
   }
+
+  async setDocumento(
+    contratoId: number,
+    documento: {
+      url: string | null;
+      tipo: "docx" | "pdf" | null;
+      nombre: string | null;
+      origen: "subido" | "generado" | null;
+    },
+  ): Promise<Contrato> {
+    const { data, error } = await supabase
+      .from("contratos")
+      .update({
+        documento_url: documento.url,
+        documento_tipo: documento.tipo,
+        documento_nombre: documento.nombre,
+        documento_origen: documento.origen,
+        documento_subido_en: documento.url ? new Date().toISOString() : null,
+      })
+      .eq("id_contrato", contratoId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Contrato;
+  }
 }

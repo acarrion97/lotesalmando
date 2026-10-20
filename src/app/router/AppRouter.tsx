@@ -12,6 +12,7 @@ import { EtapasPage } from "@/presentation/pages/etapas";
 import { ManzanasPage } from "@/presentation/pages/manzanas";
 import { MapasPage } from "@/presentation/pages/mapas";
 import { MapaPublicoPage } from "@/presentation/pages/mapa-publico";
+import { PortalClientePage } from "@/presentation/pages/portal-cliente";
 import { LotesPage } from "@/presentation/pages/lotes";
 import { InventarioPage } from "@/presentation/pages/inventario";
 import { ClientesPage } from "@/presentation/pages/clientes";
@@ -52,6 +53,7 @@ export function AppRouter() {
         <Route path="/reestablecer-contrasena" element={<ReestablecerContrasenaPage />} />
         <Route path="/registro/planes" element={<SeleccionarPlanPage />} />
         <Route path="/mapa/:slug" element={<MapaPublicoPage />} />
+        <Route path="/portal-cliente" element={<PortalClientePage />} />
         <Route
           element={
             <ProtectedRoute>

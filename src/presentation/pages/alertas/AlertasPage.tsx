@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, Tag, Typography, Select, Statistic, Row, Col, Button } from "antd";
-import { WarningOutlined, ClockCircleOutlined, AlertOutlined, ExclamationCircleOutlined, BellOutlined, ReloadOutlined } from "@ant-design/icons";
+import { WarningOutlined, ClockCircleOutlined, AlertOutlined, ExclamationCircleOutlined, BellOutlined, ReloadOutlined, FileSearchOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useAlertas } from "@/presentation/hooks";
 import type { Alerta, AlertaTipo, AlertaPrioridad } from "@/domain/alerta/entities/Alerta";
@@ -14,6 +14,7 @@ const tipoConfig: Record<AlertaTipo, { color: string; icon: React.ReactNode; lab
   seguimiento: { color: "orange", icon: <ClockCircleOutlined />, label: "Seguimiento" },
   cartera: { color: "gold", icon: <ExclamationCircleOutlined />, label: "Cartera" },
   mora: { color: "red", icon: <WarningOutlined />, label: "Mora" },
+  comprobante: { color: "purple", icon: <FileSearchOutlined />, label: "Comprobantes" },
 };
 
 const prioridadConfig: Record<AlertaPrioridad, { color: string }> = {

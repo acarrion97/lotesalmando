@@ -53,10 +53,13 @@ function esc(texto: string): string {
 }
 
 /** Plantilla unica de todos los correos: marca, color y pie iguales. */
-function plantilla(titulo: string, cuerpo: string[]): string {
+function plantilla(titulo: string, cuerpo: string[], pie?: string): string {
   const filas = cuerpo
     .map((p) => `<p style="margin:0 0 16px;line-height:24px;color:#374151;font-size:15px">${p}</p>`)
     .join("");
+  const cierre =
+    pie ??
+    "Este es un correo automatico de tu suscripcion, no respondas a este mensaje.";
   return `<!doctype html><html><body style="margin:0;padding:24px;background:#f4f6f5;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb">
     <div style="background:#082B33;padding:24px;text-align:center">
@@ -66,7 +69,7 @@ function plantilla(titulo: string, cuerpo: string[]): string {
       <h1 style="margin:0 0 24px;font-size:20px;color:#082B33">${esc(titulo)}</h1>
       ${filas}
       <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:8px;color:#9ca3af;font-size:12px">
-        Este es un correo automatico de tu suscripcion, no respondas a este mensaje.
+        ${esc(cierre)}
       </div>
     </div>
   </div>
@@ -208,5 +211,72 @@ export async function avisarPagoSinCuenta(datos: {
     "Pago recibido sin cuenta asociada - Lotes al Mando",
     cuerpo.join("\n").replace(/<[^>]+>/g, ""),
     plantilla("Pago sin cuenta asociada", cuerpo),
+  );
+}
+
+/** Datos de la cuota que se avisa al cliente (los usa el cron diario). */
+export interface AvisoCuota {
+  para: string;
+  nombre: string;
+  numeroContrato: string;
+  lote: string | null;
+  numeroCuota: number;
+  /** Monto ya formateado con la moneda de la empresa (ej: "$1,458.00"). */
+  montoCuota: string;
+  fechaVencimiento: string;
+  /** Link al portal del cliente (sin sesion: se entra con la cedula). */
+  portalUrl: string;
+}
+
+const PIE_CUOTA =
+  "Este es un correo automatico de Lotes al Mando. Si ya pagaste, subenos el comprobante desde el portal.";
+
+/**
+ * La cuota vence en pocos dias: se avisa antes de que venza para que el
+ * cliente pueda pagar o enviar su comprobante sin mora.
+ */
+export async function avisarCuotaPorVencer(
+  datos: AvisoCuota & { diasRestantes: number },
+): Promise<EstadoCorreo> {
+  const dias = datos.diasRestantes === 1 ? "mañana" : `en ${datos.diasRestantes} dias`;
+  const cuerpo = [
+    `${saludo({ nombre: datos.nombre, razonSocial: "" })} te recordamos que tu cuota <strong>${esc(
+      `nº ${datos.numeroCuota}`,
+    )}</strong> del contrato <strong>${esc(datos.numeroContrato)}</strong>${
+      datos.lote ? ` (${esc(datos.lote)})` : ""
+    } vence <strong>${esc(datos.fechaVencimiento)}</strong>.`,
+    `Valor de la cuota: <strong>${esc(datos.montoCuota)}</strong>.`,
+    `Puedes pagar ${dias} o, si ya lo hiciste, subir el comprobante (foto o PDF) desde el portal: <a href="${esc(
+      datos.portalUrl,
+    )}" style="color:#1677ff">${esc(datos.portalUrl)}</a>.`,
+  ];
+  return enviar(
+    datos.para,
+    `Tu cuota vence ${dias} - Lotes al Mando`,
+    cuerpo.join("\n").replace(/<[^>]+>/g, ""),
+    plantilla("Tu cuota esta por vencer", cuerpo, PIE_CUOTA),
+  );
+}
+
+/** La cuota ya vencio: se avisa para regularizar el pago. */
+export async function avisarCuotaVencida(
+  datos: AvisoCuota & { diasVencida: number },
+): Promise<EstadoCorreo> {
+  const cuerpo = [
+    `${saludo({ nombre: datos.nombre, razonSocial: "" })} tu cuota <strong>${esc(
+      `nº ${datos.numeroCuota}`,
+    )}</strong> del contrato <strong>${esc(datos.numeroContrato)}</strong>${
+      datos.lote ? ` (${esc(datos.lote)})` : ""
+    } vencio el <strong>${esc(datos.fechaVencimiento)}</strong>.`,
+    `Valor de la cuota: <strong>${esc(datos.montoCuota)}</strong>.`,
+    `Podes regularizarlo en el portal: <a href="${esc(
+      datos.portalUrl,
+    )}" style="color:#1677ff">${esc(datos.portalUrl)}</a>. Tambien podes enviar el comprobante (foto o PDF) desde ahi.`,
+  ];
+  return enviar(
+    datos.para,
+    "Tu cuota esta vencida - Lotes al Mando",
+    cuerpo.join("\n").replace(/<[^>]+>/g, ""),
+    plantilla("Tu cuota esta vencida", cuerpo, PIE_CUOTA),
   );
 }

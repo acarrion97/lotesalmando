@@ -27,4 +27,27 @@ export class MockContractRepository implements ContractRepository {
     this.data.push(contrato);
     return contrato;
   }
+
+  async setDocumento(
+    contratoId: number,
+    documento: {
+      url: string | null;
+      tipo: "docx" | "pdf" | null;
+      nombre: string | null;
+      origen: "subido" | "generado" | null;
+    },
+  ): Promise<Contrato> {
+    const index = this.data.findIndex((c) => c.id_contrato === contratoId);
+    if (index === -1) throw new Error("No existe ese contrato");
+    const actualizado: Contrato = {
+      ...this.data[index],
+      documento_url: documento.url,
+      documento_tipo: documento.tipo,
+      documento_nombre: documento.nombre,
+      documento_origen: documento.origen,
+      documento_subido_en: documento.url ? new Date().toISOString() : null,
+    };
+    this.data[index] = actualizado;
+    return actualizado;
+  }
 }

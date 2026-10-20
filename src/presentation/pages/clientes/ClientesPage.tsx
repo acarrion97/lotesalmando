@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
@@ -215,11 +215,24 @@ export function ClientesPage() {
         title="Clientes"
         search={{ value: searchText, onChange: setSearchText }}
         actions={
-          puedeCrear ? (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-              Nuevo
+          <Space>
+            <Button
+              icon={<LinkOutlined />}
+              onClick={() => {
+                const url = `${window.location.origin}/portal-cliente`;
+                void navigator.clipboard?.writeText(url);
+                message.success("Link del portal copiado: mandáselo al cliente y entra con su cédula");
+                window.open(url, "_blank", "noopener,noreferrer");
+              }}
+            >
+              Portal del cliente
             </Button>
-          ) : null
+            {puedeCrear ? (
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
+                Nuevo
+              </Button>
+            ) : null}
+          </Space>
         }
       />
       <DataTable<Cliente>

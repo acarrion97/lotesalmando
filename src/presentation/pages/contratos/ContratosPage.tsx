@@ -7,17 +7,19 @@ import {
   Modal,
   Row,
   Col,
+  Space,
   Statistic,
   Tooltip,
   Typography,
 } from "antd";
-import { EyeOutlined, FileTextOutlined } from "@ant-design/icons";
+import { EyeOutlined, FileTextOutlined, FilePdfOutlined, FileWordOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 
 const { Text } = Typography;
 import { useContratos, useCotizaciones, useVentas, useInfoContratos } from "@/presentation/hooks";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { DocumentoContratoModal } from "@/presentation/components/contratos/DocumentoContratoModal";
 import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
 import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
 import { dentroDelRango, diaEnEmpresa, formatCurrency, formatDateOnly } from "@/utils";
@@ -27,6 +29,9 @@ type ContratoRow = {
   id_venta: number;
   numero_contrato: string;
   monto_total: number;
+  documento_url?: string | null;
+  documento_tipo?: string | null;
+  documento_origen?: string | null;
 };
 
 export function ContratosPage() {
@@ -39,6 +44,10 @@ export function ContratosPage() {
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: ContratoRow | null }>({
     visible: false,
     record: null,
+  });
+  const [documentoModal, setDocumentoModal] = useState<{ visible: boolean; id: number | null }>({
+    visible: false,
+    id: null,
   });
 
   // Contrato -> venta -> cotización: la entrada y las condiciones de pago viven
@@ -144,6 +153,36 @@ export function ContratosPage() {
       render: (val: number) => <span style={{ fontWeight: 600 }}>${val.toLocaleString()}</span>,
     },
     {
+      title: "Documento",
+      key: "documento",
+      render: (_: unknown, record: ContratoRow) => (
+        <Space direction="vertical" size={2}>
+          {record.documento_url ? (
+            <Space size={4}>
+              {record.documento_tipo === "pdf" ? (
+                <FilePdfOutlined style={{ color: "#cf1322" }} />
+              ) : (
+                <FileWordOutlined style={{ color: "#1677ff" }} />
+              )}
+              <Tag color={record.documento_origen === "generado" ? "green" : "purple"}>
+                {record.documento_origen === "generado" ? "Generado" : "Anexado"}
+              </Tag>
+            </Space>
+          ) : (
+            <Text type="secondary">Sin documento</Text>
+          )}
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0, height: "auto" }}
+            onClick={() => setDocumentoModal({ visible: true, id: record.id_contrato })}
+          >
+            {record.documento_url ? "Administrar" : "Generar o anexar"}
+          </Button>
+        </Space>
+      ),
+    },
+    {
       title: "Acciones",
       key: "acciones",
       width: 80,
@@ -206,6 +245,9 @@ export function ContratosPage() {
         open={viewModal.visible}
         onCancel={() => setViewModal({ visible: false, record: null })}
         footer={[
+          <Button key="documento" onClick={() => setDocumentoModal({ visible: true, id: viewModal.record?.id_contrato ?? null })}>
+            Documento
+          </Button>,
           <Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>
             Cerrar
           </Button>,
@@ -247,6 +289,12 @@ export function ContratosPage() {
           </Descriptions>
         )}
       </Modal>
+
+      <DocumentoContratoModal
+        contratoId={documentoModal.id}
+        open={documentoModal.visible}
+        onClose={() => setDocumentoModal({ visible: false, id: null })}
+      />
     </div>
   );
 }
