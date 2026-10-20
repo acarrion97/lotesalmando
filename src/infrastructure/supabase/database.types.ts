@@ -71,16 +71,25 @@ export interface Database {
           id_mapa: number;
           id_proyecto: number;
           url_publica: string | null;
+          centro_lat: number | null;
+          centro_lng: number | null;
+          ancho_m: number | null;
         };
         Insert: {
           id_mapa?: number;
           id_proyecto: number;
           url_publica?: string | null;
+          centro_lat?: number | null;
+          centro_lng?: number | null;
+          ancho_m?: number | null;
         };
         Update: {
           id_mapa?: number;
           id_proyecto?: number;
           url_publica?: string | null;
+          centro_lat?: number | null;
+          centro_lng?: number | null;
+          ancho_m?: number | null;
         };
       };
       etapas: {

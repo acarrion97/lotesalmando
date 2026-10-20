@@ -29,7 +29,9 @@ import { useProyectos, useTodosClientes, useEtapasByProyecto, useManzanasByEtapa
 import { useAuth } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
-import { PlanoInteractivo, LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
+import { ubicacionDe } from "@/domain/mapa/entities";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 
 // The scoped client list (GetClientesUseCase) only contains clients with a
@@ -146,6 +148,9 @@ export function MapasPage() {
   const [dibujando, setDibujando] = useState<{ lote: PlanoLote; puntos: PuntoPlano[] } | null>(null);
   const [guardandoPoligono, setGuardandoPoligono] = useState(false);
   const [loteAUbicar, setLoteAUbicar] = useState<number | null>(null);
+  // Plano / satélite georreferenciado / vista 3D (mientras se dibuja se fuerza el plano).
+  const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
+  const ubicacionMapa = useMemo(() => ubicacionDe(mapaProyecto), [mapaProyecto]);
 
   const lotesSinUbicar = useMemo(
     () => (lotesPlano ?? []).filter((l) => !l.poligono || l.poligono.length < 3),
@@ -536,13 +541,16 @@ export function MapasPage() {
             <Spin size="large" />
           </div>
         ) : hayPlano && urlPlano ? (
-          <PlanoInteractivo
+          <VisorMapaModos
             imagenUrl={urlPlano}
+            ubicacion={ubicacionMapa}
             lotes={lotesPlano ?? []}
             resaltados={resaltados}
             mostrarPrecio
             onLoteClick={abrirLoteDelPlano}
             onImagenError={() => setPlanosConFallo((prev) => (prev.includes(urlPlano) ? prev : [...prev, urlPlano]))}
+            modo={modoMapa}
+            onModoChange={setModoMapa}
             dibujo={dibujando && {
               puntos: dibujando.puntos,
               loteId: dibujando.lote.id_lote,

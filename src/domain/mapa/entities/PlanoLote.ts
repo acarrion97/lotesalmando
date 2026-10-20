@@ -17,5 +17,9 @@ export interface PlanoLote {
 export interface MapaPublico {
   proyecto: string;
   url_publica: string | null;
+  /** Ubicación GPS del plano; `null`/incompleto si el proyecto no la definió. */
+  centro_lat?: number | null;
+  centro_lng?: number | null;
+  ancho_m?: number | null;
   lotes: PlanoLote[];
 }

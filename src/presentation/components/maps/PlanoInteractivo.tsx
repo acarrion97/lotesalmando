@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
+import type {
+  CSSProperties,
+  MouseEvent as ReactMouseEvent,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+} from "react";
 import { Button, Tooltip } from "antd";
 import {
   ZoomInOutlined,
@@ -61,6 +66,10 @@ interface PlanoInteractivoProps {
   onImagenError?: () => void;
   /** Alto máximo del visor fuera de pantalla completa (px). */
   alturaMaxima?: number;
+  /** Capa que se dibuja debajo de la imagen (p. ej. satélite georreferenciado). */
+  capaBase?: ReactNode;
+  /** Oculta la imagen del plano manteniendo su caja y su medición (modo satélite). */
+  mostrarImagen?: boolean;
 }
 
 interface Hover {
@@ -78,6 +87,8 @@ export function PlanoInteractivo({
   mostrarPrecio = false,
   onImagenError,
   alturaMaxima,
+  capaBase,
+  mostrarImagen = true,
 }: PlanoInteractivoProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const visorRef = useRef<HTMLDivElement>(null);
@@ -323,6 +334,9 @@ export function PlanoInteractivo({
             margin: "0 auto",
           }}
         >
+          {capaBase && (
+            <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>{capaBase}</div>
+          )}
           <img
             src={imagenUrl}
             alt="Plano del proyecto"
@@ -335,7 +349,12 @@ export function PlanoInteractivo({
               })
             }
             onError={onImagenError}
-            style={{ display: "block", width: "100%", height: "auto" }}
+            style={{
+              display: "block",
+              width: "100%",
+              height: "auto",
+              visibility: mostrarImagen ? "visible" : "hidden",
+            }}
           />
           {natural && (
             <svg

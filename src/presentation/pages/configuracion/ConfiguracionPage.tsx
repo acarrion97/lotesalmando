@@ -24,6 +24,7 @@ import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 import { configuracionSchema } from "@/presentation/validations";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { EnlacePublicoMapa } from "./EnlacePublicoMapa";
+import { UbicacionMapaForm } from "./UbicacionMapaForm";
 import { ExportacionWizard } from "./exportacion";
 
 const MONEDAS = [
@@ -503,6 +504,11 @@ export function ConfiguracionPage() {
                             proyectosDelMapa?.find((p) => p.id_proyecto === proyectoMapa)?.nombre ??
                             ""
                           }
+                          mapa={mapaProyecto}
+                        />
+                        <UbicacionMapaForm
+                          key={`ubic-${proyectoMapa}`}
+                          proyectoId={proyectoMapa}
                           mapa={mapaProyecto}
                         />
                       </div>

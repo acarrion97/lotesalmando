@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Empty, Result, Spin, Typography } from "antd";
 import { EnvironmentOutlined } from "@ant-design/icons";
 import { useMapaPublico } from "@/presentation/hooks";
-import { LeyendaPlano, PlanoInteractivo } from "@/presentation/components/maps/PlanoInteractivo";
+import { LeyendaPlano } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
+import { ubicacionDe } from "@/domain/mapa/entities";
 
 const { Title, Text } = Typography;
 
@@ -15,6 +17,8 @@ export function MapaPublicoPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const { data: mapa, isLoading, isError } = useMapaPublico(slug);
   const [imagenFallida, setImagenFallida] = useState(false);
+  const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
+  const ubicacion = useMemo(() => ubicacionDe(mapa), [mapa]);
 
   useEffect(() => {
     document.title = mapa ? `${mapa.proyecto} - Mapa de disponibilidad` : "Mapa de disponibilidad";
@@ -43,12 +47,17 @@ export function MapaPublicoPage() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px" }}>
           <LeyendaPlano lotes={mapa.lotes} />
         </div>
-        <PlanoInteractivo
-          imagenUrl={mapa.url_publica}
-          lotes={mapa.lotes}
-          onImagenError={() => setImagenFallida(true)}
-          alturaMaxima={Math.max(360, window.innerHeight - 190)}
-        />
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px 20px" }}>
+          <VisorMapaModos
+            imagenUrl={mapa.url_publica}
+            ubicacion={ubicacion}
+            lotes={mapa.lotes}
+            onImagenError={() => setImagenFallida(true)}
+            alturaMaxima={Math.max(360, window.innerHeight - 230)}
+            modo={modoMapa}
+            onModoChange={setModoMapa}
+          />
+        </div>
       </>
     );
   }

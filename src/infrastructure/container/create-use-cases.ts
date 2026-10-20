@@ -75,6 +75,7 @@ import { QuitarImagenMapaUseCase } from "@/application/mapas/use-cases/QuitarIma
 import { GetLotesPlanoUseCase } from "@/application/mapas/use-cases/GetLotesPlanoUseCase";
 import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/GuardarPoligonoLoteUseCase";
 import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
+import { DefinirUbicacionMapaUseCase } from "@/application/mapas/use-cases/DefinirUbicacionMapaUseCase";
 import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
 
 export interface UseCases {
@@ -152,6 +153,7 @@ export interface UseCases {
   getLotesPlano: GetLotesPlanoUseCase;
   guardarPoligonoLote: GuardarPoligonoLoteUseCase;
   publicarMapa: PublicarMapaUseCase;
+  definirUbicacionMapa: DefinirUbicacionMapaUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
 }
 
@@ -239,6 +241,7 @@ export function createUseCases(repos: Repositories): UseCases {
     getLotesPlano: new GetLotesPlanoUseCase(repos.mapaRepo),
     guardarPoligonoLote: new GuardarPoligonoLoteUseCase(repos.mapaRepo),
     publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
+    definirUbicacionMapa: new DefinirUbicacionMapaUseCase(repos.mapaRepo),
     getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
   };
 }

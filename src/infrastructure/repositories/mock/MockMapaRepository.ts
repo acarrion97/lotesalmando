@@ -1,5 +1,5 @@
 import type { PuntoPlano } from "@/domain/lote/entities";
-import type { Mapa, MapaPublico, PlanoLote } from "@/domain/mapa/entities";
+import type { Mapa, MapaPublico, PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
 import type { MapaRepository, SaveMapaInput } from "@/domain/mapa/repositories";
 import { lotes } from "@/mocks/lotes.mock";
 import { manzanas } from "@/mocks/manzanas.mock";
@@ -23,6 +23,9 @@ export class MockMapaRepository implements MapaRepository {
       id_proyecto: data.id_proyecto,
       url_publica: data.url_publica,
       slug: existente?.slug ?? null,
+      centro_lat: existente?.centro_lat ?? null,
+      centro_lng: existente?.centro_lng ?? null,
+      ancho_m: existente?.ancho_m ?? null,
     };
     registros.set(data.id_proyecto, guardado);
     return guardado;
@@ -71,6 +74,22 @@ export class MockMapaRepository implements MapaRepository {
     throw new Error("El proyecto no tiene plano");
   }
 
+  async setUbicacion(mapaId: number, ubicacion: UbicacionPlano | null): Promise<Mapa> {
+    for (const [proyectoId, mapa] of registros) {
+      if (mapa.id_mapa === mapaId) {
+        const actualizado: Mapa = {
+          ...mapa,
+          centro_lat: ubicacion?.centro_lat ?? null,
+          centro_lng: ubicacion?.centro_lng ?? null,
+          ancho_m: ubicacion?.ancho_m ?? null,
+        };
+        registros.set(proyectoId, actualizado);
+        return actualizado;
+      }
+    }
+    throw new Error("El proyecto no tiene plano");
+  }
+
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const mapa = [...registros.values()].find((m) => m.slug === slug);
     if (!mapa) return null;
@@ -78,6 +97,9 @@ export class MockMapaRepository implements MapaRepository {
     return {
       proyecto: proyectos.find((p) => p.id_proyecto === mapa.id_proyecto)?.nombre ?? "Proyecto",
       url_publica: mapa.url_publica,
+      centro_lat: mapa.centro_lat ?? null,
+      centro_lng: mapa.centro_lng ?? null,
+      ancho_m: mapa.ancho_m ?? null,
       lotes: lotesPlano
         .filter((l) => l.poligono)
         .map(({ precio_lista: _precio, ...lote }) => lote),

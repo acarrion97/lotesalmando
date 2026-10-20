@@ -1,6 +1,6 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { LoteEstado, PuntoPlano } from "@/domain/lote/entities";
-import type { Mapa, MapaPublico, PlanoLote } from "@/domain/mapa/entities";
+import type { Mapa, MapaPublico, PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
 import type { MapaRepository, SaveMapaInput } from "@/domain/mapa/repositories";
 
 interface LotePlanoRow {
@@ -88,6 +88,21 @@ export class SupabaseMapaRepository implements MapaRepository {
       if (error.code === "23505") throw new Error("Ese enlace ya lo usa otro proyecto");
       throw error;
     }
+    return data as Mapa;
+  }
+
+  async setUbicacion(mapaId: number, ubicacion: UbicacionPlano | null): Promise<Mapa> {
+    const { data, error } = await supabase
+      .from("mapas")
+      .update({
+        centro_lat: ubicacion?.centro_lat ?? null,
+        centro_lng: ubicacion?.centro_lng ?? null,
+        ancho_m: ubicacion?.ancho_m ?? null,
+      })
+      .eq("id_mapa", mapaId)
+      .select()
+      .single();
+    if (error) throw error;
     return data as Mapa;
   }
 
