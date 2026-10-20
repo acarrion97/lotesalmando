@@ -21,6 +21,8 @@ export interface Mapa {
   centro_lat?: number | null;
   centro_lng?: number | null;
   ancho_m?: number | null;
+  /** URL del render 3D del proyecto (capa "Render" de la vista 3D). */
+  render_3d_url?: string | null;
 }
 
 /**

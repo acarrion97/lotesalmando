@@ -27,12 +27,18 @@ const ESCALA_MAX = 3;
 /** Capas apiladas que forman el volumen de cada lote (efecto extruido). */
 const CAPAS_RELIEVE = 8;
 
-type Capa = "interna" | "aerea";
+type Capa = "interna" | "aerea" | "render";
 
 interface Visor3DProps {
   imagenUrl: string;
   /** Ubicación GPS del plano; sin ella solo se puede ver la capa interna. */
   ubicacion?: UbicacionPlano | null;
+  /**
+   * Render 3D del proyecto (imagen subida en Configuración). Si existe
+   * aparece la capa "Render": la imagen se apoya en el plano inclinado y
+   * el visitante la gira/acerca como una guía visual del emprendimiento.
+   */
+  renderUrl?: string | null;
   lotes: PlanoLote[];
   onLoteClick?: (lote: PlanoLote) => void;
   /** Si se pasa, los lotes fuera del conjunto se atenúan. */
@@ -87,6 +93,7 @@ function anchoPoligono(poligono: PuntoPlano[]): number {
 export function Visor3D({
   imagenUrl,
   ubicacion,
+  renderUrl,
   lotes,
   onLoteClick,
   resaltados,
@@ -97,6 +104,11 @@ export function Visor3D({
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [medida, setMedida] = useState<{ url: string; w: number; h: number } | null>(null);
   const natural = medida?.url === imagenUrl ? medida : null;
+  /** Proporción del render, medida con su propia imagen oculta. */
+  const [medidaRender, setMedidaRender] = useState<{ url: string; w: number; h: number } | null>(
+    null,
+  );
+  const naturalRender = medidaRender?.url === renderUrl ? medidaRender : null;
   const [visorAncho, setVisorAncho] = useState(0);
   const [inclinacion, setInclinacion] = useState(INCLINACION_INICIAL);
   const [giro, setGiro] = useState(0);
@@ -131,7 +143,26 @@ export function Visor3D({
   }, []);
 
   const altoDisponible = alturaMaxima ?? Math.max(420, window.innerHeight - 260);
-  const aspecto = natural ? natural.w / natural.h : 16 / 9;
+  const limites = useMemo(
+    () => (ubicacion && natural ? limitesDelPlano(ubicacion, natural.w / natural.h) : null),
+    [ubicacion, natural],
+  );
+  const hayCapaAerea = !!limites;
+  const hayRender = !!renderUrl && !!naturalRender;
+  /** Capa elegida, o la interna si la pedida no está disponible. */
+  const capaActiva: Capa =
+    capa === "aerea" && !hayCapaAerea
+      ? "interna"
+      : capa === "render" && !hayRender
+        ? "interna"
+        : capa;
+  // La capa Render usa la proporción de su propia imagen; el resto, la del plano.
+  const aspecto =
+    capaActiva === "render" && naturalRender
+      ? naturalRender.w / naturalRender.h
+      : natural
+        ? natural.w / natural.h
+        : 16 / 9;
   const anchoBase = useMemo(() => {
     if (!visorAncho) return 0;
     return Math.max(120, Math.min(visorAncho - 32, (altoDisponible - 56) * aspecto));
@@ -140,13 +171,6 @@ export function Visor3D({
   const anchoLienzo = anchoBase * escala;
   const altoLienzo = anchoLienzo / aspecto;
   const altoRelieve = clamp(anchoLienzo * 0.05, 14, 60);
-
-  const limites = useMemo(
-    () => (ubicacion && natural ? limitesDelPlano(ubicacion, natural.w / natural.h) : null),
-    [ubicacion, natural],
-  );
-  const hayCapaAerea = !!limites;
-  const capaActiva: Capa = hayCapaAerea ? capa : "interna";
 
   const lotesDibujados = useMemo(
     () => lotes.filter((l) => l.poligono && l.poligono.length >= 3),
@@ -262,6 +286,25 @@ export function Visor3D({
         style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
       />
 
+      {/* Mide la proporción del render para que la capa Render no se deforme. */}
+      {renderUrl && (
+        <img
+          src={renderUrl}
+          alt=""
+          aria-hidden
+          draggable={false}
+          onLoad={(e) =>
+            setMedidaRender({
+              url: renderUrl,
+              w: e.currentTarget.naturalWidth,
+              h: e.currentTarget.naturalHeight,
+            })
+          }
+          onError={() => setMedidaRender(null)}
+          style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+        />
+      )}
+
       <div
         style={{
           position: "absolute",
@@ -355,6 +398,9 @@ export function Visor3D({
               onChange={(v) => setCapa(v as Capa)}
               options={[
                 { label: "Plano interno", value: "interna" },
+                ...(renderUrl
+                  ? [{ label: "Render", value: "render" as Capa, disabled: !naturalRender }]
+                  : []),
                 { label: "Satélite", value: "aerea", disabled: !hayCapaAerea },
               ]}
             />
@@ -375,7 +421,17 @@ export function Visor3D({
           transform: `rotateX(${inclinacion}deg) rotateZ(${giro}deg)`,
         }}
       >
-        {capaActiva === "aerea" && limites ? <CapaSatelite limites={limites} /> : (
+        {/* Base: render, satélite o plano; el render es la guía visual del proyecto. */}
+        {capaActiva === "render" && renderUrl ? (
+          <img
+            src={renderUrl}
+            alt="Render 3D del proyecto"
+            draggable={false}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
+          />
+        ) : capaActiva === "aerea" && limites ? (
+          <CapaSatelite limites={limites} />
+        ) : (
           <img
             src={imagenUrl}
             alt="Plano del proyecto"
@@ -384,8 +440,10 @@ export function Visor3D({
           />
         )}
 
-        {/* Suelo: estado de cada lote a ras de la imagen. */}
-        {natural &&
+        {/* Los polígonos se dibujan sobre el plano y sobre el satélite (ahí
+            están georreferenciados); sobre el render no, porque el render es
+            una imagen del proyecto y no guarda correspondencia con el plano. */}
+        {capaActiva !== "render" && natural &&
           svgPoligonos(
             lotesDibujados.map((lote) => {
               const estilo = estiloDe(lote.estado);
@@ -408,7 +466,7 @@ export function Visor3D({
           )}
 
         {/* Volumen: capas apiladas que simulan la extrusión de cada lote. */}
-        {natural &&
+        {capaActiva !== "render" && natural &&
           capas.map((i) => {
             const brillo = 0.34 + (0.58 * i) / CAPAS_RELIEVE;
             return (
@@ -444,7 +502,7 @@ export function Visor3D({
           })}
 
         {/* Cara superior: color, etiqueta y clic. */}
-        {natural && (
+        {capaActiva !== "render" && natural && (
           <div
             style={{
               position: "absolute",
@@ -592,7 +650,8 @@ export function Visor3D({
         }}
       >
         Arrastrá para girar · rueda para acercar
-        {onLoteClick ? " · clic en un lote para ver su ficha" : ""}
+        {onLoteClick && capaActiva !== "render" ? " · clic en un lote para ver su ficha" : ""}
+        {capaActiva === "render" ? " · capa Render: imagen de referencia del proyecto" : ""}
       </div>
     </div>
   );

@@ -27,6 +27,7 @@ export class MockMapaRepository implements MapaRepository {
       centro_lat: existente?.centro_lat ?? null,
       centro_lng: existente?.centro_lng ?? null,
       ancho_m: existente?.ancho_m ?? null,
+      render_3d_url: existente?.render_3d_url ?? null,
     };
     registros.set(data.id_proyecto, guardado);
     return guardado;
@@ -91,6 +92,17 @@ export class MockMapaRepository implements MapaRepository {
     throw new Error("El proyecto no tiene plano");
   }
 
+  async setRender3D(mapaId: number, url: string | null): Promise<Mapa> {
+    for (const [proyectoId, mapa] of registros) {
+      if (mapa.id_mapa === mapaId) {
+        const actualizado: Mapa = { ...mapa, render_3d_url: url };
+        registros.set(proyectoId, actualizado);
+        return actualizado;
+      }
+    }
+    throw new Error("El proyecto no tiene plano");
+  }
+
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const mapa = [...registros.values()].find((m) => m.slug === slug);
     if (!mapa) return null;
@@ -115,6 +127,7 @@ export class MockMapaRepository implements MapaRepository {
       centro_lat: mapa.centro_lat ?? null,
       centro_lng: mapa.centro_lng ?? null,
       ancho_m: mapa.ancho_m ?? null,
+      render_3d_url: mapa.render_3d_url ?? null,
       lotes,
     };
   }

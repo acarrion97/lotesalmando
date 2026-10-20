@@ -35,6 +35,8 @@ export interface MapaPublico {
   centro_lat?: number | null;
   centro_lng?: number | null;
   ancho_m?: number | null;
+  /** Render 3D del proyecto (capa "Render" de la vista 3D); `null` si no hay. */
+  render_3d_url?: string | null;
   /**
    * Todos los lotes del proyecto. La pestaña Mapa dibuja solo los que
    * tienen `poligono`; la calculadora deja elegir cualquiera.

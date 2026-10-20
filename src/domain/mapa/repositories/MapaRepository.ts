@@ -20,6 +20,8 @@ export interface MapaRepository {
   setSlug(mapaId: number, slug: string | null): Promise<Mapa>;
   /** Guarda (o borra, con `null`) la ubicación GPS y escala real del plano. */
   setUbicacion(mapaId: number, ubicacion: UbicacionPlano | null): Promise<Mapa>;
+  /** Guarda (o borra, con `null`) el render 3D del proyecto (capa "Render"). */
+  setRender3D(mapaId: number, url: string | null): Promise<Mapa>;
   /** Mapa público por slug (accesible sin sesión); `null` si no existe. */
   getPublicoBySlug(slug: string): Promise<MapaPublico | null>;
 }

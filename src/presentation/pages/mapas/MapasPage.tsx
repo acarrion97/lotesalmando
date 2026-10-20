@@ -914,6 +914,7 @@ export function MapasPage() {
           <VisorMapaModos
             imagenUrl={urlPlano}
             ubicacion={ubicacionMapa}
+            renderUrl={mapaProyecto?.render_3d_url}
             lotes={lotesPlano ?? []}
             resaltados={resaltados}
             mostrarPrecio

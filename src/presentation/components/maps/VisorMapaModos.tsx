@@ -18,6 +18,8 @@ interface VisorMapaModosProps {
   imagenUrl: string;
   /** Ubicación GPS del plano: sin ella el modo satélite queda deshabilitado. */
   ubicacion?: UbicacionPlano | null;
+  /** Render 3D del proyecto: si existe, la vista 3D ofrece la capa "Render". */
+  renderUrl?: string | null;
   lotes: PlanoLote[];
   onLoteClick?: (lote: PlanoLote) => void;
   resaltados?: ReadonlySet<number> | null;
@@ -48,6 +50,7 @@ const OPCIONES: { label: string; value: ModoMapa; icon: ReactNode }[] = [
 export function VisorMapaModos({
   imagenUrl,
   ubicacion,
+  renderUrl,
   lotes,
   onLoteClick,
   resaltados,
@@ -118,6 +121,7 @@ export function VisorMapaModos({
         <Visor3D
           imagenUrl={imagenUrl}
           ubicacion={ubicacion}
+          renderUrl={renderUrl}
           lotes={lotes}
           onLoteClick={onLoteClick}
           resaltados={resaltados}

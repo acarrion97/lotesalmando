@@ -7,6 +7,7 @@ import { useEmpresa } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { EnlacePublicoMapa } from "./EnlacePublicoMapa";
 import { UbicacionMapaForm } from "./UbicacionMapaForm";
+import { Render3DForm } from "./Render3DForm";
 
 const FORMATOS_ADMITIDOS = ["image/png", "image/jpeg", "image/webp"];
 const TAMANO_MAXIMO_IMAGEN = 10 * 1024 * 1024; // 10 MB, igual que el bucket
@@ -251,6 +252,7 @@ export function MapaProyectoCard({ proyectoId }: MapaProyectoCardProps) {
                 mapa={mapaProyecto}
               />
               <UbicacionMapaForm key={`ubic-${proyecto}`} proyectoId={proyecto} mapa={mapaProyecto} />
+              <Render3DForm key={`render-${proyecto}`} proyectoId={proyecto} mapa={mapaProyecto} />
             </div>
           ) : (
             <div

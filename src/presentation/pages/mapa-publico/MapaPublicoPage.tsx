@@ -220,6 +220,7 @@ export function MapaPublicoPage() {
                           <VisorMapaModos
                             imagenUrl={mapa.url_publica}
                             ubicacion={ubicacion}
+                            renderUrl={mapa.render_3d_url}
                             lotes={mapa.lotes}
                             onLoteClick={abrirFicha}
                             onImagenError={() => setImagenFallida(true)}

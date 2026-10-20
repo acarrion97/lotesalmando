@@ -104,6 +104,8 @@ import { GetLotesPlanoUseCase } from "@/application/mapas/use-cases/GetLotesPlan
 import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/GuardarPoligonoLoteUseCase";
 import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
 import { DefinirUbicacionMapaUseCase } from "@/application/mapas/use-cases/DefinirUbicacionMapaUseCase";
+import { SubirRender3DUseCase } from "@/application/mapas/use-cases/SubirRender3DUseCase";
+import { QuitarRender3DUseCase } from "@/application/mapas/use-cases/QuitarRender3DUseCase";
 import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
 import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
@@ -215,6 +217,8 @@ export interface UseCases {
   guardarPoligonoLote: GuardarPoligonoLoteUseCase;
   publicarMapa: PublicarMapaUseCase;
   definirUbicacionMapa: DefinirUbicacionMapaUseCase;
+  subirRender3D: SubirRender3DUseCase;
+  quitarRender3D: QuitarRender3DUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
   getMediosProyecto: GetMediosProyectoUseCase;
   subirMedioProyecto: SubirMedioProyectoUseCase;
@@ -355,6 +359,8 @@ export function createUseCases(repos: Repositories): UseCases {
     guardarPoligonoLote: new GuardarPoligonoLoteUseCase(repos.mapaRepo),
     publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
     definirUbicacionMapa: new DefinirUbicacionMapaUseCase(repos.mapaRepo),
+    subirRender3D: new SubirRender3DUseCase(repos.mapaRepo, repos.mapaImageStorage),
+    quitarRender3D: new QuitarRender3DUseCase(repos.mapaRepo, repos.mapaImageStorage),
     getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
     getMediosProyecto: new GetMediosProyectoUseCase(repos.proyectoMedioRepo),
     subirMedioProyecto: new SubirMedioProyectoUseCase(
