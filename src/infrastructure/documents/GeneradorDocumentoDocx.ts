@@ -9,15 +9,23 @@ import {
   TextRun,
   WidthType,
 } from "docx";
-import {
-  estructuraContrato,
-} from "@/application/contratos/services/estructuraContrato";
+import { estructuraContrato } from "@/application/contratos/services/estructuraContrato";
 import type {
   BloqueDocumento,
   ContenidoContrato,
   FormatoDocumentoContrato,
   GeneradorDocumentoContrato,
+  SegmentoTexto,
 } from "@/application/contratos/ports/GeneradorDocumentoContrato";
+
+/** A4 en twips y márgenes de 2,54 cm: el papel del documento original. */
+const PAGINA = {
+  size: { width: 11906, height: 16838 },
+  margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+};
+
+/** Texto corrido justificado, como el documento original. */
+const INTERLINEADO = { after: 160, line: 259 };
 
 /** Convierte un bloque de texto plano en los párrafos del Word. */
 function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
@@ -26,21 +34,43 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
       return [
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 240 },
-          children: [new TextRun({ text: bloque.texto, bold: true, size: 32, color: "082B33" })],
+          spacing: { after: 120 },
+          children: [
+            new TextRun({
+              text: bloque.texto,
+              bold: true,
+              size: 24,
+              font: "Bookman Old Style",
+            }),
+          ],
         }),
       ];
     case "subtitulo":
       return [
         new Paragraph({
-          spacing: { before: 200, after: 120 },
-          children: [new TextRun({ text: bloque.texto, bold: true, size: 24, color: "082B33" })],
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 240 },
+          children: [new TextRun({ text: bloque.texto, bold: true, size: 22 })],
+        }),
+      ];
+    case "clausula":
+      return [
+        new Paragraph({
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: INTERLINEADO,
+          children: [
+            new TextRun({ text: `${bloque.encabezado} `, bold: true, size: 22 }),
+            ...bloque.cuerpo.map((segmento: SegmentoTexto) =>
+              new TextRun({ text: segmento.texto, bold: segmento.negrita, size: 22 }),
+            ),
+          ],
         }),
       ];
     case "parrafo":
       return [
         new Paragraph({
-          spacing: { after: 160, line: 300 },
+          alignment: AlignmentType.JUSTIFIED,
+          spacing: INTERLINEADO,
           children: [new TextRun({ text: bloque.texto, size: 22 })],
         }),
       ];
@@ -88,6 +118,52 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
         }),
         new Paragraph({ spacing: { after: 160 }, children: [] }),
       ];
+    case "firmas":
+      return [
+        new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          borders: {
+            top: { style: "none", size: 0, color: "FFFFFF" },
+            bottom: { style: "none", size: 0, color: "FFFFFF" },
+            left: { style: "none", size: 0, color: "FFFFFF" },
+            right: { style: "none", size: 0, color: "FFFFFF" },
+            insideHorizontal: { style: "none", size: 0, color: "FFFFFF" },
+            insideVertical: { style: "none", size: 0, color: "FFFFFF" },
+          },
+          rows: [
+            // Una fila vacía: es el espacio donde se firma.
+            new TableRow({
+              children: bloque.columnas.map(
+                () =>
+                  new TableCell({
+                    children: [new Paragraph({ spacing: { after: 480 }, children: [] })],
+                  }),
+              ),
+            }),
+            ...[0, 1, 2].map((indiceLinea) =>
+              new TableRow({
+                children: bloque.columnas.map(
+                  (columna) =>
+                    new TableCell({
+                      children: [
+                        new Paragraph({
+                          children: [
+                            new TextRun({
+                              text: columna.lineas[indiceLinea] ?? "",
+                              bold: indiceLinea === 0,
+                              size: 22,
+                            }),
+                          ],
+                        }),
+                      ],
+                    }),
+                ),
+              }),
+            ),
+          ],
+        }),
+        new Paragraph({ spacing: { after: 160 }, children: [] }),
+      ];
     case "espacio":
       return [new Paragraph({ spacing: { after: 120 }, children: [] })];
   }
@@ -104,7 +180,12 @@ export class GeneradorDocumentoDocx implements GeneradorDocumentoContrato {
     const doc = new Document({
       creator: contenido.empresa.nombre || "Lotes al Mando",
       title: `${plano.titulo} ${contenido.numero_contrato}`,
-      sections: [{ properties: {}, children: hijos }],
+      styles: {
+        default: {
+          document: { run: { font: "Calibri", size: 22 } },
+        },
+      },
+      sections: [{ properties: { page: PAGINA }, children: hijos }],
     });
 
     // Packer.toBlob ya entrega un Blob listo para descargar o subir.

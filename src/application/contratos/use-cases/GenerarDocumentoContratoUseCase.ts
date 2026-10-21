@@ -73,11 +73,6 @@ export class GenerarDocumentoContratoUseCase {
 
     const lote = await d.lotes.getById(venta.id_lote);
     const manzana = lote ? await d.manzanas.getById(lote.id_manzana) : null;
-    const etiquetaLote = lote
-      ? manzana?.nombre_codigo
-        ? `${manzana.nombre_codigo} - Lote ${lote.numero_lote}`
-        : `Lote ${lote.numero_lote}`
-      : null;
 
     // nombre del proyecto: lote -> manzana -> etapa -> proyecto
     let nombreProyecto: string | null = null;
@@ -100,6 +95,13 @@ export class GenerarDocumentoContratoUseCase {
       empresa: {
         nombre: empresa?.razon_social || "La empresa",
         ruc: empresa?.ruc ?? null,
+        // Datos legales de la empresa (Configuración): los usa el contrato.
+        representante: configuracion?.representante ?? null,
+        representante_cedula: configuracion?.representante_cedula ?? null,
+        representante_email: configuracion?.representante_email ?? null,
+        ciudad: configuracion?.ciudad ?? null,
+        cuentas_bancarias: configuracion?.cuentas_bancarias ?? null,
+        direccion_canje: configuracion?.direccion_canje ?? null,
       },
       cliente: {
         nombres: cliente.nombres,
@@ -108,7 +110,10 @@ export class GenerarDocumentoContratoUseCase {
         telefono: cliente.telefono,
       },
       proyecto: nombreProyecto,
-      lote: etiquetaLote,
+      manzana: manzana?.nombre_codigo ?? null,
+      lote: lote?.numero_lote ?? null,
+      medidas: lote?.medidas ?? null,
+      superficie_m2: lote?.superficie_m2 ?? null,
       precio_total: Number(contrato.monto_total),
       entrada,
       financiado: entrada !== null ? Number(contrato.monto_total) - entrada : null,

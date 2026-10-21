@@ -20,6 +20,12 @@ export class MockConfiguracionRepository implements ConfiguracionRepository {
       id_empresa: data.id_empresa,
       moneda: data.moneda,
       idioma: data.idioma,
+      representante: data.representante ?? null,
+      representante_cedula: data.representante_cedula ?? null,
+      representante_email: data.representante_email ?? null,
+      ciudad: data.ciudad ?? null,
+      cuentas_bancarias: data.cuentas_bancarias ?? null,
+      direccion_canje: data.direccion_canje ?? null,
     };
     registros.set(data.id_empresa, guardada);
     return guardada;

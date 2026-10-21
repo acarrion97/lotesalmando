@@ -5,6 +5,13 @@ export interface SaveConfiguracionInput {
   id_empresa: number;
   moneda: string;
   idioma: string;
+  /** Datos legales que usa el contrato (representante, ciudad, cuentas). */
+  representante?: string | null;
+  representante_cedula?: string | null;
+  representante_email?: string | null;
+  ciudad?: string | null;
+  cuentas_bancarias?: string | null;
+  direccion_canje?: string | null;
 }
 
 export interface ConfiguracionRepository {

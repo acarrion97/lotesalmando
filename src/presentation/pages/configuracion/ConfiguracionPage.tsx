@@ -6,6 +6,7 @@ import {
   Col,
   Descriptions,
   Form,
+  Input,
   Row,
   Select,
   Spin,
@@ -62,7 +63,7 @@ export function ConfiguracionPage() {
   const empresaId = empresaActual?.id_empresa;
   const configId = configuracion?.id_configuracion ?? null;
   const monedaGuardada = configuracion?.moneda ?? null;
-  const idiomaGuardada = configuracion?.idioma ?? null;
+  const idiomaGuardado = configuracion?.idioma ?? null;
 
   // Hidrata el formulario con lo guardado (o lo limpia si esta empresa aún no tiene config).
   useEffect(() => {
@@ -70,12 +71,19 @@ export function ConfiguracionPage() {
     if (configId !== null) {
       form.setFieldsValue({
         moneda: monedaGuardada ?? undefined,
-        idioma: idiomaGuardada ?? undefined,
+        idioma: idiomaGuardado ?? undefined,
+        representante: configuracion?.representante ?? undefined,
+        representante_cedula: configuracion?.representante_cedula ?? undefined,
+        representante_email: configuracion?.representante_email ?? undefined,
+        ciudad: configuracion?.ciudad ?? undefined,
+        cuentas_bancarias: configuracion?.cuentas_bancarias ?? undefined,
+        direccion_canje: configuracion?.direccion_canje ?? undefined,
       });
     } else {
       form.resetFields();
     }
-  }, [form, empresaId, configId, monedaGuardada, idiomaGuardada]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, configuracion]);
 
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
@@ -111,6 +119,12 @@ export function ConfiguracionPage() {
         id_empresa: empresaActual.id_empresa,
         moneda: parsed.moneda,
         idioma: parsed.idioma,
+        representante: parsed.representante?.trim() || null,
+        representante_cedula: parsed.representante_cedula?.trim() || null,
+        representante_email: parsed.representante_email?.trim() || null,
+        ciudad: parsed.ciudad?.trim() || null,
+        cuentas_bancarias: parsed.cuentas_bancarias?.trim() || null,
+        direccion_canje: parsed.direccion_canje?.trim() || null,
       });
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracion(empresaActual.id_empresa),
@@ -229,6 +243,80 @@ export function ConfiguracionPage() {
                       style={{ marginBottom: 16 }}
                     />
                   )}
+                </Form>
+              </Card>
+            </Col>
+
+            <Col span={24}>
+              <Card
+                title="Datos legales del contrato"
+                style={{ borderRadius: 12, marginTop: 16 }}
+                extra={
+                  <span style={{ color: "#8c8c8c", fontSize: 12 }}>
+                    Se usan al generar el contrato: si un dato no está, el contrato sale sin él
+                  </span>
+                }
+              >
+                <Form form={form} layout="vertical">
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="representante"
+                        label="Representante de la empresa"
+                        extra="Quien firma como propietario (gerente o apoderado)."
+                      >
+                        <Input placeholder="Nombre y apellido del representante" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="representante_cedula"
+                        label="Cédula del representante"
+                        extra="Sin puntos ni guiones."
+                      >
+                        <Input placeholder="0705215317" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item name="representante_email" label="Correo del representante">
+                        <Input placeholder="correo@empresa.com" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="ciudad"
+                        label="Ciudad donde se firma"
+                        extra="Sale en la fecha de firma y en la cláusula de aceptación."
+                      >
+                        <Input placeholder="Machala" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={24}>
+                      <Form.Item
+                        name="cuentas_bancarias"
+                        label="Cuentas para el pago"
+                        extra="Se escribe en la cláusula de precio y forma de pago (una cuenta por línea)."
+                      >
+                        <Input.TextArea
+                          rows={3}
+                          placeholder={
+                            "cuenta corriente con No.2100316362 del Banco Pichincha a nombre de CDLA SAN LUCAS S.A.S, con número de ruc 0791843338001"
+                          }
+                          showCount
+                          maxLength={1000}
+                        />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={24}>
+                      <Form.Item
+                        name="direccion_canje"
+                        label="Dirección de canje de papeletas"
+                        extra="Dónde se cambian las papeletas de depósito por los recibos."
+                      >
+                        <Input placeholder="Napoleón Mera entre Bolívar y Pichincha" allowClear />
+                      </Form.Item>
+                    </Col>
+                  </Row>
                 </Form>
               </Card>
             </Col>
