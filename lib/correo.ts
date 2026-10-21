@@ -258,6 +258,73 @@ export async function avisarCuotaPorVencer(
   );
 }
 
+/** Datos del resultado de la revision de un comprobante (los usa api/comprobantes/avisar). */
+export interface AvisoRevisionComprobante {
+  para: string;
+  nombre: string;
+  numeroContrato: string;
+  lote: string | null;
+  numeroCuota: number;
+  /** Valor que declaro el cliente, ya formateado con la moneda de la empresa. */
+  montoPagado: string;
+  portalUrl: string;
+}
+
+/** Cabecera comun de los dos avisos de revision. */
+function contextoRevision(datos: AvisoRevisionComprobante): string {
+  return `tu comprobante de la cuota <strong>${esc(`nº ${datos.numeroCuota}`)}</strong> del contrato <strong>${esc(
+    datos.numeroContrato,
+  )}</strong>${datos.lote ? ` (${esc(datos.lote)})` : ""}`;
+}
+
+const PIE_REVISION =
+  "Este es un correo automatico de Lotes al Mando. Si crees que hubo un error, comunicate con tu asesor.";
+
+/**
+ * El asesor reviso y aprobo el comprobante: la cuota ya figura como pagada
+ * y el cliente no tiene que hacer nada mas.
+ */
+export async function avisarComprobanteAprobado(
+  datos: AvisoRevisionComprobante,
+): Promise<EstadoCorreo> {
+  const cuerpo = [
+    `${saludo({ nombre: datos.nombre, razonSocial: "" })} aprobamos ${contextoRevision(datos)}.`,
+    `Valor pagado: <strong>${esc(datos.montoPagado)}</strong>. La cuota ya figura como pagada.`,
+    `Puedes ver tus contratos y cuotas en el portal: <a href="${esc(
+      datos.portalUrl,
+    )}" style="color:#1677ff">${esc(datos.portalUrl)}</a>.`,
+  ];
+  return enviar(
+    datos.para,
+    "Tu comprobante fue aprobado - Lotes al Mando",
+    cuerpo.join("\n").replace(/<[^>]+>/g, ""),
+    plantilla("Comprobante aprobado", cuerpo, PIE_REVISION),
+  );
+}
+
+/**
+ * El asesor rechazo el comprobante: el motivo es obligatorio porque el
+ * cliente lo necesita para volver a enviarlo bien desde el portal.
+ */
+export async function avisarComprobanteRechazado(
+  datos: AvisoRevisionComprobante & { motivo: string },
+): Promise<EstadoCorreo> {
+  const cuerpo = [
+    `${saludo({ nombre: datos.nombre, razonSocial: "" })} no pudimos aceptar ${contextoRevision(datos)}.`,
+    `Motivo del rechazo: <strong>${esc(datos.motivo)}</strong>.`,
+    `Valor que enviaste: <strong>${esc(datos.montoPagado)}</strong>.`,
+    `Puedes corregirlo y enviar el comprobante otra vez desde el portal: <a href="${esc(
+      datos.portalUrl,
+    )}" style="color:#1677ff">${esc(datos.portalUrl)}</a>.`,
+  ];
+  return enviar(
+    datos.para,
+    "Tu comprobante fue rechazado - Lotes al Mando",
+    cuerpo.join("\n").replace(/<[^>]+>/g, ""),
+    plantilla("Comprobante rechazado", cuerpo, PIE_REVISION),
+  );
+}
+
 /** La cuota ya vencio: se avisa para regularizar el pago. */
 export async function avisarCuotaVencida(
   datos: AvisoCuota & { diasVencida: number },

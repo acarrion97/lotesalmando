@@ -25,39 +25,52 @@ export function ModalRevisionComprobante({
   /** Dato extra para identificar la cuota (ej: "Contrato C-001 · Cuota 3"). */
   contexto?: string;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
+  // La URL se guarda junto al id del comprobante: así, al cambiar de
+  // comprobante no hace falta vaciar el estado dentro de un efecto (el
+  // valor de otro comprobante queda viejo y se ignora solo).
+  const [urlGuardada, setUrlGuardada] = useState<{ id: number; url: string } | null>(null);
   const [nota, setNota] = useState("");
   const [rechazando, setRechazando] = useState(false);
   const abrir = useAbrirComprobante();
   const { aprobar, rechazar } = useRevisionComprobante();
 
+  const idComprobante = comprobante?.id_comprobante ?? null;
+
   useEffect(() => {
-    if (!open || !comprobante) {
-      setUrl(null);
-      setNota("");
-      setRechazando(false);
-      return;
-    }
+    if (!open || idComprobante === null) return;
     let vigente = true;
-    abrir.mutate(comprobante.id_comprobante, {
+    abrir.mutate(idComprobante, {
       onSuccess: (u) => {
-        if (vigente) setUrl(u);
+        if (vigente) setUrlGuardada({ id: idComprobante, url: u });
       },
     });
     return () => {
       vigente = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, comprobante?.id_comprobante]);
+  }, [open, idComprobante]);
+
+  const url = urlGuardada && urlGuardada.id === idComprobante ? urlGuardada.url : null;
+
+  /** Cierra y deja todo limpio para la próxima apertura (en handlers). */
+  const cerrar = () => {
+    setUrlGuardada(null);
+    setNota("");
+    setRechazando(false);
+    onClose();
+  };
 
   const pendiente = comprobante?.estado === "pendiente";
+  // Mientras no llegue la URL del comprobante que se está viendo se muestra
+  // el spinner, así no aparece el aviso de error en el cambio de uno a otro.
+  const cargando = idComprobante !== null && (abrir.isPending || urlGuardada?.id !== idComprobante);
 
   return (
     <>
       <Modal
         title="Comprobante de pago"
         open={open}
-        onCancel={onClose}
+        onCancel={cerrar}
         width={640}
         footer={
           pendiente ? (
@@ -71,7 +84,7 @@ export function ModalRevisionComprobante({
                 loading={aprobar.isPending}
                 onClick={() =>
                   aprobar.mutate(comprobante.id_comprobante, {
-                    onSuccess: () => onClose(),
+                    onSuccess: () => cerrar(),
                   })
                 }
               >
@@ -79,7 +92,7 @@ export function ModalRevisionComprobante({
               </Button>
             </Space>
           ) : (
-            <Button onClick={onClose}>Cerrar</Button>
+            <Button onClick={cerrar}>Cerrar</Button>
           )
         }
       >
@@ -112,8 +125,8 @@ export function ModalRevisionComprobante({
             </Descriptions>
 
             <div style={{ marginTop: 16, textAlign: "center" }}>
-              {abrir.isPending && <Spin />}
-              {!abrir.isPending && !url && (
+              {cargando && <Spin />}
+              {!cargando && !url && (
                 <Alert type="error" showIcon message="No se pudo abrir el comprobante" />
               )}
               {url && comprobante.archivo_tipo === "pdf" && (

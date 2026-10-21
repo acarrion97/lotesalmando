@@ -230,9 +230,9 @@ AS $$
           JOIN ventas v ON v.id_venta = ct.id_venta
           WHERE v.id_cliente = cl.id_cliente
         ), '[]'::json)
-      ) FROM cliente cl
+      ) ORDER BY cl.id_cliente)
+      FROM cliente cl
       WHERE trim(cl.cedula_ruc) = trim(p_cedula)
-      ORDER BY cl.id_cliente
     ), '[]'::json)
   );
 $$;

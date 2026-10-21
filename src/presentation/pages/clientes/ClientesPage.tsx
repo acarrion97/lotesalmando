@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
+import { Alert, Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined } from "@ant-design/icons";
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined, MailOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useClientes } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
@@ -37,15 +37,20 @@ export function ClientesPage() {
 
   const refreshClientes = () => queryClient.invalidateQueries({ queryKey: ["clientes", empresaId] });
 
+  // Sin correo no llega el aviso del cron de cuotas (api/cron/cuotas-vencimiento
+  // saltea a los clientes sin email), así que se marcan acá para que se completen.
+  const sinEmail = useMemo(() => (clientes ?? []).filter((c) => !c.email?.trim()), [clientes]);
+  const [soloSinEmail, setSoloSinEmail] = useState(false);
+
   const filteredData = useMemo(() => {
-    if (!clientes) return [];
-    return clientes.filter(
+    const base = soloSinEmail ? sinEmail : clientes ?? [];
+    return base.filter(
       (c) =>
         c.nombres.toLowerCase().includes(searchText.toLowerCase()) ||
         c.cedula_ruc.includes(searchText) ||
         c.email.toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [clientes, searchText]);
+  }, [clientes, sinEmail, soloSinEmail, searchText]);
 
   const openModal = (type: "view" | "edit" | "delete" | "deudas", record: Cliente) => {
     setModal({ type, visible: true, record });
@@ -159,6 +164,14 @@ export function ClientesPage() {
       title: "Email",
       dataIndex: "email",
       key: "email",
+      render: (email: string) =>
+        email?.trim() ? (
+          <span>{email}</span>
+        ) : (
+          <span style={{ color: "#faad14" }} aria-label="Sin email">
+            Sin correo: no recibe los avisos de cuota
+          </span>
+        ),
       filterDropdown: ({ setSelectedKeys, selectedKeys, confirm }) => (
         <div style={{ padding: 8 }}>
           <Input
@@ -235,6 +248,29 @@ export function ClientesPage() {
           </Space>
         }
       />
+
+      {sinEmail.length > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          icon={<MailOutlined />}
+          style={{ marginBottom: 16 }}
+          message={`${sinEmail.length} cliente(s) sin correo no reciben los avisos de cuota`}
+          description="El cron de vencimiento manda el aviso por correo; si el cliente no tiene email cargado, no se le avisa ni puede recibir la confirmación de su comprobante. Completá el correo desde Editar."
+          action={
+            <Space size="small">
+              <Button
+                size="small"
+                onClick={() => setSoloSinEmail((v) => !v)}
+                type={soloSinEmail ? "primary" : "default"}
+              >
+                {soloSinEmail ? "Ver todos" : "Ver solo esos"}
+              </Button>
+            </Space>
+          }
+        />
+      )}
+
       <DataTable<Cliente>
         columns={columns}
         dataSource={filteredData}
