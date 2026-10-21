@@ -12,6 +12,7 @@
 - [x] 2.2 Implementar los use cases de generar, anexar, abrir y quitar el documento, con `SupabaseContractRepository.setDocumento` detrás — verificación: `npx tsc -b` sin errores.
 - [x] 2.3 Agregar el botón "Generar o anexar / Administrar" en la columna Documento de `ContratosPage` y el `DocumentoContratoModal` con las cuatro acciones — verificación: `npx tsc -b` sin errores y la columna muestra "Sin documento", "Generado" o "Anexado".
 - [x] 2.4 Escribir los generadores Word (`docx`) y PDF (`jspdf`) sobre `estructuraContrato` e importarlos de forma lazy desde la fachada — verificación: `npm run build` termina y el bundle principal queda por debajo del límite de precarga de workbox (3 MiB), con `GeneradorDocumentoDocx-*.js` y `GeneradorDocumentoPdf-*.js` como chunks aparte.
+- [x] 2.5 Bajar el documento del contrato desde el módulo de Ventas: el DTO de contrato lleva las columnas del documento, hay un use case `DescargarDocumentoContratoUseCase` (URL firmada con `download`) y la columna Contrato de `VentasPage` ofrece "Descargar" — verificación: `npx tsc -b` sin errores y el botón solo aparece cuando el contrato tiene documento.
 
 ## 3. Aviso automático de cuotas (`clientes/avisos-cuota`)
 

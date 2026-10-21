@@ -71,3 +71,35 @@ para verlo sin sesión.
 #### Scenario: Acceso sin sesión
 - **WHEN** se toma la URL cruda de un archivo de contrato
 - **THEN** no devuelve el archivo
+
+### Requirement: Descargar el documento desde el módulo de Ventas
+El sistema SHALL permitir bajar el documento del contrato —el que generó la app
+o el que anexó un usuario— desde el módulo de Ventas, sin pasar por el módulo
+de Contratos, y SHALL mostrar en el listado de Ventas si la venta tiene
+contrato y si ese contrato tiene documento.
+
+#### Scenario: Venta con contrato y documento
+- **WHEN** se abre el listado de Ventas y la venta tiene un contrato con documento
+- **THEN** la columna Contrato muestra el tipo y el origen del documento y ofrece "Descargar"
+
+#### Scenario: Venta con contrato sin documento
+- **WHEN** la venta tiene contrato pero el contrato todavía no tiene documento
+- **THEN** la columna muestra "Sin documento" y no ofrece descarga
+
+#### Scenario: Venta sin contrato
+- **WHEN** la venta no tiene contrato asociado
+- **THEN** la columna muestra "-" y no ofrece descarga
+
+#### Scenario: Descargar el contrato
+- **WHEN** el usuario pide descargar el documento de la venta
+- **THEN** el archivo baja al equipo con el nombre que tenía, desde una URL firmada de duración limitada
+
+### Requirement: El listado de contratos informa del documento
+El listado de Contratos SHALL mostrar, por cada contrato, si tiene documento,
+de qué tipo es y si fue generado por la app o anexado por un usuario, y SHALL
+permitir abrirlo o bajarlo.
+
+#### Scenario: Contrato con documento en el listado
+- **WHEN** el contrato tiene documento
+- **THEN** la columna Documento muestra el ícono del tipo y la etiqueta "Generado" o "Anexado"
+

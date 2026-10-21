@@ -3,7 +3,8 @@ import type { ContractRepository } from "@/domain/contrato/repositories";
 
 /**
  * Un contrato por id, con las columnas del documento. La lista de
- * contratos se trae aparte (más liviana) y no incluye `documento_url`.
+ * contratos se trae aparte y también trae el documento, pero esta consulta
+ * es la que se usa para trabajar sobre un contrato puntual.
  */
 export class GetContratoUseCase {
   private contratos: ContractRepository;

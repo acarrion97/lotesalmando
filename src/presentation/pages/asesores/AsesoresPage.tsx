@@ -16,6 +16,7 @@ import {
   Statistic,
   Progress,
   Tooltip,
+  List,
 } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,11 +29,11 @@ import {
   UserSwitchOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useAsesores, useVentas, useUsuarios } from "@/presentation/hooks";
+import { useAsesores, useLotes, useVentas, useUsuarios } from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
-import { dentroDelRango, rangoDelPreset } from "@/utils";
+import { dentroDelRango, formatDate, rangoDelPreset } from "@/utils";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
@@ -65,6 +66,7 @@ function mensajeErrorAsesor(error: unknown, fallback: string): string {
 
 export function AsesoresPage() {
   const { data: asesores, isLoading } = useAsesores();
+  const { data: lotes } = useLotes();
   const { data: ventas } = useVentas();
   const { data: usuarios } = useUsuarios();
   const { empresaActual } = useEmpresa();
@@ -111,6 +113,11 @@ export function AsesoresPage() {
       .filter((v) => v.id_asesor === asesorId && dentroDelRango(v.created_at, mesActual))
       .reduce((sum, v) => sum + v.precio_final, 0);
   };
+  const getVentasAsesor = (asesorId: number) => {
+    if (!ventas) return [];
+    return ventas.filter((v) => v.id_asesor === asesorId);
+  };
+  const loteDe = (loteId: number) => lotes?.find((lote) => lote.id_lote === loteId);
 
   const usuarioDe = (idUsuario: number | null) =>
     idUsuario ? usuarios?.find((u) => u.id_usuario === idUsuario) : undefined;
@@ -273,6 +280,22 @@ export function AsesoresPage() {
       render: (val: number) => <span>${(val ?? 0).toLocaleString()}</span>,
     },
     {
+      title: "Ventas",
+      key: "ventas",
+      sorter: (a, b) => getVentasAsesor(a.id_asesor).length - getVentasAsesor(b.id_asesor).length,
+      render: (_: unknown, record: Asesor) => {
+        const ventasAsesor = getVentasAsesor(record.id_asesor);
+        const totalVendido = ventasAsesor.reduce((sum, venta) => sum + venta.precio_final, 0);
+        return (
+          <Tooltip title="Abre el detalle del asesor para ver cada venta">
+            <Button type="link" onClick={() => openModal("view", record)} style={{ padding: 0, height: "auto" }}>
+              {ventasAsesor.length} ventas · ${totalVendido.toLocaleString()}
+            </Button>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: "Rendimiento",
       key: "rendimiento",
       render: (_: unknown, record: Asesor) => {
@@ -419,25 +442,68 @@ export function AsesoresPage() {
             Cerrar
           </Button>,
         ]}
-        width={500}
+        width={600}
       >
         {modal.record && (
-          <Descriptions bordered column={2} size="small">
-            <Descriptions.Item label="Codigo">
-              <Tag color="blue">{modal.record.codigo}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Estado">
-              <Tag color={estadoConfig[modal.record.estado]?.color}>
-                {estadoConfig[modal.record.estado]?.label}
-              </Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="Nombre" span={2}>
-              {modal.record.nombre_comercial}
-            </Descriptions.Item>
-            <Descriptions.Item label="Meta Mensual" span={2}>
-              ${(modal.record.meta_ventas_mensual ?? 0).toLocaleString()}
-            </Descriptions.Item>
-          </Descriptions>
+          <>
+            <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Codigo">
+                <Tag color="blue">{modal.record.codigo}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Estado">
+                <Tag color={estadoConfig[modal.record.estado]?.color}>
+                  {estadoConfig[modal.record.estado]?.label}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Nombre" span={2}>
+                {modal.record.nombre_comercial}
+              </Descriptions.Item>
+              <Descriptions.Item label="Meta Mensual" span={2}>
+                ${(modal.record.meta_ventas_mensual ?? 0).toLocaleString()}
+              </Descriptions.Item>
+            </Descriptions>
+            <h3 style={{ margin: "20px 0 8px" }}>Ventas registradas</h3>
+            <List
+              size="small"
+              bordered
+              dataSource={getVentasAsesor(modal.record.id_asesor)}
+              locale={{ emptyText: "Este asesor todavía no tiene ventas registradas" }}
+              renderItem={(venta) => {
+                const lote = loteDe(venta.id_lote);
+                const estadoLote = lote?.estado.replaceAll("_", " ");
+                return (
+                  <List.Item>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, width: "100%", flexWrap: "wrap" }}>
+                      <span>
+                        Venta #{venta.id_venta}
+                        {" · "}
+                        {lote?.numero_lote ?? `Lote #${venta.id_lote}`}
+                        {venta.created_at ? ` · ${formatDate(venta.created_at)}` : ""}
+                        {" · "}
+                        <Tag
+                          color={lote?.estado === "vendido" ? "green" : "default"}
+                          style={{ marginInlineEnd: 4 }}
+                        >
+                          {lote ? `Lote ${estadoLote}` : "Lote sin datos"}
+                        </Tag>
+                        <Tag
+                          color={venta.estado === "completada" ? "blue" : venta.estado === "cancelada" ? "red" : "orange"}
+                          style={{ marginInlineEnd: 0 }}
+                        >
+                          {venta.estado === "completada"
+                            ? "Pagada"
+                            : venta.estado === "cancelada"
+                              ? "Venta cancelada"
+                              : "Pago pendiente"}
+                        </Tag>
+                      </span>
+                      <strong>${venta.precio_final.toLocaleString()}</strong>
+                    </div>
+                  </List.Item>
+                );
+              }}
+            />
+          </>
         )}
       </Modal>
 

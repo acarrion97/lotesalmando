@@ -1,0 +1,1 @@
+export { ReservasPage } from "./ReservasPage";

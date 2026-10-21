@@ -117,6 +117,7 @@ import { GenerarDocumentoContratoUseCase } from "@/application/contratos/use-cas
 import { AnexarDocumentoContratoUseCase } from "@/application/contratos/use-cases/AnexarDocumentoContratoUseCase";
 import { QuitarDocumentoContratoUseCase } from "@/application/contratos/use-cases/QuitarDocumentoContratoUseCase";
 import { AbrirDocumentoContratoUseCase } from "@/application/contratos/use-cases/AbrirDocumentoContratoUseCase";
+import { DescargarDocumentoContratoUseCase } from "@/application/contratos/use-cases/DescargarDocumentoContratoUseCase";
 import { ConsultarPortalClienteUseCase } from "@/application/portal/use-cases/ConsultarPortalClienteUseCase";
 import { generadorDocumentoContrato } from "@/infrastructure/documents/generadorDocumentoContrato";
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
@@ -242,6 +243,7 @@ export interface UseCases {
   anexarDocumentoContrato: AnexarDocumentoContratoUseCase;
   quitarDocumentoContrato: QuitarDocumentoContratoUseCase;
   abrirDocumentoContrato: AbrirDocumentoContratoUseCase;
+  descargarDocumentoContrato: DescargarDocumentoContratoUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
   getMediosProyecto: GetMediosProyectoUseCase;
   subirMedioProyecto: SubirMedioProyectoUseCase;
@@ -423,6 +425,10 @@ export function createUseCases(repos: Repositories): UseCases {
       repos.documentoContratoStorage,
     ),
     abrirDocumentoContrato: new AbrirDocumentoContratoUseCase(
+      repos.contractRepo,
+      repos.documentoContratoStorage,
+    ),
+    descargarDocumentoContrato: new DescargarDocumentoContratoUseCase(
       repos.contractRepo,
       repos.documentoContratoStorage,
     ),

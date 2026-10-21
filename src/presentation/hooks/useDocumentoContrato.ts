@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { getContainer } from "@/infrastructure/container";
 import { type FormatoDocumentoContrato } from "@/application/contratos/ports/GeneradorDocumentoContrato";
+import { descargarArchivo } from "@/utils";
 
 /**
  * Documento de un contrato: generar uno con los datos existentes (Word o
@@ -59,4 +60,19 @@ export function useDocumentoContrato(idContrato: number | null | undefined) {
   });
 
   return { contrato, generar, anexar, quitar, abrir };
+}
+
+/**
+ * Baja el documento de un contrato (el que generó la app o el que anexó el
+ * usuario) al equipo. Se usa desde los módulos que solo ven la venta: la
+ * URL firmada caduca en una hora, así que se pide en el momento de bajar.
+ */
+export function useDescargarDocumentoContrato() {
+  const container = getContainer();
+
+  return useMutation({
+    mutationFn: (idContrato: number) => container.descargarDocumentoContrato.execute(idContrato),
+    onSuccess: ({ url, nombre }) => descargarArchivo(url, nombre),
+    onError: (error: Error) => message.error(error.message),
+  });
 }

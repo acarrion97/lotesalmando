@@ -13,6 +13,7 @@ export { passwordDeEmail } from "./strings/passwordDeEmail";
 export { isValidEmail } from "./validation/isValidEmail";
 export { generateId } from "./general/generateId";
 export { debounce } from "./general/debounce";
+export { descargarArchivo } from "./general/descargarArchivo";
 export {
   calcularFinanciamiento,
   validarFinanciamiento,

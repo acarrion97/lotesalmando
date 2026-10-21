@@ -55,5 +55,5 @@ export { useMediosProyecto } from "./useMediosProyecto";
 export { useInfoContratos } from "./useInfoContratos";
 export { useComprobantes, useRevisionComprobante } from "./useComprobantes";
 export { usePortalCliente } from "./usePortalCliente";
-export { useDocumentoContrato } from "./useDocumentoContrato";
+export { useDocumentoContrato, useDescargarDocumentoContrato } from "./useDocumentoContrato";
 export { useAbrirComprobante } from "./useAbrirComprobante";

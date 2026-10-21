@@ -37,12 +37,12 @@ export const MODULOS: ItemMenuAuth[] = [
   { key: "/proyectos", label: "Proyectos", permiso: "ver_proyectos" },
   { key: "/etapas", label: "Etapas", permiso: "ver_etapas" },
   { key: "/manzanas", label: "Manzanas", permiso: "ver_manzanas" },
-  { key: "/mapas", label: "Mapas", permiso: "ver_mapas" },
   { key: "/lotes", label: "Lotes", permiso: "ver_lotes" },
-  { key: "/inventario", label: "Inventario", permiso: "ver_inventario" },
+  { key: "/reservas", label: "Reservas", permiso: "ver_lotes" },
+  { key: "/mapas", label: "Mapas", permiso: "ver_mapas" },
   // Comercial
   { key: "/clientes", label: "Clientes", permiso: "ver_clientes" },
-  { key: "/cotizaciones", label: "Cotizaciones", permiso: "ver_cotizaciones", rutas: ["/cotizaciones/nueva"] },
+
   { key: "/ventas", label: "Ventas", permiso: "ver_ventas" },
   { key: "/prospectos", label: "Prospectos", permiso: "ver_prospectos" },
   { key: "/asesores", label: "Asesores", permiso: "ver_asesores" },
@@ -76,8 +76,8 @@ export interface GrupoMenu {
 }
 
 export const GRUPOS_MENU: GrupoMenu[] = [
-  { key: "inventario", groupLabel: "INVENTARIO", items: ["/proyectos", "/etapas", "/manzanas", "/mapas", "/lotes", "/inventario"] },
-  { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/cotizaciones", "/ventas", "/prospectos", "/asesores"] },
+  { key: "inventario", groupLabel: "INVENTARIO", items: ["/proyectos", "/etapas", "/manzanas", "/lotes","/mapas"] },
+  { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/reservas", "/ventas", "/prospectos", "/asesores"] },
   { key: "financiero", groupLabel: "FINANCIERO", items: ["/contratos", "/cobranzas", "/pagos", "/proyeccion"] },
   { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas"] },
   { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/roles-permisos"] },

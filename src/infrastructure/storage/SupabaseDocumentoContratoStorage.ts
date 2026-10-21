@@ -51,6 +51,19 @@ export class SupabaseDocumentoContratoStorage implements DocumentoContratoStorag
     return data.signedUrl;
   }
 
+  /**
+   * La opción `download` hace que el servidor responda con
+   * `Content-Disposition: attachment`, así el navegador guarda el archivo con
+   * ese nombre en vez de abrirlo.
+   */
+  async firmarUrlDeDescarga(path: string, nombre: string): Promise<string> {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .createSignedUrl(path, VIDA_URL_SEGUNDOS, { download: nombre });
+    if (error || !data?.signedUrl) throw error ?? new Error("No se pudo descargar el documento");
+    return data.signedUrl;
+  }
+
   async removeByPath(path: string): Promise<void> {
     if (!path) return;
     await supabase.storage.from(BUCKET).remove([path]);

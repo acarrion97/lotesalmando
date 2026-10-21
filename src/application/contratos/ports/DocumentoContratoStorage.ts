@@ -36,5 +36,7 @@ export interface SubirDocumentoContratoResult {
 export interface DocumentoContratoStorage {
   upload(input: SubirDocumentoContratoInput): Promise<SubirDocumentoContratoResult>;
   firmarUrl(path: string): Promise<string>;
+  /** URL firmada que además baja el archivo con el nombre indicado. */
+  firmarUrlDeDescarga(path: string, nombre: string): Promise<string>;
   removeByPath(path: string): Promise<void>;
 }
