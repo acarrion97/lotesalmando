@@ -1,7 +1,7 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Cobranza, CobranzaEstado } from "@/domain/cobranza/entities";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
-import { getContratoIdsForEmpresa } from "./shared/empresaScope";
+import { getContratoIdsForEmpresa, leerPorIds } from "./shared/empresaScope";
 
 // PostgREST corta cada respuesta en 1000 filas; cobranzas supera ese tope
 // (una fila por cuota), asi que se lee por paginas con un orden estable.
@@ -9,11 +9,24 @@ const PAGE_SIZE = 1000;
 
 export class SupabaseCobranzaRepository implements CobranzaRepository {
   private async fetchAllPages(contratoIds?: number[]): Promise<Cobranza[]> {
+    // Con contratoIds la lista se manda en bloques (un `.in()` con miles de
+    // ids se pasa del limite de URL) y cada bloque se pagina; sin ids solo
+    // hace falta paginar.
+    if (contratoIds) {
+      const filas = await leerPorIds("cobranzas", "id_contrato", contratoIds, {
+        orden: "id_cobranza",
+      });
+      // Los bloques se atajan por separado: se reordena para conservar el
+      // orden ascendente de id_cobranza que dan las consultas sin filtrar.
+      return (filas as unknown as Cobranza[]).sort((a, b) => a.id_cobranza - b.id_cobranza);
+    }
     const all: Cobranza[] = [];
     for (let from = 0; ; from += PAGE_SIZE) {
-      let query = supabase.from("cobranzas").select("*").order("id_cobranza");
-      if (contratoIds) query = query.in("id_contrato", contratoIds);
-      const { data, error } = await query.range(from, from + PAGE_SIZE - 1);
+      const { data, error } = await supabase
+        .from("cobranzas")
+        .select("*")
+        .order("id_cobranza")
+        .range(from, from + PAGE_SIZE - 1);
       if (error) throw error;
       const page = (data ?? []) as Cobranza[];
       all.push(...page);

@@ -2,15 +2,18 @@ import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
 import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
+import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
+import type { Comprobante } from "@/domain/comprobante/entities";
 import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
 import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
-import { dentroDelRango, diaEnEmpresa, formatDateOnly } from "@/utils";
+import { dentroDelRango, diaEnEmpresa, formatDateOnly, formatCurrency } from "@/utils";
 
 type CobranzaRow = {
   id_cobranza: number;
@@ -30,14 +33,29 @@ const estadoConfig: Record<string, { color: string; icon: React.ReactNode; label
 export function CobranzasPage() {
   const { data: cobranzas, isLoading } = useCobranzas();
   const { data: contratos } = useContratos();
+  const { data: comprobantes } = useComprobantes();
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const { infoDeContrato } = useInfoContratos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
+  const [comprobanteSel, setComprobanteSel] = useState<{
+    comprobante: Comprobante;
+    contexto: string;
+  } | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
+
+  // Último comprobante de cada cuota (el más reciente gana), igual que en
+  // Clientes -> Deudas: así se ve sin abrir nada si la prueba ya llegó.
+  const comprobantePorCobranza = useMemo(() => {
+    const mapa = new Map<number, Comprobante>();
+    for (const cp of comprobantes ?? []) {
+      if (!mapa.has(cp.id_cobranza)) mapa.set(cp.id_cobranza, cp);
+    }
+    return mapa;
+  }, [comprobantes]);
 
   const handleDetectarVencidas = async () => {
     try {
@@ -135,6 +153,34 @@ export function CobranzasPage() {
       },
     },
     {
+      title: "Comprobante",
+      key: "comprobante",
+      width: 160,
+      render: (_: unknown, record: CobranzaRow) => {
+        const comprobante = comprobantePorCobranza.get(record.id_cobranza);
+        if (!comprobante) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2 }}>
+            <ComprobanteTag estado={comprobante.estado} />
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto" }}
+              icon={<EyeOutlined />}
+              onClick={() =>
+                setComprobanteSel({
+                  comprobante,
+                  contexto: `Contrato ${contratoMap[record.id_contrato] ?? `#${record.id_contrato}`} · Cuota ${record.numero_cuota} · ${formatCurrency(record.monto_cuota)}`,
+                })
+              }
+            >
+              Ver
+            </Button>
+          </div>
+        );
+      },
+    },
+    {
       title: "Acciones",
       key: "acciones",
       width: 80,
@@ -225,6 +271,13 @@ export function CobranzasPage() {
           </Descriptions>
         )}
       </Modal>
+
+      <ModalRevisionComprobante
+        comprobante={comprobanteSel?.comprobante ?? null}
+        open={comprobanteSel !== null}
+        onClose={() => setComprobanteSel(null)}
+        contexto={comprobanteSel?.contexto}
+      />
     </div>
   );
 }

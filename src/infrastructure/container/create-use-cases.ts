@@ -38,6 +38,7 @@ import { UpdateCotizacionUseCase } from "@/application/cotizaciones/use-cases/Up
 import { AceptarCotizacionUseCase } from "@/application/cotizaciones/use-cases/AceptarCotizacionUseCase";
 import { GetVentasUseCase } from "@/application/ventas/use-cases/GetVentasUseCase";
 import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContratosUseCase";
+import { GetContratoUseCase } from "@/application/contratos/use-cases/GetContratoUseCase";
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
 import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
@@ -103,7 +104,21 @@ import { QuitarImagenMapaUseCase } from "@/application/mapas/use-cases/QuitarIma
 import { GetLotesPlanoUseCase } from "@/application/mapas/use-cases/GetLotesPlanoUseCase";
 import { GuardarPoligonoLoteUseCase } from "@/application/mapas/use-cases/GuardarPoligonoLoteUseCase";
 import { PublicarMapaUseCase } from "@/application/mapas/use-cases/PublicarMapaUseCase";
+import { DefinirUbicacionMapaUseCase } from "@/application/mapas/use-cases/DefinirUbicacionMapaUseCase";
+import { SubirRender3DUseCase } from "@/application/mapas/use-cases/SubirRender3DUseCase";
+import { QuitarRender3DUseCase } from "@/application/mapas/use-cases/QuitarRender3DUseCase";
 import { GetMapaPublicoUseCase } from "@/application/mapas/use-cases/GetMapaPublicoUseCase";
+import { GetComprobantesUseCase } from "@/application/comprobantes/use-cases/GetComprobantesUseCase";
+import { AprobarComprobanteUseCase } from "@/application/comprobantes/use-cases/AprobarComprobanteUseCase";
+import { RechazarComprobanteUseCase } from "@/application/comprobantes/use-cases/RechazarComprobanteUseCase";
+import { AbrirComprobanteUseCase } from "@/application/comprobantes/use-cases/AbrirComprobanteUseCase";
+import { RegistrarComprobantePortalUseCase } from "@/application/comprobantes/use-cases/RegistrarComprobantePortalUseCase";
+import { GenerarDocumentoContratoUseCase } from "@/application/contratos/use-cases/GenerarDocumentoContratoUseCase";
+import { AnexarDocumentoContratoUseCase } from "@/application/contratos/use-cases/AnexarDocumentoContratoUseCase";
+import { QuitarDocumentoContratoUseCase } from "@/application/contratos/use-cases/QuitarDocumentoContratoUseCase";
+import { AbrirDocumentoContratoUseCase } from "@/application/contratos/use-cases/AbrirDocumentoContratoUseCase";
+import { ConsultarPortalClienteUseCase } from "@/application/portal/use-cases/ConsultarPortalClienteUseCase";
+import { generadorDocumentoContrato } from "@/infrastructure/documents/generadorDocumentoContrato";
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
 import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
 import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/QuitarMedioProyectoUseCase";
@@ -147,6 +162,7 @@ export interface UseCases {
   getVentas: GetVentasUseCase;
   aceptarCotizacion: AceptarCotizacionUseCase;
   getContratos: GetContratosUseCase;
+  getContrato: GetContratoUseCase;
   getCobranzas: GetCobranzasUseCase;
   getCobranzasByContrato: GetCobranzasByContratoUseCase;
   getPagos: GetPagosUseCase;
@@ -213,6 +229,19 @@ export interface UseCases {
   getLotesPlano: GetLotesPlanoUseCase;
   guardarPoligonoLote: GuardarPoligonoLoteUseCase;
   publicarMapa: PublicarMapaUseCase;
+  definirUbicacionMapa: DefinirUbicacionMapaUseCase;
+  subirRender3D: SubirRender3DUseCase;
+  quitarRender3D: QuitarRender3DUseCase;
+  getComprobantes: GetComprobantesUseCase;
+  aprobarComprobante: AprobarComprobanteUseCase;
+  rechazarComprobante: RechazarComprobanteUseCase;
+  abrirComprobante: AbrirComprobanteUseCase;
+  registrarComprobantePortal: RegistrarComprobantePortalUseCase;
+  consultarPortalCliente: ConsultarPortalClienteUseCase;
+  generarDocumentoContrato: GenerarDocumentoContratoUseCase;
+  anexarDocumentoContrato: AnexarDocumentoContratoUseCase;
+  quitarDocumentoContrato: QuitarDocumentoContratoUseCase;
+  abrirDocumentoContrato: AbrirDocumentoContratoUseCase;
   getMapaPublico: GetMapaPublicoUseCase;
   getMediosProyecto: GetMediosProyectoUseCase;
   subirMedioProyecto: SubirMedioProyectoUseCase;
@@ -273,6 +302,7 @@ export function createUseCases(repos: Repositories): UseCases {
     getVentas: new GetVentasUseCase(repos.saleRepo),
     aceptarCotizacion: new AceptarCotizacionUseCase(repos.aceptarCotizacion),
     getContratos: new GetContratosUseCase(repos.contractRepo),
+    getContrato: new GetContratoUseCase(repos.contractRepo),
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
@@ -294,6 +324,7 @@ export function createUseCases(repos: Repositories): UseCases {
       repos.contractRepo,
       repos.saleRepo,
       repos.clienteRepo,
+      repos.comprobanteRepo,
     ),
     getUsuarios: new GetUsuariosUseCase(repos.usuarioRepo),
     createUsuario: new CreateUsuarioUseCase(repos.usuarioRepo),
@@ -352,6 +383,49 @@ export function createUseCases(repos: Repositories): UseCases {
     getLotesPlano: new GetLotesPlanoUseCase(repos.mapaRepo),
     guardarPoligonoLote: new GuardarPoligonoLoteUseCase(repos.mapaRepo),
     publicarMapa: new PublicarMapaUseCase(repos.mapaRepo),
+    definirUbicacionMapa: new DefinirUbicacionMapaUseCase(repos.mapaRepo),
+    subirRender3D: new SubirRender3DUseCase(repos.mapaRepo, repos.mapaImageStorage),
+    quitarRender3D: new QuitarRender3DUseCase(repos.mapaRepo, repos.mapaImageStorage),
+    getComprobantes: new GetComprobantesUseCase(repos.comprobanteRepo),
+    aprobarComprobante: new AprobarComprobanteUseCase(
+      repos.comprobanteRepo,
+      repos.cobranzaRepo,
+      repos.pagoRepo,
+    ),
+    rechazarComprobante: new RechazarComprobanteUseCase(repos.comprobanteRepo),
+    abrirComprobante: new AbrirComprobanteUseCase(repos.comprobanteRepo, repos.comprobanteStorage),
+    registrarComprobantePortal: new RegistrarComprobantePortalUseCase(
+      repos.comprobanteStorage,
+      repos.portalClienteRepo,
+    ),
+    consultarPortalCliente: new ConsultarPortalClienteUseCase(repos.portalClienteRepo),
+    generarDocumentoContrato: new GenerarDocumentoContratoUseCase({
+      contratos: repos.contractRepo,
+      ventas: repos.saleRepo,
+      cotizaciones: repos.cotizacionRepo,
+      clientes: repos.clienteRepo,
+      lotes: repos.lotRepository,
+      manzanas: repos.manzanaRepo,
+      etapas: repos.etapaRepo,
+      proyectos: repos.proyectoRepo,
+      empresas: repos.empresaRepo,
+      configuraciones: repos.configuracionRepo,
+      cobranzas: repos.cobranzaRepo,
+      storage: repos.documentoContratoStorage,
+      generador: generadorDocumentoContrato,
+    }),
+    anexarDocumentoContrato: new AnexarDocumentoContratoUseCase(
+      repos.contractRepo,
+      repos.documentoContratoStorage,
+    ),
+    quitarDocumentoContrato: new QuitarDocumentoContratoUseCase(
+      repos.contractRepo,
+      repos.documentoContratoStorage,
+    ),
+    abrirDocumentoContrato: new AbrirDocumentoContratoUseCase(
+      repos.contractRepo,
+      repos.documentoContratoStorage,
+    ),
     getMapaPublico: new GetMapaPublicoUseCase(repos.mapaRepo),
     getMediosProyecto: new GetMediosProyectoUseCase(repos.proyectoMedioRepo),
     subirMedioProyecto: new SubirMedioProyectoUseCase(

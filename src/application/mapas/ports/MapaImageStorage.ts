@@ -1,6 +1,12 @@
 export interface SubirImagenInput {
   proyectoId: number;
   file: File;
+  /**
+   * Subcarpeta dentro de `proyecto-<id>/` (p. ej. "render-3d"). Sirve para
+   * que el plano y el render vivan como objetos separados y se puedan
+   * borrar uno sin tocar al otro.
+   */
+  carpeta?: string;
 }
 
 export interface SubirImagenResult {

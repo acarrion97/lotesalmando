@@ -1,9 +1,12 @@
 import { useMemo, useState } from "react";
-import { Modal, Button, Table, Tag, Tooltip, Typography, Spin, Empty } from "antd";
-import { PayCircleOutlined } from "@ant-design/icons";
+import { Modal, Button, Table, Tag, Tooltip, Typography, Spin, Empty, Space } from "antd";
+import { EyeOutlined, PayCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas, useContratos, useCobranzas, useOnlineStatus } from "@/presentation/hooks";
+import { useVentas, useContratos, useCobranzas, useOnlineStatus, useComprobantes } from "@/presentation/hooks";
 import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
+import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
+import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
+import type { Comprobante } from "@/domain/comprobante/entities";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { formatCurrency, formatDateOnly } from "@/utils";
 
@@ -68,8 +71,22 @@ export function ClienteDeudasModal({
   const { data: ventas, isLoading: loadingVentas } = useVentas();
   const { data: contratos } = useContratos();
   const { data: cobranzas } = useCobranzas();
+  const { data: comprobantes } = useComprobantes();
   const isOnline = useOnlineStatus();
   const [cobranzaAPagar, setCobranzaAPagar] = useState<CobranzaAPagar | null>(null);
+  const [comprobanteSel, setComprobanteSel] = useState<{
+    comprobante: Comprobante;
+    contexto: string;
+  } | null>(null);
+
+  // Último comprobante de cada cuota (el más reciente gana).
+  const comprobantePorCobranza = useMemo(() => {
+    const mapa = new Map<number, Comprobante>();
+    for (const cp of comprobantes ?? []) {
+      if (!mapa.has(cp.id_cobranza)) mapa.set(cp.id_cobranza, cp);
+    }
+    return mapa;
+  }, [comprobantes]);
 
   const { filas, saldo } = useMemo(() => {
     if (!cliente) return { filas: [] as DeudaFila[], saldo: 0 };
@@ -153,8 +170,36 @@ export function ClienteDeudasModal({
             </Tooltip>
           ),
       },
+      {
+        title: "Comprobante",
+        key: "comprobante",
+        width: 150,
+        render: (_: unknown, fila: DeudaFila) => {
+          const comprobante = comprobantePorCobranza.get(fila.id_cobranza);
+          if (!comprobante) return <Text type="secondary">-</Text>;
+          return (
+            <Space direction="vertical" size={2}>
+              <ComprobanteTag estado={comprobante.estado} />
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, height: "auto" }}
+                icon={<EyeOutlined />}
+                onClick={() =>
+                  setComprobanteSel({
+                    comprobante,
+                    contexto: `Contrato ${fila.numero_contrato} · Cuota ${fila.numero_cuota} · ${formatCurrency(fila.monto_cuota)}`,
+                  })
+                }
+              >
+                Ver
+              </Button>
+            </Space>
+          );
+        },
+      },
     ],
-    [isOnline, cliente],
+    [isOnline, cliente, comprobantePorCobranza],
   );
 
   return (
@@ -209,6 +254,13 @@ export function ClienteDeudasModal({
         cobranza={cobranzaAPagar}
         open={cobranzaAPagar !== null}
         onClose={() => setCobranzaAPagar(null)}
+      />
+
+      <ModalRevisionComprobante
+        comprobante={comprobanteSel?.comprobante ?? null}
+        open={comprobanteSel !== null}
+        onClose={() => setComprobanteSel(null)}
+        contexto={comprobanteSel?.contexto}
       />
     </>
   );

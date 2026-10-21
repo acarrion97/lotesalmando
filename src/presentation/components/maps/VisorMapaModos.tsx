@@ -1,0 +1,173 @@
+import { useState } from "react";
+import { Empty, Segmented, Typography } from "antd";
+import type { ReactNode } from "react";
+import { AppstoreOutlined, BlockOutlined, GlobalOutlined } from "@ant-design/icons";
+import type { PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
+import type { DibujoPlano } from "./PlanoInteractivo";
+import { PlanoInteractivo } from "./PlanoInteractivo";
+import { Visor3D } from "./Visor3D";
+import { CapaSatelite } from "./CapaSatelite";
+import { limitesDelPlano } from "./georef";
+
+const { Text } = Typography;
+
+/** Modos de visualización del mapa de un proyecto. */
+export type ModoMapa = "plano" | "satelite" | "3d";
+
+interface VisorMapaModosProps {
+  imagenUrl: string;
+  /** Ubicación GPS del plano: sin ella el modo satélite queda deshabilitado. */
+  ubicacion?: UbicacionPlano | null;
+  /** Render 3D del proyecto: si existe, la vista 3D ofrece la capa "Render". */
+  renderUrl?: string | null;
+  lotes: PlanoLote[];
+  onLoteClick?: (lote: PlanoLote) => void;
+  resaltados?: ReadonlySet<number> | null;
+  mostrarPrecio?: boolean;
+  onImagenError?: () => void;
+  alturaMaxima?: number;
+  /** Modo edición del plano: mientras se dibuja se fuerza el modo plano. */
+  dibujo?: DibujoPlano | null;
+  /** Modo activo (controlado por la página). */
+  modo: ModoMapa;
+  onModoChange: (modo: ModoMapa) => void;
+  /** Elementos a la derecha del selector (p. ej. antigüedad de los datos). */
+  acciones?: ReactNode;
+}
+
+const OPCIONES: { label: string; value: ModoMapa; icon: ReactNode }[] = [
+  { label: "Plano", value: "plano", icon: <AppstoreOutlined /> },
+  { label: "Satélite", value: "satelite", icon: <GlobalOutlined /> },
+  { label: "Vista 3D", value: "3d", icon: <BlockOutlined /> },
+];
+
+/**
+ * Selector de modo alrededor de los visores: plano interactivo (con edición
+ * de polígonos), vista satélite real georreferenciada y vista 3D del plano.
+ * Un solo punto de entrada para que la pantalla interna y el mapa público
+ * ofrezcan exactamente lo mismo.
+ */
+export function VisorMapaModos({
+  imagenUrl,
+  ubicacion,
+  renderUrl,
+  lotes,
+  onLoteClick,
+  resaltados,
+  mostrarPrecio,
+  onImagenError,
+  alturaMaxima,
+  dibujo,
+  modo,
+  onModoChange,
+  acciones,
+}: VisorMapaModosProps) {
+  // Dibujando un contorno solo tiene sentido sobre el plano a sangre.
+  const modoActivo: ModoMapa = dibujo ? "plano" : modo;
+  const alto = alturaMaxima ?? Math.max(360, window.innerHeight - 260);
+
+  // La proporción de la imagen gobierna la ventana geográfica que cubre la
+  // capa satélite; se mide con una imagen de carga (misma URL: un solo
+  // request porque viene de la caché).
+  const [aspecto, setAspecto] = useState(0);
+  const limites =
+    ubicacion && aspecto > 0 ? limitesDelPlano(ubicacion, aspecto) : null;
+
+  return (
+    <div style={{ position: "relative" }}>
+      <img
+        src={imagenUrl}
+        alt=""
+        aria-hidden
+        draggable={false}
+        onLoad={(e) =>
+          setAspecto(
+            e.currentTarget.naturalHeight > 0
+              ? e.currentTarget.naturalWidth / e.currentTarget.naturalHeight
+              : 0,
+          )
+        }
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          marginBottom: 10,
+        }}
+      >
+        <Segmented
+          value={modoActivo}
+          onChange={(v) => !dibujo && onModoChange(v as ModoMapa)}
+          disabled={!!dibujo}
+          options={OPCIONES.map((o) => ({
+            value: o.value,
+            disabled: o.value === "satelite" && !ubicacion,
+            label: (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {o.icon}
+                {o.label}
+              </span>
+            ),
+          }))}
+        />
+        {acciones}
+      </div>
+
+      {modoActivo === "3d" ? (
+        <Visor3D
+          imagenUrl={imagenUrl}
+          ubicacion={ubicacion}
+          renderUrl={renderUrl}
+          lotes={lotes}
+          onLoteClick={onLoteClick}
+          resaltados={resaltados}
+          mostrarPrecio={mostrarPrecio}
+          onImagenError={onImagenError}
+          alturaMaxima={alto}
+        />
+      ) : modoActivo === "satelite" && !limites ? (
+        <div
+          style={{
+            height: alto,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#f5f5f5",
+            borderRadius: 8,
+          }}
+        >
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <span>
+                Este proyecto todavía no tiene ubicación GPS.
+                <br />
+                <Text type="secondary">
+                  Cargá el centro del plano y su ancho en metros (Configuración → Mapa del
+                  proyecto) para ver el terreno real.
+                </Text>
+              </span>
+            }
+          />
+        </div>
+      ) : (
+        <PlanoInteractivo
+          imagenUrl={imagenUrl}
+          lotes={lotes}
+          onLoteClick={onLoteClick}
+          resaltados={resaltados}
+          dibujo={dibujo}
+          mostrarPrecio={mostrarPrecio}
+          onImagenError={onImagenError}
+          alturaMaxima={alto}
+          capaBase={modoActivo === "satelite" && limites ? <CapaSatelite limites={limites} /> : undefined}
+          mostrarImagen={modoActivo !== "satelite"}
+        />
+      )}
+    </div>
+  );
+}

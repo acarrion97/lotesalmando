@@ -93,5 +93,19 @@ export const darkTheme: ThemeConfig = {
       itemColor: t.textTertiary,
       lastItemColor: t.text,
     },
+    // Los tintes por defecto de Alert (palette[1] del color) salen casi
+    // blancos en cualquier tema; sobre un texto claro quedan ilegibles en
+    // modo oscuro (era el caso del aviso "Valor de la cuota" del portal).
+    // Se reemplazan por fondos teñidos con el mismo tono, oscuros.
+    Alert: {
+      colorInfoBg: "rgba(16, 185, 129, 0.16)",
+      colorInfoBorder: "rgba(16, 185, 129, 0.45)",
+      colorSuccessBg: "rgba(16, 185, 129, 0.16)",
+      colorSuccessBorder: "rgba(16, 185, 129, 0.45)",
+      colorWarningBg: "rgba(199, 163, 90, 0.18)",
+      colorWarningBorder: "rgba(199, 163, 90, 0.5)",
+      colorErrorBg: "rgba(248, 113, 113, 0.16)",
+      colorErrorBorder: "rgba(248, 113, 113, 0.45)",
+    },
   },
 };

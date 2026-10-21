@@ -1,6 +1,6 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { LoteEstado, PuntoPlano } from "@/domain/lote/entities";
-import type { Mapa, MapaPublico, PlanoLote } from "@/domain/mapa/entities";
+import type { Mapa, MapaPublico, PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
 import type { MapaRepository, SaveMapaInput } from "@/domain/mapa/repositories";
 
 interface LotePlanoRow {
@@ -95,6 +95,32 @@ export class SupabaseMapaRepository implements MapaRepository {
     return data as Mapa;
   }
 
+  async setUbicacion(mapaId: number, ubicacion: UbicacionPlano | null): Promise<Mapa> {
+    const { data, error } = await supabase
+      .from("mapas")
+      .update({
+        centro_lat: ubicacion?.centro_lat ?? null,
+        centro_lng: ubicacion?.centro_lng ?? null,
+        ancho_m: ubicacion?.ancho_m ?? null,
+      })
+      .eq("id_mapa", mapaId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Mapa;
+  }
+
+  async setRender3D(mapaId: number, url: string | null): Promise<Mapa> {
+    const { data, error } = await supabase
+      .from("mapas")
+      .update({ render_3d_url: url })
+      .eq("id_mapa", mapaId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Mapa;
+  }
+
   async getPublicoBySlug(slug: string): Promise<MapaPublico | null> {
     const { data, error } = await supabase.rpc("mapa_publico", { p_slug: slug });
     if (error) throw error;
@@ -110,6 +136,10 @@ export class SupabaseMapaRepository implements MapaRepository {
       moneda: crudo.moneda ?? "USD",
       medios: Array.isArray(crudo.medios) ? crudo.medios : [],
       estadisticas: crudo.estadisticas ?? undefined,
+      centro_lat: crudo.centro_lat ?? null,
+      centro_lng: crudo.centro_lng ?? null,
+      ancho_m: crudo.ancho_m ?? null,
+      render_3d_url: crudo.render_3d_url ?? null,
       lotes: Array.isArray(crudo.lotes) ? crudo.lotes : [],
     };
   }

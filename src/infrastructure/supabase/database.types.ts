@@ -188,16 +188,28 @@ export interface Database {
           id_mapa: number;
           id_proyecto: number;
           url_publica: string | null;
+          centro_lat: number | null;
+          centro_lng: number | null;
+          ancho_m: number | null;
+          render_3d_url: string | null;
         };
         Insert: {
           id_mapa?: number;
           id_proyecto: number;
           url_publica?: string | null;
+          centro_lat?: number | null;
+          centro_lng?: number | null;
+          ancho_m?: number | null;
+          render_3d_url?: string | null;
         };
         Update: {
           id_mapa?: number;
           id_proyecto?: number;
           url_publica?: string | null;
+          centro_lat?: number | null;
+          centro_lng?: number | null;
+          ancho_m?: number | null;
+          render_3d_url?: string | null;
         };
       };
       etapas: {

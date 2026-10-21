@@ -33,12 +33,13 @@ function extensionPorTipo(tipo: string): string {
 }
 
 export class SupabaseMapaImageStorage implements MapaImageStorage {
-  async upload({ proyectoId, file }: SubirImagenInput): Promise<SubirImagenResult> {
+  async upload({ proyectoId, file, carpeta }: SubirImagenInput): Promise<SubirImagenResult> {
     if (!file.type.startsWith("image/")) throw new Error("El archivo debe ser una imagen");
     if (file.size > TAMANO_MAXIMO) throw new Error("La imagen supera los 10 MB");
 
     // Path único por subida: evita que el CDN sirva la versión anterior.
-    const path = `proyecto-${proyectoId}/${Date.now()}-${nombreSeguro(file)}`;
+    const subcarpeta = carpeta ? `${carpeta.replace(/[^a-zA-Z0-9_-]/g, "")}/` : "";
+    const path = `proyecto-${proyectoId}/${subcarpeta}${Date.now()}-${nombreSeguro(file)}`;
 
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
       cacheControl: "3600",

@@ -63,10 +63,14 @@ import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
 import {
-  PlanoInteractivo,
   LeyendaPlano,
   etiquetaLote,
 } from "@/presentation/components/maps/PlanoInteractivo";
+import {
+  VisorMapaModos,
+  type ModoMapa,
+} from "@/presentation/components/maps/VisorMapaModos";
+import { ubicacionDe } from "@/domain/mapa/entities";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 import { compararNumeroLote, formatCurrency } from "@/utils";
 import { AsistentePoligonosModal } from "@/presentation/components/maps/AsistentePoligonosModal";
@@ -225,6 +229,10 @@ export function MapasPage() {
   // Si la imagen no carga (URL vieja, objeto borrado), se cae al fondo de siempre.
   const [planosConFallo, setPlanosConFallo] = useState<string[]>([]);
   const hayPlano = !!urlPlano && !planosConFallo.includes(urlPlano);
+
+  // Plano / satélite georreferenciado / vista 3D (mientras se dibuja se fuerza el plano).
+  const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
+  const ubicacionMapa = useMemo(() => ubicacionDe(mapaProyecto), [mapaProyecto]);
 
   const currentProyecto = useMemo(() => {
     if (!proyectos || !selectedProyecto) return null;
@@ -903,8 +911,10 @@ export function MapasPage() {
             <Spin size="large" />
           </div>
         ) : hayPlano && urlPlano ? (
-          <PlanoInteractivo
+          <VisorMapaModos
             imagenUrl={urlPlano}
+            ubicacion={ubicacionMapa}
+            renderUrl={mapaProyecto?.render_3d_url}
             lotes={lotesPlano ?? []}
             resaltados={resaltados}
             mostrarPrecio
@@ -912,6 +922,8 @@ export function MapasPage() {
             onImagenError={() =>
               setPlanosConFallo((prev) => (prev.includes(urlPlano) ? prev : [...prev, urlPlano]))
             }
+            modo={modoMapa}
+            onModoChange={setModoMapa}
             dibujo={
               dibujando && {
                 puntos: dibujando.puntos,

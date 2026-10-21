@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
-import type { PlanoLote } from "@/domain/mapa/entities";
+import { ubicacionDe, type PlanoLote } from "@/domain/mapa/entities";
 import { useMapaPublico, useRegistrarInteresPublico } from "@/presentation/hooks";
 import {
   LeyendaPlano,
-  PlanoInteractivo,
   etiquetaLote,
 } from "@/presentation/components/maps/PlanoInteractivo";
+import {
+  VisorMapaModos,
+  type ModoMapa,
+} from "@/presentation/components/maps/VisorMapaModos";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
 import {
   CalculadoraFinanciamiento,
@@ -43,7 +46,12 @@ export function MapaPublicoPage() {
   const [loteCalculadora, setLoteCalculadora] = useState<PlanoLote | null>(null);
   /** Lote del que se muestra el modal de financiamiento (abierto desde la ficha). */
   const [loteSimulador, setLoteSimulador] = useState<PlanoLote | null>(null);
+  /** Modo del visor: plano, satélite o vista 3D (si el proyecto definió GPS). */
+  const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
   const registrarInteres = useRegistrarInteresPublico();
+
+  /** Ubicación GPS del plano; `null` si el proyecto todavía no la cargó. */
+  const ubicacion = useMemo(() => ubicacionDe(mapa), [mapa]);
 
   useEffect(() => {
     document.title = mapa ? `${mapa.proyecto} - Mapa de disponibilidad` : "Mapa de disponibilidad";
@@ -208,13 +216,19 @@ export function MapaPublicoPage() {
                         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "12px 16px" }}>
                           <LeyendaPlano lotes={lotesDibujados} />
                         </div>
-                        <PlanoInteractivo
-                          imagenUrl={mapa.url_publica}
-                          lotes={mapa.lotes}
-                          onLoteClick={abrirFicha}
-                          onImagenError={() => setImagenFallida(true)}
-                          alturaMaxima={Math.max(360, window.innerHeight - 260)}
-                        />
+                        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px 20px" }}>
+                          <VisorMapaModos
+                            imagenUrl={mapa.url_publica}
+                            ubicacion={ubicacion}
+                            renderUrl={mapa.render_3d_url}
+                            lotes={mapa.lotes}
+                            onLoteClick={abrirFicha}
+                            onImagenError={() => setImagenFallida(true)}
+                            alturaMaxima={Math.max(360, window.innerHeight - 300)}
+                            modo={modoMapa}
+                            onModoChange={setModoMapa}
+                          />
+                        </div>
                         <FichaLotePublico
                           lote={loteFicha}
                           moneda={moneda}

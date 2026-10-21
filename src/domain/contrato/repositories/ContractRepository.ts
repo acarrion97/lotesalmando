@@ -6,4 +6,14 @@ export interface ContractRepository {
   getById(id: number): Promise<Contrato | null>;
   getByVentaId(ventaId: number): Promise<Contrato | null>;
   create(data: Omit<Contrato, "id_contrato">): Promise<Contrato>;
+  /** Guarda (o borra, con `null`) el documento del contrato. */
+  setDocumento(
+    contratoId: number,
+    documento: {
+      url: string | null;
+      tipo: "docx" | "pdf" | null;
+      nombre: string | null;
+      origen: "subido" | "generado" | null;
+    },
+  ): Promise<Contrato>;
 }

@@ -23,6 +23,10 @@ import type { ConfiguracionRepository } from "@/domain/configuracion/repositorie
 import type { MapaRepository } from "@/domain/mapa/repositories";
 import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
+import type { ComprobanteRepository } from "@/domain/comprobante/repositories";
+import type { PortalClienteRepository } from "@/domain/portal/repositories";
+import type { ComprobanteStorage } from "@/application/comprobantes/ports/ComprobanteStorage";
+import type { DocumentoContratoStorage } from "@/application/contratos/ports/DocumentoContratoStorage";
 import type { PlanImagenStorage } from "@/application/plan/ports/PlanImagenStorage";
 import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
 import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
@@ -53,6 +57,10 @@ import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
 import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
+import { MockComprobanteRepository } from "@/infrastructure/repositories/mock/MockComprobanteRepository";
+import { MockPortalClienteRepository } from "@/infrastructure/repositories/mock/MockPortalClienteRepository";
+import { MockComprobanteStorage } from "@/infrastructure/storage/MockComprobanteStorage";
+import { MockDocumentoContratoStorage } from "@/infrastructure/storage/MockDocumentoContratoStorage";
 import { MockPlanImagenStorage } from "@/infrastructure/storage/MockPlanImagenStorage";
 import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
 import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
@@ -85,6 +93,10 @@ import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/s
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
 import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
+import { SupabaseComprobanteRepository } from "@/infrastructure/repositories/supabase/SupabaseComprobanteRepository";
+import { SupabasePortalClienteRepository } from "@/infrastructure/repositories/supabase/SupabasePortalClienteRepository";
+import { SupabaseComprobanteStorage } from "@/infrastructure/storage/SupabaseComprobanteStorage";
+import { SupabaseDocumentoContratoStorage } from "@/infrastructure/storage/SupabaseDocumentoContratoStorage";
 import { SupabasePlanImagenStorage } from "@/infrastructure/storage/SupabasePlanImagenStorage";
 import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
 
@@ -115,6 +127,10 @@ export interface Repositories {
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
+  comprobanteRepo: ComprobanteRepository;
+  portalClienteRepo: PortalClienteRepository;
+  comprobanteStorage: ComprobanteStorage;
+  documentoContratoStorage: DocumentoContratoStorage;
   planImageStorage: PlanImagenStorage;
   /** Fotos y videos del proyecto que alimentan la galería pública. */
   proyectoMedioRepo: ProyectoMedioRepository;
@@ -260,6 +276,10 @@ function createMockRepositories(): Repositories {
     planImageStorage: new MockPlanImagenStorage(),
     proyectoMedioRepo: new MockProyectoMedioRepository(),
     proyectoMedioStorage: new MockProyectoMedioStorage(),
+    comprobanteRepo: new MockComprobanteRepository(),
+    portalClienteRepo: new MockPortalClienteRepository(),
+    comprobanteStorage: new MockComprobanteStorage(),
+    documentoContratoStorage: new MockDocumentoContratoStorage(),
   };
 }
 
@@ -303,6 +323,10 @@ function createSupabaseRepositories(): Repositories {
     proyectoMedioStorage: new SupabaseProyectoMedioStorage(),
     aceptarCotizacion: new SupabaseAceptarCotizacion(),
     registrarInteresPublico: new SupabaseRegistrarInteresPublico(),
+    comprobanteRepo: new SupabaseComprobanteRepository(),
+    portalClienteRepo: new SupabasePortalClienteRepository(),
+    comprobanteStorage: new SupabaseComprobanteStorage(),
+    documentoContratoStorage: new SupabaseDocumentoContratoStorage(),
   };
 }
 

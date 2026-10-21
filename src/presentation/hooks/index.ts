@@ -53,3 +53,7 @@ export { useMapaPublico } from "./useMapaPublico";
 export { useRegistrarInteresPublico } from "./useRegistrarInteresPublico";
 export { useMediosProyecto } from "./useMediosProyecto";
 export { useInfoContratos } from "./useInfoContratos";
+export { useComprobantes, useRevisionComprobante } from "./useComprobantes";
+export { usePortalCliente } from "./usePortalCliente";
+export { useDocumentoContrato } from "./useDocumentoContrato";
+export { useAbrirComprobante } from "./useAbrirComprobante";

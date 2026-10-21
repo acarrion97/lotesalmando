@@ -1,5 +1,5 @@
 import type { PuntoPlano } from "@/domain/lote/entities";
-import type { Mapa, MapaPublico, PlanoLote } from "../entities";
+import type { Mapa, MapaPublico, PlanoLote, UbicacionPlano } from "../entities";
 
 export interface SaveMapaInput {
   id_proyecto: number;
@@ -18,6 +18,10 @@ export interface MapaRepository {
   guardarPoligono(loteId: number, poligono: PuntoPlano[] | null): Promise<void>;
   /** Publica el plano en `/mapa/:slug`, o lo despublica con `null`. */
   setSlug(mapaId: number, slug: string | null): Promise<Mapa>;
+  /** Guarda (o borra, con `null`) la ubicación GPS y escala real del plano. */
+  setUbicacion(mapaId: number, ubicacion: UbicacionPlano | null): Promise<Mapa>;
+  /** Guarda (o borra, con `null`) el render 3D del proyecto (capa "Render"). */
+  setRender3D(mapaId: number, url: string | null): Promise<Mapa>;
   /** Mapa público por slug (accesible sin sesión); `null` si no existe. */
   getPublicoBySlug(slug: string): Promise<MapaPublico | null>;
 }

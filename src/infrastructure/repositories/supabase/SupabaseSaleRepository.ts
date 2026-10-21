@@ -1,7 +1,7 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Venta } from "@/domain/venta/entities";
 import type { SaleRepository } from "@/domain/venta/repositories";
-import { getLoteIdsForEmpresa } from "./shared/empresaScope";
+import { getLoteIdsForEmpresa, leerPorIds } from "./shared/empresaScope";
 
 export class SupabaseSaleRepository implements SaleRepository {
   async getAll(): Promise<Venta[]> {
@@ -13,9 +13,8 @@ export class SupabaseSaleRepository implements SaleRepository {
   async getByEmpresaId(empresaId: number): Promise<Venta[]> {
     const loteIds = await getLoteIdsForEmpresa(empresaId);
     if (loteIds.length === 0) return [];
-    const { data, error } = await supabase.from("ventas").select("*").in("id_lote", loteIds);
-    if (error) throw error;
-    return (data ?? []) as Venta[];
+    const filas = await leerPorIds("ventas", "id_lote", loteIds);
+    return filas as unknown as Venta[];
   }
 
   async getById(id: number): Promise<Venta | null> {
