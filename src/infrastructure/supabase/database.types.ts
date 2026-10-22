@@ -86,6 +86,7 @@ export interface Database {
           max_lotes_por_proyecto: number | null;
           max_usuarios: number | null;
           precio: number | null;
+          es_unico: boolean;
         };
         Insert: {
           id_plan?: number;
@@ -102,6 +103,7 @@ export interface Database {
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
           precio?: number | null;
+          es_unico?: boolean;
         };
         Update: {
           id_plan?: number;
@@ -118,6 +120,7 @@ export interface Database {
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
           precio?: number | null;
+          es_unico?: boolean;
         };
       };
       partnership: {

@@ -1,57 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
 import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message, theme } from "antd";
-import {
-  CheckCircleFilled,
-  CrownOutlined,
-  DatabaseOutlined,
-  MailOutlined,
-  RocketOutlined,
-  SafetyCertificateOutlined,
-  TeamOutlined,
-  ThunderboltOutlined,
-  UngroupOutlined,
-} from "@ant-design/icons";
+import { CheckCircleFilled, MailOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useSeleccionarPlan } from "@/presentation/hooks/useSeleccionarPlan";
 import { usePlanes } from "@/presentation/hooks";
 import { PLANES_FALLBACK } from "./planesPago";
-import type { PlanDto } from "@/application/plan/dto/PlanDto";
+import { iconoDePlan, limitesDePlan, precioFormateado } from "./planInfo";import type { PlanDto } from "@/application/plan/dto/PlanDto";
 
 const { Text, Title } = Typography;
-
-const PLAN_ICONS: Record<string, React.ReactNode> = {
-  basico: <ThunderboltOutlined />,
-  inicial: <RocketOutlined />,
-  avanzado: <CrownOutlined />,
-};
-
-/** Icono por tipo de limite (fallback: el de la clave del plan). */
-function iconoDePlan(clave: string): React.ReactNode {
-  return PLAN_ICONS[clave] ?? <ThunderboltOutlined />;
-}
-
-/** Lineas de limites del plan para la tarjeta. Vacio si no tiene limites. */
-function limitesDePlan(plan: PlanDto): { icono: React.ReactNode; texto: string }[] {
-  const items: { icono: React.ReactNode; texto: string }[] = [];
-  if (plan.max_proyectos != null) {
-    items.push({
-      icono: <UngroupOutlined />,
-      texto: plan.max_proyectos === 1 ? "1 proyecto" : `Hasta ${plan.max_proyectos} proyectos`,
-    });
-  }
-  if (plan.max_lotes_por_proyecto != null) {
-    items.push({
-      icono: <DatabaseOutlined />,
-      texto: `Hasta ${plan.max_lotes_por_proyecto} lotes por proyecto`,
-    });
-  }
-  if (plan.max_usuarios != null) {
-    items.push({ icono: <TeamOutlined />, texto: `${plan.max_usuarios} usuarios` });
-  }
-  return items;
-}
 
 export function SeleccionarPlanPage() {
   const navigate = useNavigate();
@@ -156,7 +114,9 @@ export function SeleccionarPlanPage() {
   }
 
   // Fuente de verdad: tabla `plan` (activos). Fallback: constantes.
-  const planesDisponibles = (planesBD ?? []).filter((p) => p.activo);
+  // Los planes "unicos" (es_unico) no se listan aca: se venden solos por
+  // /registro/agente con pago directo.
+  const planesDisponibles = (planesBD ?? []).filter((p) => p.activo && !p.es_unico);
   const planesAMostrar = planesDisponibles.length > 0 ? planesDisponibles : PLANES_FALLBACK;
 
   const planActual = empresaActual?.plan ?? null;
@@ -224,7 +184,7 @@ export function SeleccionarPlanPage() {
           type="warning"
           showIcon
           icon={<MailOutlined style={{ color: token.colorWarning }} />}
-          message={
+          title={
             <span style={{ color: token.colorText, fontWeight: 600 }}>
               Usa el mismo correo electronico al pagar en Hotmart
             </span>
@@ -288,7 +248,7 @@ export function SeleccionarPlanPage() {
                   {plan.precio != null && (
                     <div style={{ textAlign: "center", marginBottom: 12 }}>
                       <Text strong style={{ fontSize: 30, color: token.colorText, lineHeight: 1.2 }}>
-                        USD {Number.isInteger(plan.precio) ? plan.precio : plan.precio.toFixed(2)}
+                        {precioFormateado(plan.precio)}
                       </Text>
                       <div>
                         <Text type="secondary" style={{ fontSize: 13 }}>

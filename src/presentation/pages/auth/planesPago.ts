@@ -50,6 +50,7 @@ export const PLANES_FALLBACK: PlanDto[] = PLANES_PAGO.map((p, i) => ({
   precio: p.precio,
   orden: i + 1,
   activo: true,
+  es_unico: false,
   max_proyectos: null,
   max_lotes_por_proyecto: null,
   max_usuarios: null,

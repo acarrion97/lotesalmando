@@ -13,6 +13,8 @@ export interface GuardarPlanInput {
   precio: number | null;
   orden: number;
   activo: boolean;
+  /** Plan "unico": solo por /registro/agente (pago directo), fuera de /registro/planes. */
+  es_unico: boolean;
   /** Limites por plan. NULL = sin limite. */
   max_proyectos: number | null;
   max_lotes_por_proyecto: number | null;
@@ -46,6 +48,7 @@ export class GuardarPlanUseCase {
       precio: input.precio,
       orden: input.orden,
       activo: input.activo,
+      es_unico: input.es_unico,
       max_proyectos: input.max_proyectos,
       max_lotes_por_proyecto: input.max_lotes_por_proyecto,
       max_usuarios: input.max_usuarios,
@@ -75,6 +78,7 @@ export class GuardarPlanUseCase {
       precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
+      es_unico: plan.es_unico,
       max_proyectos: plan.max_proyectos,
       max_lotes_por_proyecto: plan.max_lotes_por_proyecto,
       max_usuarios: plan.max_usuarios,

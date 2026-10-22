@@ -49,7 +49,10 @@ export function AppRouter() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/registro/empresa" element={<RegisterEmpresaPage />} />
+        {/* Registro dinámico: /registro/empresa y /registro/agente aceptan
+            ademas el codigo de partnership como query param (?codigo=XXX). */}
+        <Route path="/registro/empresa" element={<RegisterEmpresaPage tipo="empresa" />} />
+        <Route path="/registro/agente" element={<RegisterEmpresaPage tipo="agente" />} />
         <Route path="/olvide-contrasena" element={<OlvideContrasenaPage />} />
         <Route path="/reestablecer-contrasena" element={<ReestablecerContrasenaPage />} />
         <Route path="/registro/planes" element={<SeleccionarPlanPage />} />
