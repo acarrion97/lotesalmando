@@ -286,9 +286,6 @@ function createMockRepositories(): Repositories {
     delete: async () => {},
   };
 
-  const reciboRepo = new SupabaseReciboRepository();
-  const confirmarPagoConRecibo = new SupabaseConfirmarPagoConRecibo();
-
   return {
     empresaRepo,
     planRepo: new MockPlanRepository(),
@@ -343,6 +340,9 @@ function createSupabaseRepositories(): Repositories {
       "Supabase provider selected but VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are required.",
     );
   }
+
+  const reciboRepo = new SupabaseReciboRepository();
+  const confirmarPagoConRecibo = new SupabaseConfirmarPagoConRecibo();
 
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
