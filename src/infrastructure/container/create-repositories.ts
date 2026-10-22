@@ -152,7 +152,9 @@ function createMockRepositories(): Repositories {
   const lotRepository = new MockLotRepository();
   const saleRepo = new MockSaleRepository();
   const contractRepo = new MockContractRepository();
-  const cobranzaRepo = new MockCobranzaRepository();
+  // Recibe contrato + venta para emular el trigger que pasa la venta a
+  // 'completada' cuando todas sus cuotas quedan pagadas (migración 040).
+  const cobranzaRepo = new MockCobranzaRepository(contractRepo, saleRepo);
   const inventarioRepo = new MockInventarioRepository();
   const aceptarCotizacion = new MockAceptarCotizacion(
     cotizacionRepo,

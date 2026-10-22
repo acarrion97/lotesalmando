@@ -62,7 +62,9 @@ export class MockAceptarCotizacion implements AceptarCotizacionPort {
       id_cotizacion: cotizacion.id_cotizacion,
       id_usuario: command.id_usuario,
       precio_final: cotizacion.precio_ofertado,
-      estado: "completada",
+      // Nace 'pendiente': pasa a 'completada' sola cuando todas sus cuotas
+      // quedan pagadas (MockCobranzaRepository replica el trigger de 040).
+      estado: "pendiente",
       id_asesor: cotizacion.id_asesor ?? null,
       created_at: new Date().toISOString(),
     });
