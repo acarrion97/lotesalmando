@@ -1,6 +1,7 @@
 import {
   AlignmentType,
   Document,
+  LineRuleType,
   Packer,
   Paragraph,
   Table,
@@ -34,7 +35,8 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
       return [
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 120 },
+          // Interlineado 1,5, como el título del documento original.
+          spacing: { after: 120, line: 360, lineRule: LineRuleType.AUTO },
           children: [
             new TextRun({
               text: bloque.texto,
@@ -71,7 +73,7 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
         new Paragraph({
           alignment: AlignmentType.JUSTIFIED,
           spacing: INTERLINEADO,
-          children: [new TextRun({ text: bloque.texto, size: 22 })],
+          children: [new TextRun({ text: bloque.texto, size: 22, bold: bloque.negrita })],
         }),
       ];
     case "etiqueta_valor":
@@ -148,9 +150,11 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
                       children: [
                         new Paragraph({
                           children: [
+                            // Bloque de firmas en negrita, como el original
+                            // (que no lleva subrayado).
                             new TextRun({
                               text: columna.lineas[indiceLinea] ?? "",
-                              bold: indiceLinea === 0,
+                              bold: true,
                               size: 22,
                             }),
                           ],

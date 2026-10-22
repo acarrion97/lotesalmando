@@ -89,8 +89,8 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
   // GUIDO RAFAEL ESPINOZA AGUILAR, con cedula de ciudadania No. ...": en el
   // documento original la empresa y el representante van en negrita.
   const intervinientes: SegmentoTexto[] = [{ texto: "Comparece la " }];
-  intervinientes.push({ texto: `"${c.empresa.nombre}"`, negrita: true });
-  intervinientes.push({ texto: " representada por " });
+  intervinientes.push({ texto: `“${c.empresa.nombre}”`, negrita: true });
+  intervinientes.push({ texto: " representada por el señor " });
   if (c.empresa.representante) {
     intervinientes.push({ texto: c.empresa.representante, negrita: true });
   } else {
@@ -110,7 +110,7 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
   intervinientes.push({ texto: ", a quien se lo denominará como PROPIETARIO" });
   intervinientes.push({ texto: ", y por otra parte " });
   intervinientes.push({ texto: c.cliente.nombres, negrita: true });
-  if (c.cliente.cedula) intervinientes.push({ texto: `, con cédula No ${c.cliente.cedula}` });
+  if (c.cliente.cedula) intervinientes.push({ texto: `, con cédula de ciudadanía No ${c.cliente.cedula}` });
   if (c.cliente.email) intervinientes.push({ texto: `, correo electrónico: ${c.cliente.email}` });
   if (c.cliente.telefono)
     intervinientes.push({ texto: `, número de celular ${c.cliente.telefono}` });
@@ -146,6 +146,14 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
     });
   }
 
+  // Lo que sigue ("El pago se lo realizará…" / "Las papeletas…") es otra
+  // oración: la forma de pago termina con punto, como en el original.
+  if (formaDePago.length > 0) {
+    const ultima = formaDePago[formaDePago.length - 1];
+    ultima.texto = `${ultima.texto.replace(/\s+$/, "")}.`;
+  }
+  const hayCuentas = !!c.empresa.cuentas_bancarias?.trim();
+
   const bloques: BloqueDocumento[] = [
     { tipo: "titulo", texto: "COMPROMISO DE ADHESIÓN Y ADQUISICIÓN DE TERRENO" },
     { tipo: "subtitulo", texto: `Contrato N° ${c.numero_contrato}` },
@@ -159,15 +167,20 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
       tipo: "clausula",
       encabezado: "SEGUNDO: SOLICITUD DE ADHESIÓN Y ADQUISICIÓN DE TERRENO. -",
       cuerpo: [
+        { texto: "El adquirente de forma libre y voluntaria solicita suscribir el presente contrato de adhesión para el proyecto de la Asociación de Moradores" },
+        ...(c.proyecto?.trim()
+          ? [{ texto: ` ${c.proyecto.trim()}`, negrita: true }]
+          : []),
         {
-          texto: `El adquirente de forma libre y voluntaria solicita suscribir el presente contrato de adhesión para el proyecto de ${c.proyecto?.trim() || "la Asociación de Moradores"}, para adquisición del terreno, próximo a la desmembración y adjudicación de un lote de terreno con las siguientes singularidades: ${singularidad || "el lote indicado en este contrato"}`,
+          texto: ", para adquisición del terreno, próximo a la desmembración y adjudicación de un lote de terreno con las siguientes singularidades: ",
         },
+        { texto: singularidad || "el lote indicado en este contrato", negrita: true },
         ...(medidas ? [{ texto: `, con las siguientes medidas: ${medidas}` }] : []),
         ...(superficie
           ? [{ texto: `, que da un área total de ${superficie} metros cuadrados` }]
           : []),
         {
-          texto: `, adicional a las alícuotas de áreas verdes, áreas sociales, calles y espacios comunitarios. El Promitente vendedor, se compromete a dar en futura venta y enajenación perpetua, a ${c.empresa.nombre}, el área de terreno y especificaciones antes descritas, quien procederá a suscribir escrituras públicas de compraventa al promitente comprador. Cancelada la totalidad se procede a realizar la escritura pública de venta de los solares y alícuota detallada en este contrato.`,
+          texto: `${medidas || superficie ? "" : ","} adicional a las alícuotas de áreas verdes, áreas sociales, calles y espacios comunitarios. El Promitente vendedor, se compromete a dar en futura venta y enajenación perpetua, a ${c.empresa.nombre}, el área de terreno y especificaciones antes descritas, quien procederá a suscribir escrituras públicas de compraventa al promitente comprador. Cancelada la totalidad se procede a realizar la escritura pública de venta de los solares y alícuota detallada en este contrato.`,
         },
       ],
     },
@@ -189,7 +202,7 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
             ]
           : []),
         {
-          texto: " las papeletas de depósito serán canjeadas por recibos emitidos por el propietario",
+          texto: `${hayCuentas ? " las" : " Las"} papeletas de depósito serán canjeadas por recibos emitidos por el propietario`,
         },
         ...(c.empresa.direccion_canje?.trim()
           ? [{ texto: `, los canjes se realizarán en ${c.empresa.direccion_canje.trim()}` }]
@@ -240,7 +253,6 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
       tipo: "parrafo",
       texto: "En cuanto a los servicios básicos, el PROPIETARIO será responsable de su gestión e implementación general dentro del proyecto; sin perjuicio de que, en caso de requerir contribuciones adicionales para mejoras específicas o conexiones individuales, éstas podrán ser asumidas por los adquirentes de común acuerdo.",
     },
-    { tipo: "espacio" },
     {
       tipo: "clausula",
       encabezado: "SÉPTIMA: DECLARACIONES. -",
@@ -269,8 +281,9 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
         },
       ],
     },
-    { tipo: "espacio" },
-    { tipo: "parrafo", texto: `${ciudad}, ${fechaEnPalabras(c.fecha)}` },
+    // Como en el documento original: el lugar y la fecha van seguidos de la
+    // NOVENA (sin línea en blanco) y en negrita.
+    { tipo: "parrafo", texto: `${ciudad}, ${fechaEnPalabras(c.fecha)}`, negrita: true },
     { tipo: "espacio" },
     {
       tipo: "firmas",
@@ -278,7 +291,9 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
         {
           lineas: [
             c.empresa.representante?.trim() || c.empresa.nombre,
-            `GERENTE GENERAL "${c.empresa.nombre}"`,
+            // Como el original: va el nombre corto del proyecto (si no,
+            // el de la empresa).
+            `GERENTE GENERAL “${c.proyecto?.trim() || c.empresa.nombre}”`,
             "VENDEDOR",
           ],
         },

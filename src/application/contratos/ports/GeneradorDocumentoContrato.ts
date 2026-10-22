@@ -59,7 +59,7 @@ export type BloqueDocumento =
   | { tipo: "subtitulo"; texto: string }
   /** Clausula legal: encabezado en negrita y cuerpo justificado. */
   | { tipo: "clausula"; encabezado: string; cuerpo: SegmentoTexto[] }
-  | { tipo: "parrafo"; texto: string }
+  | { tipo: "parrafo"; texto: string; negrita?: boolean }
   | { tipo: "etiqueta_valor"; etiqueta: string; valor: string }
   | { tipo: "tabla"; encabezados: string[]; filas: string[][] }
   /** Bloque de firmas: una columna por firmante, con sus lineas. */

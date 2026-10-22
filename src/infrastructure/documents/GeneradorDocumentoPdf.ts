@@ -143,20 +143,6 @@ export class GeneradorDocumentoPdf implements GeneradorDocumentoContrato {
       y += 6;
     };
 
-    const linea = (texto: string, size: number, color: [number, number, number], negrita = false) => {
-      doc.setFont(FUENTE, negrita ? "bold" : "normal");
-      doc.setFontSize(size);
-      doc.setTextColor(...color);
-      const lineas = doc.splitTextToSize(texto, ANCHO_UTIL) as string[];
-      const alto = lineas.length * (size + 4);
-      saltarSiNoCabe(alto);
-      lineas.forEach((l, i) => {
-        doc.text(l, MARGEN, y + size + i * (size + 4));
-      });
-      y += alto + 6;
-      doc.setTextColor(...GRIS);
-    };
-
     const etiquetaValor = (etiqueta: string, valor: string) => {
       doc.setFontSize(11);
       const anchoEtiqueta = doc.getTextWidth(`${etiqueta}: `);
@@ -218,7 +204,8 @@ export class GeneradorDocumentoPdf implements GeneradorDocumentoContrato {
         columnas.forEach((columna, indiceColumna) => {
           const texto = columna.lineas[indiceLinea];
           if (!texto) return;
-          doc.setFont(FUENTE, indiceLinea === 0 ? "bold" : "normal");
+          // Bloque de firmas en negrita, como el documento original.
+          doc.setFont(FUENTE, "bold");
           doc.setFontSize(TAMANO);
           doc.setTextColor(...GRIS);
           doc.text(texto, MARGEN + indiceColumna * anchoColumna, y + TAMANO);
@@ -255,7 +242,7 @@ export class GeneradorDocumentoPdf implements GeneradorDocumentoContrato {
           parrafoRico([{ texto: `${bloque.encabezado} `, negrita: true }, ...bloque.cuerpo]);
           break;
         case "parrafo":
-          parrafoRico([{ texto: bloque.texto }]);
+          parrafoRico([{ texto: bloque.texto, negrita: bloque.negrita }]);
           break;
         case "etiqueta_valor":
           etiquetaValor(bloque.etiqueta, bloque.valor);

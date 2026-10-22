@@ -82,9 +82,7 @@ export function ConfiguracionPage() {
     } else {
       form.resetFields();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, configuracion]);
-
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
 
