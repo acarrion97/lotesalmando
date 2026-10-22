@@ -11,7 +11,9 @@ export class SupabaseClienteRepository implements ClienteRepository {
 
   // `cliente.id_empresa` (migración 019) define el alcance directo: el
   // listado por empresa es una igualdad, no una inferencia por ventas y
-  // cotizaciones, así que un cliente creado al reservar ya se ve aquí.
+  // cotizaciones. Los datos capturados al reservar ya no crean `cliente`
+  // (viven en la oportunidad de la reserva), así que aquí solo entran
+  // clientes reales.
   async getByEmpresaId(empresaId: number): Promise<Cliente[]> {
     if (!empresaId) return [];
     const { data, error } = await supabase

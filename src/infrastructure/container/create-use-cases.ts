@@ -30,6 +30,7 @@ import { GetEntradasReservaUseCase } from "@/application/entradas/use-cases/GetE
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
 import { GetAllClientesUseCase } from "@/application/clientes/use-cases/GetAllClientesUseCase";
 import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateClienteUseCase";
+import { MaterializarClienteReservaUseCase } from "@/application/clientes/use-cases/MaterializarClienteReservaUseCase";
 import { UpdateClienteUseCase } from "@/application/clientes/use-cases/UpdateClienteUseCase";
 import { DeleteClienteUseCase } from "@/application/clientes/use-cases/DeleteClienteUseCase";
 import { GetCotizacionesUseCase } from "@/application/cotizaciones/use-cases/GetCotizacionesUseCase";
@@ -160,6 +161,8 @@ export interface UseCases {
   createCliente: CreateClienteUseCase;
   updateCliente: UpdateClienteUseCase;
   deleteCliente: DeleteClienteUseCase;
+  /** Copia el snapshot del cliente de la reserva a `cliente` cuando el lote pasa a vendido. */
+  materializarClienteReserva: MaterializarClienteReservaUseCase;
   getCotizaciones: GetCotizacionesUseCase;
   createCotizacion: CreateCotizacionUseCase;
   updateCotizacion: UpdateCotizacionUseCase;
@@ -289,12 +292,15 @@ export function createUseCases(repos: Repositories): UseCases {
     updateLote: new UpdateLoteUseCase(repos.lotRepository),
     deleteLote: new DeleteLoteUseCase(repos.lotRepository),
     reservarLote,
-    cancelarReserva: new CancelarReservaUseCase(repos.lotRepository, repos.inventarioRepo),
+    cancelarReserva: new CancelarReservaUseCase(
+      repos.lotRepository,
+      repos.inventarioRepo,
+      repos.oportunidadRepo,
+    ),
     registrarEntrada,
     getEntradasReserva: new GetEntradasReservaUseCase(repos.entradaRepo),
     reservarProspecto: new ReservarProspectoUseCase({
       prospectoRepo: repos.prospectoRepo,
-      clienteRepo: repos.clienteRepo,
       lotRepo: repos.lotRepository,
       inventarioRepo: repos.inventarioRepo,
       oportunidadRepo: repos.oportunidadRepo,
@@ -306,6 +312,7 @@ export function createUseCases(repos: Repositories): UseCases {
     createCliente: new CreateClienteUseCase(repos.clienteRepo),
     updateCliente: new UpdateClienteUseCase(repos.clienteRepo),
     deleteCliente: new DeleteClienteUseCase(repos.clienteRepo),
+    materializarClienteReserva: new MaterializarClienteReservaUseCase(repos.clienteRepo),
     getCotizaciones: new GetCotizacionesUseCase(repos.cotizacionRepo),
     createCotizacion: new CreateCotizacionUseCase(repos.cotizacionRepo),
     updateCotizacion: new UpdateCotizacionUseCase(repos.cotizacionRepo),

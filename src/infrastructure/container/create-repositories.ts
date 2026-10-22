@@ -193,6 +193,7 @@ function createMockRepositories(): Repositories {
     getAll: async () => [],
     getByEmpresaId: async () => [],
     getByProspectoId: async () => [],
+    getByLoteId: async () => [],
     getById: async () => null,
     create: async (
       data: Omit<Oportunidad, "id_oportunidad" | "created_at">,

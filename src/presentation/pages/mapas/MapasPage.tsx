@@ -78,8 +78,8 @@ import { InfoVentaLote } from "./InfoVentaLote";
 
 // Dedupe dentro de la propia empresa: `cliente.id_empresa` (migración 019)
 // es el alcance, así que la misma cédula puede existir en dos empresas sin
-// mezclar sus listados. La lista por empresa ya incluye a los clientes
-// creados al reservar (antes solo entraban al vender).
+// mezclar sus listados. Se usa solo en la venta directa desde el mapa: la
+// reserva ya no crea `cliente` (los datos quedan en la oportunidad).
 async function findOrCreateCliente(
   idEmpresa: number,
   nombres: string,
@@ -477,10 +477,11 @@ export function MapasPage() {
 
     setReservaSubmitting(true);
     try {
-      // Misma orquestación que la reserva desde el módulo Prospectos: cliente
-      // (creado o reusado) + lote reservado + oportunidad y prospecto en la
-      // etapa "reserva". El prospecto no tiene cédula, así que el cliente se
-      // arma con su nombre, email y teléfono.
+      // Misma orquestación que la reserva desde el módulo Prospectos: lote
+      // reservado + snapshot del cliente en la oportunidad (no se crea
+      // `cliente`) + oportunidad y prospecto en la etapa "reserva". El
+      // prospecto no tiene cédula, así que los datos se arman con su nombre,
+      // email y teléfono.
       await getContainer().reservarProspecto.execute({
         idProspecto: prospecto.id_prospecto,
         idLote: selectedLote.id_lote,
@@ -497,7 +498,6 @@ export function MapasPage() {
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["lotes"] }),
-        queryClient.invalidateQueries({ queryKey: ["clientes"] }),
         queryClient.invalidateQueries({ queryKey: ["prospectos"] }),
         queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
         queryClient.invalidateQueries({ queryKey: ["inventario"] }),

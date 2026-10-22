@@ -40,7 +40,6 @@ import {
   useEtapas,
   useProyectos,
   useLookup,
-  useClientes,
   useAceptarCotizacion,
   useAsesorDeSesion,
   useProspectos,
@@ -49,7 +48,6 @@ import {
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import type { Cotizacion } from "@/domain/cotizacion/entities/Cotizacion";
-import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import type { Prospecto } from "@/domain/prospecto/entities/Prospecto";
 import type { Oportunidad } from "@/domain/oportunidad/entities/Oportunidad";
 import { getContainer } from "@/infrastructure/container";
@@ -172,9 +170,30 @@ interface ModalState {
   record: Lote | null;
 }
 
+/** Snapshot del cliente capturado al reservar, guardado en la oportunidad. */
+interface DatosClienteReserva {
+  nombres: string;
+  cedula_ruc: string;
+  email: string;
+  telefono: string | null;
+}
+
+/** Extrae el snapshot del cliente de una oportunidad de reserva; undefined si no lo tiene. */
+function datosClienteDe(oportunidad: Oportunidad): DatosClienteReserva | undefined {
+  const nombres = (oportunidad.cliente_nombres ?? "").trim();
+  if (!nombres) return undefined;
+  return {
+    nombres,
+    cedula_ruc: (oportunidad.cliente_cedula_ruc ?? "").trim(),
+    email: (oportunidad.cliente_email ?? "").trim(),
+    telefono: oportunidad.cliente_telefono?.trim() || null,
+  };
+}
+
 interface ReservaInfo {
   prospecto: Prospecto;
-  cliente: Cliente | undefined;
+  /** Snapshot del cliente de la reserva; al vender se copia a `cliente`. */
+  datosCliente: DatosClienteReserva | undefined;
   oportunidad: Oportunidad;
 }
 
@@ -253,7 +272,7 @@ function LoteGridCard({ lote, manzanaNombre, reservaInfo, onAction, onSale }: { 
             menu={{
               items: [
                 { key: "ver", icon: <EyeOutlined />, label: "Ver detalle", onClick: () => onAction("view", lote) },
-                { key: "vender", icon: <DollarOutlined />, label: "Realizar venta", disabled: !reservaInfo?.cliente, onClick: () => onSale(lote) },
+                { key: "vender", icon: <DollarOutlined />, label: "Realizar venta", disabled: !reservaInfo?.datosCliente, onClick: () => onSale(lote) },
                 { key: "editar", icon: <EditOutlined />, label: "Editar", onClick: () => onAction("edit", lote) },
                 { type: "divider" },
                 { key: "eliminar", icon: <DeleteOutlined />, label: "Eliminar", danger: true, onClick: () => onAction("delete", lote) },
@@ -276,7 +295,6 @@ export function ReservasPage() {
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { empresaActual } = useEmpresa();
   const { user } = useAuth();
-  const { data: clientes, isLoading: loadingClientes } = useClientes(empresaActual?.id_empresa ?? 0);
   const { data: prospectos, isLoading: loadingProspectos } = useProspectos();
   const { data: oportunidades, isLoading: loadingOportunidades } = useOportunidades();
   const { idAsesor } = useAsesorDeSesion();
@@ -313,16 +331,6 @@ export function ReservasPage() {
 
   const reservasPorLote = useMemo(() => {
     const prospectosPorId = new Map((prospectos ?? []).map((prospecto) => [prospecto.id_prospecto, prospecto]));
-    const clientesPorEmail = new Map(
-      (clientes ?? [])
-        .filter((cliente) => cliente.email.trim())
-        .map((cliente) => [cliente.email.trim().toLocaleLowerCase(), cliente]),
-    );
-    const clientesPorTelefono = new Map(
-      (clientes ?? [])
-        .filter((cliente) => cliente.telefono?.trim())
-        .map((cliente) => [cliente.telefono!.replace(/\D/g, ""), cliente]),
-    );
 
     return new Map<number, ReservaInfo>(
       (oportunidades ?? [])
@@ -336,19 +344,16 @@ export function ReservasPage() {
             item.prospecto?.estado === "reserva",
         )
         .sort((a, b) => a.oportunidad.created_at.localeCompare(b.oportunidad.created_at))
-        .map(({ oportunidad, prospecto }) => {
-          const email = prospecto.email.trim().toLocaleLowerCase();
-          const telefono = prospecto.telefono.replace(/\D/g, "");
-          const cliente =
-            (email ? clientesPorEmail.get(email) : undefined) ??
-            (telefono ? clientesPorTelefono.get(telefono) : undefined);
-          return [
-            oportunidad.id_lote!,
-            { prospecto, cliente, oportunidad },
-          ];
-        }),
+        .map(({ oportunidad, prospecto }) => [
+          oportunidad.id_lote!,
+          {
+            prospecto,
+            datosCliente: datosClienteDe(oportunidad),
+            oportunidad,
+          },
+        ]),
     );
-  }, [clientes, oportunidades, prospectos]);
+  }, [oportunidades, prospectos]);
 
   // Opciones de manzana agrupadas por "Proyecto · Etapa" para poder asignar sin escribir IDs.
   const manzanaOptions = useMemo(() => {
@@ -386,7 +391,6 @@ export function ReservasPage() {
     isLoading ||
     loadingProspectos ||
     loadingOportunidades ||
-    loadingClientes ||
     (proyectoFilter !== null && (loadingManzanas || loadingEtapas));
 
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
@@ -410,9 +414,9 @@ export function ReservasPage() {
       messageApi.error("El lote no tiene un prospecto asociado que esté en etapa Reserva");
       return;
     }
-    if (!reservaInfo.cliente) {
+    if (!reservaInfo.datosCliente) {
       messageApi.error(
-        `No se encontró el cliente de ${reservaInfo.prospecto.nombres}. Verifique que su email o teléfono coincida con el cliente registrado.`,
+        `No se encontraron los datos del cliente de ${reservaInfo.prospecto.nombres} para esta reserva.`,
       );
       return;
     }
@@ -451,13 +455,22 @@ export function ReservasPage() {
     setVentaSubmitting(true);
     try {
       const reservaInfo = reservasPorLote.get(loteVenta.id_lote);
-      const cliente = reservaInfo?.cliente;
-      if (!reservaInfo || reservaInfo.prospecto.estado !== "reserva" || !cliente) {
-        throw new Error("No se pudo confirmar el prospecto y cliente asociados a esta reserva.");
+      const datosCliente = reservaInfo?.datosCliente;
+      if (!reservaInfo || reservaInfo.prospecto.estado !== "reserva" || !datosCliente) {
+        throw new Error("No se pudo confirmar el prospecto y los datos de cliente de esta reserva.");
       }
 
       let cotizacion = cotizacionesPendientesVenta[loteVenta.id_lote];
       if (!cotizacion) {
+        // Al pasar a vendido se copia el snapshot de la reserva a `cliente`
+        // (reusando uno existente por cédula/email si ya había comprado).
+        const cliente = await container.materializarClienteReserva.execute({
+          id_empresa: reservaInfo.oportunidad.id_empresa,
+          nombres: datosCliente.nombres,
+          cedula_ruc: datosCliente.cedula_ruc,
+          email: datosCliente.email,
+          telefono: datosCliente.telefono,
+        });
         cotizacion = await container.createCotizacion.execute({
           id_cliente: cliente.id_cliente,
           id_lote: loteVenta.id_lote,
@@ -482,6 +495,9 @@ export function ReservasPage() {
         delete siguientes[loteVenta.id_lote];
         return siguientes;
       });
+      // La venta materializa el cliente (se creó recién ahora, al vender):
+      // hay que refrescar el listado de clientes.
+      await queryClient.invalidateQueries({ queryKey: ["clientes"] });
       messageApi.success(
         `Venta del lote ${loteVenta.numero_lote} registrada (#${resultado.id_venta}); se generaron ${resultado.cuotas_generadas} cuotas.`,
       );
@@ -677,12 +693,12 @@ export function ReservasPage() {
             type="primary"
             size="small"
             icon={<DollarOutlined />}
-            disabled={!reservasPorLote.get(record.id_lote)?.cliente}
+            disabled={!reservasPorLote.get(record.id_lote)?.datosCliente}
             title={
               !reservasPorLote.get(record.id_lote)
                 ? "Requiere un prospecto en etapa Reserva"
-                : !reservasPorLote.get(record.id_lote)?.cliente
-                  ? "No se encontró el cliente asociado"
+                : !reservasPorLote.get(record.id_lote)?.datosCliente
+                  ? "Faltan los datos del cliente de la reserva"
                   : undefined
             }
             onClick={() => abrirVenta(record)}
@@ -990,7 +1006,7 @@ export function ReservasPage() {
           <>
             {(() => {
               const reservaInfo = reservasPorLote.get(loteVenta.id_lote);
-              const cliente = reservaInfo?.cliente;
+              const datosCliente = reservaInfo?.datosCliente;
               if (!reservaInfo) {
                 return (
                   <Alert
@@ -1002,14 +1018,14 @@ export function ReservasPage() {
                   />
                 );
               }
-              if (!cliente) {
+              if (!datosCliente) {
                 return (
                   <Alert
                     type="error"
                     showIcon
                     style={{ marginBottom: 16 }}
-                    message={`No se encontró el cliente de ${reservaInfo.prospecto.nombres}`}
-                    description="Verifique que el email o teléfono del cliente coincida con los datos asociados al prospecto."
+                    message={`No se encontraron los datos del cliente de ${reservaInfo.prospecto.nombres}`}
+                    description="Vuelva a reservar el lote para capturar los datos del cliente."
                   />
                 );
               }
@@ -1018,10 +1034,10 @@ export function ReservasPage() {
                   <Descriptions.Item label="Prospecto">
                     {reservaInfo.prospecto.nombres} · Etapa Reserva
                   </Descriptions.Item>
-                  <Descriptions.Item label="Cliente">{cliente.nombres}</Descriptions.Item>
-                  <Descriptions.Item label="Cédula / RUC">{cliente.cedula_ruc || "—"}</Descriptions.Item>
-                  <Descriptions.Item label="Email">{cliente.email || "—"}</Descriptions.Item>
-                  <Descriptions.Item label="Teléfono">{cliente.telefono || "—"}</Descriptions.Item>
+                  <Descriptions.Item label="Cliente">{datosCliente.nombres}</Descriptions.Item>
+                  <Descriptions.Item label="Cédula / RUC">{datosCliente.cedula_ruc || "—"}</Descriptions.Item>
+                  <Descriptions.Item label="Email">{datosCliente.email || "—"}</Descriptions.Item>
+                  <Descriptions.Item label="Teléfono">{datosCliente.telefono || "—"}</Descriptions.Item>
                   <Descriptions.Item label="Lote">{loteVenta.numero_lote}</Descriptions.Item>
                   <Descriptions.Item label="Manzana">
                     {manzanaMap[loteVenta.id_manzana] ?? `Manzana ${loteVenta.id_manzana}`}

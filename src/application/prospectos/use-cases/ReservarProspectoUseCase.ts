@@ -1,5 +1,3 @@
-import type { Cliente } from "@/domain/cliente/entities";
-import type { ClienteRepository } from "@/domain/cliente/repositories";
 import type { InventarioRepository } from "@/domain/inventario/repositories";
 import type { LotRepository } from "@/domain/lote/repositories";
 import type { Oportunidad } from "@/domain/oportunidad/entities";
@@ -29,22 +27,27 @@ export interface ReservarProspectoInput {
 
 export interface ReservarProspectoResult {
   prospecto: Prospecto;
-  cliente: Cliente;
+  /** Oportunidad de la reserva; en su snapshot `cliente_*` van los datos del reservante. */
   oportunidad: Oportunidad;
 }
 
 /**
  * Reserva de un lote disparada por el pipeline de prospectos (estado "reserva").
  *
- * Orquesta en orden: cliente → reserva del lote → oportunidad prospecto↔lote →
- * actualización del prospecto. No es transaccional, así que si algo falla
- * después de reservar el lote se compensa (el lote vuelve a "disponible" y se
- * borran los movimientos de inventario creados en esta operación) para no
- * dejar reservas huérfanas.
+ * Reservar NO crea un `cliente`: los datos capturados se guardan como un
+ * snapshot en la oportunidad (etapa `reserva`) que ya liga prospecto ↔ lote, y
+ * solo se copian a `cliente` cuando el lote pasa a "vendido"
+ * (MaterializarClienteReservaUseCase). Así no se llena la tabla de clientes
+ * con gente que reserva y nunca compra.
+ *
+ * Orquesta en orden: reserva del lote → entrada → oportunidad (con el
+ * snapshot) → actualización del prospecto. No es transaccional, así que si
+ * algo falla después de reservar el lote se compensa (el lote vuelve a
+ * "disponible" y se borran los movimientos de inventario creados en esta
+ * operación) para no dejar reservas huérfanas.
  */
 export class ReservarProspectoUseCase {
   private readonly prospectoRepo: ProspectoRepository;
-  private readonly clienteRepo: ClienteRepository;
   private readonly lotRepo: LotRepository;
   private readonly inventarioRepo: InventarioRepository;
   private readonly oportunidadRepo: OportunidadRepository;
@@ -53,7 +56,6 @@ export class ReservarProspectoUseCase {
 
   constructor(deps: {
     prospectoRepo: ProspectoRepository;
-    clienteRepo: ClienteRepository;
     lotRepo: LotRepository;
     inventarioRepo: InventarioRepository;
     oportunidadRepo: OportunidadRepository;
@@ -61,7 +63,6 @@ export class ReservarProspectoUseCase {
     registrarEntrada: RegistrarEntradaReservaUseCase;
   }) {
     this.prospectoRepo = deps.prospectoRepo;
-    this.clienteRepo = deps.clienteRepo;
     this.lotRepo = deps.lotRepo;
     this.inventarioRepo = deps.inventarioRepo;
     this.oportunidadRepo = deps.oportunidadRepo;
@@ -80,8 +81,6 @@ export class ReservarProspectoUseCase {
     if (lote.estado !== "disponible") {
       throw new Error(`El lote ${lote.numero_lote} ya no esta disponible (estado: ${lote.estado})`);
     }
-
-    const cliente = await this.obtenerOCrearCliente(input.cliente, prospecto.id_empresa);
 
     // Marca los movimientos previos para poder deshacer solo los de esta
     // operación si algo falla después de la reserva.
@@ -109,6 +108,8 @@ export class ReservarProspectoUseCase {
         idEntrada = entrada.id_entrada;
       }
 
+      // Los datos del cliente quedan como snapshot en la propia oportunidad de
+      // la reserva. No se crea `cliente`: eso recién pasa al vender.
       oportunidad = await this.oportunidadRepo.create({
         id_empresa: prospecto.id_empresa,
         id_prospecto: prospecto.id_prospecto,
@@ -116,6 +117,10 @@ export class ReservarProspectoUseCase {
         etapa: "reserva",
         valor_estimado: lote.precio_lista ?? 0,
         notas: "",
+        cliente_nombres: input.cliente.nombres.trim(),
+        cliente_cedula_ruc: input.cliente.cedula_ruc.trim(),
+        cliente_email: input.cliente.email.trim(),
+        cliente_telefono: input.cliente.telefono?.trim() || null,
       });
 
       const prospectoActualizado = await this.prospectoRepo.update(prospecto.id_prospecto, {
@@ -124,7 +129,7 @@ export class ReservarProspectoUseCase {
         id_asesor: input.idAsesor,
       });
 
-      return { prospecto: prospectoActualizado, cliente, oportunidad };
+      return { prospecto: prospectoActualizado, oportunidad };
     } catch (error) {
       if (oportunidad) {
         await this.oportunidadRepo.delete(oportunidad.id_oportunidad).catch(() => undefined);
@@ -160,38 +165,6 @@ export class ReservarProspectoUseCase {
     if (email !== "" && !email.includes("@")) {
       throw new Error("El email del cliente no es valido");
     }
-  }
-
-  /**
-   * Reusa el cliente por cédula o email (cualquiera de los dos identifica a la
-   * misma persona) dentro de la empresa del prospecto, para no duplicar filas
-   * en cada reserva. Una cédula vacía no identifica a nadie: solo se dedupea
-   * por email en ese caso.
-   */
-  private async obtenerOCrearCliente(
-    datos: DatosClienteReserva,
-    idEmpresa: number,
-  ): Promise<Cliente> {
-    const nombres = datos.nombres.trim();
-    const cedula = datos.cedula_ruc.trim();
-    const email = datos.email.trim().toLowerCase();
-    const telefono = datos.telefono?.trim() || null;
-
-    const clientes = await this.clienteRepo.getAll();
-    const existente = clientes.find(
-      (c) =>
-        c.id_empresa === idEmpresa &&
-        ((cedula !== "" && c.cedula_ruc === cedula) || (email !== "" && (c.email ?? "").toLowerCase() === email)),
-    );
-    if (existente) return existente;
-
-    return this.clienteRepo.create({
-      id_empresa: idEmpresa,
-      nombres,
-      cedula_ruc: cedula,
-      email: datos.email.trim(),
-      telefono,
-    });
   }
 
   private async revertirReserva(idLote: number, movimientosPrevios: Set<number>): Promise<boolean> {

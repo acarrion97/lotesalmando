@@ -317,7 +317,6 @@ export function ProspectosPage() {
       await refresh();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["lotes"] }),
-        queryClient.invalidateQueries({ queryKey: ["clientes"] }),
         queryClient.invalidateQueries({ queryKey: ["oportunidades"] }),
         queryClient.invalidateQueries({ queryKey: ["inventario"] }),
         queryClient.invalidateQueries({ queryKey: ["entradasReserva"] }),
