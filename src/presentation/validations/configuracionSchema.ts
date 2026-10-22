@@ -5,6 +5,9 @@ export const configuracionSchema = z.object({
   idioma: z.string().min(1, "Seleccione el idioma").max(10, "Código de idioma no válido"),
   // Datos legales que usa el contrato (se permiten vacíos: el contrato
   // sale igual, solo omite lo que no esté cargado).
+  // El RUC no se guarda en `configuracion`: es un dato de la empresa y
+  // sólo se valida acá porque viaja en el mismo formulario.
+  ruc: z.string().max(20, "RUC muy largo").optional(),
   representante: z.string().max(160, "Nombre muy largo").optional(),
   representante_cedula: z.string().max(30, "Cédula muy larga").optional(),
   representante_email: z

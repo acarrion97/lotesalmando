@@ -90,6 +90,11 @@ export function estructuraContrato(c: ContenidoContrato): DocumentoPlano {
   // documento original la empresa y el representante van en negrita.
   const intervinientes: SegmentoTexto[] = [{ texto: "Comparece la " }];
   intervinientes.push({ texto: `“${c.empresa.nombre}”`, negrita: true });
+  // El RUC de la razón social va junto al nombre (si está cargado):
+  // “CDLA SAN LUCAS S.A.S”, con RUC 0791843338001, representada por el…
+  if (c.empresa.ruc?.trim()) {
+    intervinientes.push({ texto: `, con RUC ${c.empresa.ruc.trim()},` });
+  }
   intervinientes.push({ texto: " representada por el señor " });
   if (c.empresa.representante) {
     intervinientes.push({ texto: c.empresa.representante, negrita: true });

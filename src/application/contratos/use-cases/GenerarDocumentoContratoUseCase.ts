@@ -1,6 +1,6 @@
 import type { ClienteRepository } from "@/domain/cliente/repositories";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
-import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
+import type { ConfiguracionRepository, ConfiguracionContratoRepository } from "@/domain/configuracion/repositories";
 import type { Contrato } from "@/domain/contrato/entities";
 import type { ContractRepository } from "@/domain/contrato/repositories";
 import type { CotizacionRepository } from "@/domain/cotizacion/repositories";
@@ -30,6 +30,8 @@ export interface DepsContrato {
   proyectos: ProyectoRepository;
   empresas: EmpresaRepository;
   configuraciones: ConfiguracionRepository;
+  /** Datos legales del contrato del proyecto de la venta (respaldo: configuraciones). */
+  configuracionContrato: ConfiguracionContratoRepository;
   cobranzas: CobranzaRepository;
   storage: DocumentoContratoStorage;
   generador: GeneradorDocumentoContrato;
@@ -76,13 +78,21 @@ export class GenerarDocumentoContratoUseCase {
 
     // nombre del proyecto: lote -> manzana -> etapa -> proyecto
     let nombreProyecto: string | null = null;
+    let idProyecto: number | null = null;
     if (manzana?.id_etapa) {
       const etapa = await d.etapas.getById(manzana.id_etapa);
       if (etapa) {
+        idProyecto = etapa.id_proyecto;
         const proyecto = await d.proyectos.getById(etapa.id_proyecto);
         nombreProyecto = proyecto?.nombre ?? null;
       }
     }
+
+    // Datos legales del proyecto de la venta; los campos vacíos se toman
+    // de la configuración de la empresa (y el RUC de `empresa.ruc`).
+    const configProyecto = idProyecto
+      ? await d.configuracionContrato.getByProyectoId(idProyecto)
+      : null;
 
     // El plan que se muestra es el realmente persistido (puede haber cuotas
     // ya pagadas o corridas a mano), no uno recalculado.
@@ -94,14 +104,18 @@ export class GenerarDocumentoContratoUseCase {
       fecha: (contrato.created_at ?? venta.created_at ?? new Date().toISOString()).slice(0, 10),
       empresa: {
         nombre: empresa?.razon_social || "La empresa",
-        ruc: empresa?.ruc ?? null,
-        // Datos legales de la empresa (Configuración): los usa el contrato.
-        representante: configuracion?.representante ?? null,
-        representante_cedula: configuracion?.representante_cedula ?? null,
-        representante_email: configuracion?.representante_email ?? null,
-        ciudad: configuracion?.ciudad ?? null,
-        cuentas_bancarias: configuracion?.cuentas_bancarias ?? null,
-        direccion_canje: configuracion?.direccion_canje ?? null,
+        ruc: configProyecto?.ruc?.trim() || empresa?.ruc || null,
+        // Datos legales: primero los del proyecto, después los de la
+        // empresa (Configuración); el contrato usa lo que esté cargado.
+        representante: configProyecto?.representante || configuracion?.representante || null,
+        representante_cedula:
+          configProyecto?.representante_cedula || configuracion?.representante_cedula || null,
+        representante_email:
+          configProyecto?.representante_email || configuracion?.representante_email || null,
+        ciudad: configProyecto?.ciudad || configuracion?.ciudad || null,
+        cuentas_bancarias:
+          configProyecto?.cuentas_bancarias || configuracion?.cuentas_bancarias || null,
+        direccion_canje: configProyecto?.direccion_canje || configuracion?.direccion_canje || null,
       },
       cliente: {
         nombres: cliente.nombres,

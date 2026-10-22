@@ -64,6 +64,8 @@ export function ConfiguracionPage() {
   const configId = configuracion?.id_configuracion ?? null;
   const monedaGuardada = configuracion?.moneda ?? null;
   const idiomaGuardado = configuracion?.idioma ?? null;
+  // El RUC no vive en `configuracion`: es un dato de la empresa.
+  const rucGuardado = empresaActual?.ruc ?? null;
 
   // Hidrata el formulario con lo guardado (o lo limpia si esta empresa aún no tiene config).
   useEffect(() => {
@@ -78,11 +80,13 @@ export function ConfiguracionPage() {
         ciudad: configuracion?.ciudad ?? undefined,
         cuentas_bancarias: configuracion?.cuentas_bancarias ?? undefined,
         direccion_canje: configuracion?.direccion_canje ?? undefined,
+        ruc: rucGuardado ?? undefined,
       });
     } else {
       form.resetFields();
+      form.setFieldsValue({ ruc: rucGuardado ?? undefined });
     }
-  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, configuracion]);
+  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, configuracion, rucGuardado]);
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
 
@@ -127,6 +131,12 @@ export function ConfiguracionPage() {
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracion(empresaActual.id_empresa),
       });
+      // El RUC es de la empresa: se edita acá y se imprime en el contrato.
+      const rucNuevo = parsed.ruc?.trim() ?? "";
+      if (rucNuevo !== (empresaActual.ruc ?? "")) {
+        await container.updateEmpresa.execute(empresaActual.id_empresa, { ruc: rucNuevo });
+        await queryClient.invalidateQueries({ queryKey: ["empresas"] });
+      }
       messageApi.success(
         configuracion
           ? "Configuración actualizada correctamente"
@@ -259,6 +269,15 @@ export function ConfiguracionPage() {
                   <Row gutter={[16, 16]}>
                     <Col xs={24} sm={12}>
                       <Form.Item
+                        name="ruc"
+                        label="RUC de la empresa"
+                        extra="Se imprime en la cláusula PRIMERA del contrato, junto al nombre."
+                      >
+                        <Input placeholder="RUC de la empresa" maxLength={20} allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
                         name="representante"
                         label="Representante de la empresa"
                         extra="Quien firma como propietario (gerente o apoderado)."
@@ -272,12 +291,12 @@ export function ConfiguracionPage() {
                         label="Cédula del representante"
                         extra="Sin puntos ni guiones."
                       >
-                        <Input placeholder="0705215317" allowClear />
+                        <Input placeholder="Cédula del representante sin puntos ni guiones" allowClear />
                       </Form.Item>
                     </Col>
                     <Col xs={24} sm={12}>
                       <Form.Item name="representante_email" label="Correo del representante">
-                        <Input placeholder="correo@empresa.com" allowClear />
+                        <Input placeholder="Correo del representante" allowClear />
                       </Form.Item>
                     </Col>
                     <Col xs={24} sm={12}>
@@ -286,7 +305,7 @@ export function ConfiguracionPage() {
                         label="Ciudad donde se firma"
                         extra="Sale en la fecha de firma y en la cláusula de aceptación."
                       >
-                        <Input placeholder="Machala" allowClear />
+                        <Input placeholder="Ciudad donde se firma el contrato" allowClear />
                       </Form.Item>
                     </Col>
                     <Col xs={24} sm={24}>
@@ -297,9 +316,7 @@ export function ConfiguracionPage() {
                       >
                         <Input.TextArea
                           rows={3}
-                          placeholder={
-                            "cuenta corriente con No.2100316362 del Banco Pichincha a nombre de CDLA SAN LUCAS S.A.S, con número de ruc 0791843338001"
-                          }
+                          placeholder="Cuentas de cobro, una por línea"
                           showCount
                           maxLength={1000}
                         />
@@ -311,7 +328,7 @@ export function ConfiguracionPage() {
                         label="Dirección de canje de papeletas"
                         extra="Dónde se cambian las papeletas de depósito por los recibos."
                       >
-                        <Input placeholder="Napoleón Mera entre Bolívar y Pichincha" allowClear />
+                        <Input placeholder="Dirección donde se canjean las papeletas" allowClear />
                       </Form.Item>
                     </Col>
                   </Row>
