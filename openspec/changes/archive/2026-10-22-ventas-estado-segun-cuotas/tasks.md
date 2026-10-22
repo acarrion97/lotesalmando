@@ -28,7 +28,14 @@
 ## 6. Verificación
 
 - [x] 6.1 `tsc -b` y `eslint` sin errores
-- [ ] 6.2 Aplicar `040` en el SQL Editor de Supabase
+- [x] 6.2 Aplicar `040` en el SQL Editor de Supabase
 - [ ] 6.3 Al aceptar una cotización: la venta queda `pendiente`, el lote `vendido`, y la cotización `aceptada`
 - [ ] 6.4 Al pagar la última cuota: la venta pasa a `completada`; al despagar, vuelve a `pendiente`
-- [ ] 6.5 Ventas históricas impagas en `completada`: ninguna queda `completada` tras el backfill
+- [x] 6.5 Ventas históricas impagas en `completada`: ninguna queda `completada` tras el backfill
+
+**Evidencia (2026-10-22, Supabase SQL Editor):**
+
+- `aceptar_cotizacion` → `prosecdef = false` (igual que en `012`, sin cambios de seguridad) y el cuerpo nace `'pendiente'`; `actualizar_estado_venta_por_cuotas` → `prosecdef = true` (SECURITY DEFINER).
+- `trg_ventas_estado_por_cuotas` presente sobre `cobranzas`.
+- Invariante: `SELECT ... WHERE v.estado = 'completada' AND cuotas_impagas > 0` → **0 filas**.
+- `6.3`/`6.4` quedan pendientes de una verificación en vivo (venta nueva y pago de la última cuota).
