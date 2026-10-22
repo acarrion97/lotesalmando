@@ -19,6 +19,7 @@ import { useOnlineStatus } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { pagoSchema } from "@/presentation/validations";
 import { formatCurrency, formatDateOnly } from "@/utils";
+import type { FormaPago } from "@/domain/recibo/entities";
 
 const { Text } = Typography;
 
@@ -42,6 +43,7 @@ export interface CobranzaAPagar {
 interface FormValues {
   monto_pagado: number;
   fecha_pago: Dayjs;
+  forma_pago: FormaPago;
 }
 
 const estadoCuota: Record<string, { color: string; label: string }> = {
@@ -143,6 +145,7 @@ export function RegistrarPagoModal({
         id_usuario: user.id_usuario,
         monto_pagado: parsed.monto_pagado,
         fecha_pago: (values.fecha_pago ?? dayjs()).startOf("day").toDate().toISOString(),
+        forma_pago: values.forma_pago,
       });
       await queryClient.invalidateQueries({ queryKey: ["pagos"] });
       await queryClient.invalidateQueries({ queryKey: ["cobranzas"] });
@@ -237,6 +240,23 @@ export function RegistrarPagoModal({
           layout="vertical"
           initialValues={{ monto_pagado: cobranza?.monto_cuota, fecha_pago: dayjs() }}
         >
+          <Form.Item
+            name="forma_pago"
+            label="Forma de pago"
+            rules={[{ required: true, message: "Seleccione la forma de pago" }]}
+          >
+            <Select
+              placeholder="Seleccione la forma de pago"
+              options={[
+                { value: "efectivo", label: "Efectivo" },
+                { value: "transferencia", label: "Transferencia" },
+                { value: "deposito", label: "Depósito" },
+                { value: "tarjeta", label: "Tarjeta" },
+                { value: "cheque", label: "Cheque" },
+                { value: "otro", label: "Otro" },
+              ]}
+            />
+          </Form.Item>
           <Form.Item
             name="monto_pagado"
             label="Monto a pagar"

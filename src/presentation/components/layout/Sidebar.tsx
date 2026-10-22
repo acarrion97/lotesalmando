@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, Typography } from "antd";
 import { useOnlineStatus } from "@/presentation/hooks";
 import { usePermiso } from "@/presentation/providers";
+import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
+import { useLogoByEmpresa } from "@/presentation/hooks";
 import { MODULOS, GRUPOS_MENU, ITEMS_SUELTOS } from "@/presentation/permisos/permisosConfig";
 import {
   DashboardOutlined,
@@ -68,6 +70,8 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const location = useLocation();
   const isOnline = useOnlineStatus();
   const { tienePermiso } = usePermiso();
+  const { empresaActual } = useEmpresa();
+  const { data: logoEmpresa } = useLogoByEmpresa(empresaActual?.id_empresa ?? 0);
 
   // Módulos que el usuario puede ver, según sus permisos de la BD.
   const modulosVisibles = useMemo(
@@ -142,15 +146,48 @@ export function Sidebar({ collapsed }: SidebarProps) {
           marginBottom: 8,
         }}
       >
-        <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
-          <img src="/logo-icon.png" alt="Lotes al Mando" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-        </div>
-        {!collapsed && (
-          <div>
-            <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 9, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>LOTES</div>
-            <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, letterSpacing: 1, lineHeight: 1.1, marginTop: 1 }}>AL MANDO</div>
-            <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 7, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 3 }}>PLATAFORMA INMOBILIARIA INTEGRAL</div>
-          </div>
+        {logoEmpresa ? (
+          <>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                padding: 3,
+                borderRadius: 8,
+                overflow: "hidden",
+                flexShrink: 0,
+                background: "#fff",
+              }}
+            >
+              <img
+                src={logoEmpresa}
+                alt={`Logo de ${empresaActual?.razon_social ?? "la empresa"}`}
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </div>
+            {!collapsed && empresaActual && (
+              <Text
+                title={empresaActual.razon_social}
+                ellipsis
+                style={{ color: "#fff", fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}
+              >
+                {empresaActual.razon_social}
+              </Text>
+            )}
+          </>
+        ) : (
+          <>
+            <div style={{ width: 40, height: 40, borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+              <img src="/logo-icon.png" alt="Lotes al Mando" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            </div>
+            {!collapsed && (
+              <div>
+                <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 9, fontWeight: 600, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>LOTES</div>
+                <div style={{ color: "#fff", fontSize: 16, fontWeight: 800, letterSpacing: 1, lineHeight: 1.1, marginTop: 1 }}>AL MANDO</div>
+                <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 7, fontWeight: 500, letterSpacing: 1.5, textTransform: "uppercase", marginTop: 3 }}>PLATAFORMA INMOBILIARIA INTEGRAL</div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

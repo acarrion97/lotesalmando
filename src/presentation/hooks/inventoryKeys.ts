@@ -25,6 +25,7 @@ export const inventoryKeys = {
   entradasReserva: (empresaId: number) => ["entradasReserva", empresaId] as const,
   asesores: (empresaId: number) => ["asesores", empresaId] as const,
   configuracion: (empresaId: number) => ["configuracion", empresaId] as const,
+  logoEmpresa: (empresaId: number) => ["logoEmpresa", empresaId] as const,
   /** Datos legales del contrato de un proyecto (respaldo: configuración). */
   configuracionContrato: (empresaId: number, proyectoId: number) =>
     ["configuracionContrato", empresaId, proyectoId] as const,

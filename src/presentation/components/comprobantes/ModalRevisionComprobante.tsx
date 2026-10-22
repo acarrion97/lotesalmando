@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, Descriptions, Image, Input, Modal, Space, Spin, Typography } from "antd";
+import { Alert, Button, Descriptions, Image, Input, Modal, Select, Space, Spin, Typography } from "antd";
 import { CheckOutlined, CloseOutlined, FilePdfOutlined } from "@ant-design/icons";
 import type { Comprobante } from "@/domain/comprobante/entities";
 import { useAbrirComprobante, useRevisionComprobante } from "@/presentation/hooks";
@@ -31,6 +31,7 @@ export function ModalRevisionComprobante({
   const [urlGuardada, setUrlGuardada] = useState<{ id: number; url: string } | null>(null);
   const [nota, setNota] = useState("");
   const [rechazando, setRechazando] = useState(false);
+  const [formaPago, setFormaPago] = useState<import("@/domain/recibo/entities").FormaPago | undefined>();
   const abrir = useAbrirComprobante();
   const { aprobar, rechazar } = useRevisionComprobante();
 
@@ -78,12 +79,27 @@ export function ModalRevisionComprobante({
               <Button danger icon={<CloseOutlined />} onClick={() => setRechazando(true)} loading={rechazar.isPending}>
                 Rechazar
               </Button>
+              <Select
+                placeholder="Forma de pago"
+                value={formaPago}
+                onChange={setFormaPago}
+                style={{ width: 170 }}
+                options={[
+                  { value: "efectivo", label: "Efectivo" },
+                  { value: "transferencia", label: "Transferencia" },
+                  { value: "deposito", label: "Depósito" },
+                  { value: "tarjeta", label: "Tarjeta" },
+                  { value: "cheque", label: "Cheque" },
+                  { value: "otro", label: "Otro" },
+                ]}
+              />
               <Button
                 type="primary"
                 icon={<CheckOutlined />}
                 loading={aprobar.isPending}
+                disabled={!formaPago}
                 onClick={() =>
-                  aprobar.mutate(comprobante.id_comprobante, {
+                  formaPago && aprobar.mutate({ id: comprobante.id_comprobante, formaPago }, {
                     onSuccess: () => cerrar(),
                   })
                 }

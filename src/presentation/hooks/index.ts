@@ -46,6 +46,7 @@ export { usePermisosCatalogo } from "./usePermisosCatalogo";
 export { useAlcanceRegistros } from "./useAlcanceRegistros";
 export { usePuede } from "./usePuede";
 export { useConfiguracion } from "./useConfiguracion";
+export { useLogoByEmpresa } from "./useLogoByEmpresa";
 export { useConfiguracionContrato } from "./useConfiguracionContrato";
 export { useMapaByProyecto } from "./useMapaByProyecto";
 export { useLookup } from "./useLookup";

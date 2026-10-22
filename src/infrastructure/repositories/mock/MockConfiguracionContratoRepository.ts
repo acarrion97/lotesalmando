@@ -19,6 +19,7 @@ export class MockConfiguracionContratoRepository implements ConfiguracionContrat
       id_configuracion_contrato: existente?.id_configuracion_contrato ?? siguienteId++,
       id_empresa: data.id_empresa,
       id_proyecto: data.id_proyecto,
+      razon_social: data.razon_social ?? null,
       ruc: data.ruc ?? null,
       representante: data.representante ?? null,
       representante_cedula: data.representante_cedula ?? null,
@@ -26,6 +27,10 @@ export class MockConfiguracionContratoRepository implements ConfiguracionContrat
       ciudad: data.ciudad ?? null,
       cuentas_bancarias: data.cuentas_bancarias ?? null,
       direccion_canje: data.direccion_canje ?? null,
+      direccion_matriz: data.direccion_matriz ?? null,
+      direccion_establecimiento: data.direccion_establecimiento ?? null,
+      codigo_establecimiento: data.codigo_establecimiento ?? "001",
+      punto_emision: data.punto_emision ?? "001",
     };
     registros.set(data.id_proyecto, guardada);
     return guardada;

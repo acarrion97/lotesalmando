@@ -35,4 +35,17 @@ export class SupabaseConfiguracionRepository implements ConfiguracionRepository 
     if (error) throw error;
     return saved as Configuracion;
   }
+
+  async setLogo(empresaId: number, logoUrl: string | null): Promise<Configuracion> {
+    const { data, error } = await supabase
+      .from("configuracion")
+      .upsert(
+        { id_empresa: empresaId, logo_url: logoUrl },
+        { onConflict: "id_empresa" },
+      )
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Configuracion;
+  }
 }

@@ -64,11 +64,12 @@ export function useRevisionComprobante() {
     });
 
   const aprobar = useMutation({
-    mutationFn: (id: number) => container.aprobarComprobante.execute(id, idUsuario),
-    onSuccess: (revisado) => {
+    mutationFn: ({ id, formaPago }: { id: number; formaPago: import("@/domain/recibo/entities").FormaPago }) =>
+      container.aprobarComprobante.execute(id, idUsuario, formaPago),
+    onSuccess: (resultado) => {
       message.success("Comprobante aprobado: el pago quedó registrado");
       void refrescar();
-      void avisarResultadoRevision(revisado.id_comprobante);
+      if (resultado.comprobante) void avisarResultadoRevision(resultado.comprobante.id_comprobante);
     },
     onError: (error: Error) => message.error(error.message),
   });

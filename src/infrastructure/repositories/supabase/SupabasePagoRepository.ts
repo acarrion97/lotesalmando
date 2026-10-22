@@ -36,7 +36,7 @@ export class SupabasePagoRepository implements PagoRepository {
     return data as Pago;
   }
 
-  async create(data: Omit<Pago, "id_pago">): Promise<Pago> {
+  async create(data: Omit<Pago, "id_pago"> & { forma_pago: Pago["forma_pago"] }): Promise<Pago> {
     const { data: created, error } = await supabase.from("pagos").insert(data).select().single();
     if (error) throw error;
     return created as Pago;

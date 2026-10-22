@@ -44,6 +44,8 @@ import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobran
 import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
+import { EmitirReciboUseCase } from "@/application/recibos/use-cases/EmitirReciboUseCase";
+import { GetRecibosUseCase } from "@/application/recibos/use-cases/GetRecibosUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
 import { GetProyeccionFinancieraUseCase } from "@/application/proyecciones/use-cases/GetProyeccionFinancieraUseCase";
 import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
@@ -99,6 +101,8 @@ import { UpdateInventarioUseCase } from "@/application/inventario/use-cases/Upda
 import { DeleteInventarioUseCase } from "@/application/inventario/use-cases/DeleteInventarioUseCase";
 import { GetConfiguracionUseCase } from "@/application/configuracion/use-cases/GetConfiguracionUseCase";
 import { SaveConfiguracionUseCase } from "@/application/configuracion/use-cases/SaveConfiguracionUseCase";
+import { SubirLogoEmpresaUseCase } from "@/application/configuracion/use-cases/SubirLogoEmpresaUseCase";
+import { QuitarLogoEmpresaUseCase } from "@/application/configuracion/use-cases/QuitarLogoEmpresaUseCase";
 import { GetConfiguracionContratoUseCase } from "@/application/configuracion/use-cases/GetConfiguracionContratoUseCase";
 import { SaveConfiguracionContratoUseCase } from "@/application/configuracion/use-cases/SaveConfiguracionContratoUseCase";
 import { UpdateEmpresaUseCase } from "@/application/empresa/use-cases/UpdateEmpresaUseCase";
@@ -174,6 +178,8 @@ export interface UseCases {
   getCobranzasByContrato: GetCobranzasByContratoUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
+  emitirRecibo: EmitirReciboUseCase;
+  getRecibos: GetRecibosUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
   getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
@@ -230,6 +236,8 @@ export interface UseCases {
   deleteInventario: DeleteInventarioUseCase;
   getConfiguracion: GetConfiguracionUseCase;
   saveConfiguracion: SaveConfiguracionUseCase;
+  subirLogo: SubirLogoEmpresaUseCase;
+  quitarLogo: QuitarLogoEmpresaUseCase;
   /** Datos legales del contrato por proyecto (botón "Configuración" de Contratos). */
   getConfiguracionContrato: GetConfiguracionContratoUseCase;
   saveConfiguracionContrato: SaveConfiguracionContratoUseCase;
@@ -323,7 +331,9 @@ export function createUseCases(repos: Repositories): UseCases {
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
-    registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
+    registerPago: new RegisterPagoUseCase(repos.confirmarPagoConRecibo),
+    emitirRecibo: new EmitirReciboUseCase(repos.reciboRepo),
+    getRecibos: new GetRecibosUseCase(repos.reciboRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
     getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
       repos.etapaRepo,
@@ -394,6 +404,8 @@ export function createUseCases(repos: Repositories): UseCases {
     deleteInventario: new DeleteInventarioUseCase(repos.inventarioRepo),
     getConfiguracion: new GetConfiguracionUseCase(repos.configuracionRepo),
     saveConfiguracion: new SaveConfiguracionUseCase(repos.configuracionRepo),
+    subirLogo: new SubirLogoEmpresaUseCase(repos.configuracionRepo, repos.empresaLogoStorage),
+    quitarLogo: new QuitarLogoEmpresaUseCase(repos.configuracionRepo, repos.empresaLogoStorage),
     getConfiguracionContrato: new GetConfiguracionContratoUseCase(repos.configuracionContratoRepo),
     saveConfiguracionContrato: new SaveConfiguracionContratoUseCase(
       repos.configuracionContratoRepo,
@@ -412,7 +424,7 @@ export function createUseCases(repos: Repositories): UseCases {
     aprobarComprobante: new AprobarComprobanteUseCase(
       repos.comprobanteRepo,
       repos.cobranzaRepo,
-      repos.pagoRepo,
+      repos.confirmarPagoConRecibo,
     ),
     rechazarComprobante: new RechazarComprobanteUseCase(repos.comprobanteRepo),
     abrirComprobante: new AbrirComprobanteUseCase(repos.comprobanteRepo, repos.comprobanteStorage),
