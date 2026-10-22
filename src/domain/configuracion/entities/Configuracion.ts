@@ -3,6 +3,9 @@ export interface Configuracion {
   id_empresa: number;
   moneda: string | null;
   idioma: string | null;
+  // Datos legales: ya no se editan en Configuración (viven por proyecto en
+  // `configuracion_contrato`); siguen acá sólo como respaldo de lectura
+  // para los contratos.
   /** Nombre de quien representa a la empresa en el contrato. */
   representante?: string | null;
   /** Cédula del representante de la empresa. */

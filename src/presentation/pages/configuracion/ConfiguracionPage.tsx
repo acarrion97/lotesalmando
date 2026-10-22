@@ -74,19 +74,13 @@ export function ConfiguracionPage() {
       form.setFieldsValue({
         moneda: monedaGuardada ?? undefined,
         idioma: idiomaGuardado ?? undefined,
-        representante: configuracion?.representante ?? undefined,
-        representante_cedula: configuracion?.representante_cedula ?? undefined,
-        representante_email: configuracion?.representante_email ?? undefined,
-        ciudad: configuracion?.ciudad ?? undefined,
-        cuentas_bancarias: configuracion?.cuentas_bancarias ?? undefined,
-        direccion_canje: configuracion?.direccion_canje ?? undefined,
         ruc: rucGuardado ?? undefined,
       });
     } else {
       form.resetFields();
       form.setFieldsValue({ ruc: rucGuardado ?? undefined });
     }
-  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, configuracion, rucGuardado]);
+  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, rucGuardado]);
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
 
@@ -121,12 +115,6 @@ export function ConfiguracionPage() {
         id_empresa: empresaActual.id_empresa,
         moneda: parsed.moneda,
         idioma: parsed.idioma,
-        representante: parsed.representante?.trim() || null,
-        representante_cedula: parsed.representante_cedula?.trim() || null,
-        representante_email: parsed.representante_email?.trim() || null,
-        ciudad: parsed.ciudad?.trim() || null,
-        cuentas_bancarias: parsed.cuentas_bancarias?.trim() || null,
-        direccion_canje: parsed.direccion_canje?.trim() || null,
       });
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracion(empresaActual.id_empresa),
@@ -235,6 +223,15 @@ export function ConfiguracionPage() {
                         <Select options={IDIOMAS} placeholder="Seleccione un idioma" allowClear />
                       </Form.Item>
                     </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="ruc"
+                        label="RUC de la empresa"
+                        extra="Se imprime en el contrato, junto al nombre. Si un proyecto tiene su propio RUC, se usa ese."
+                      >
+                        <Input placeholder="RUC de la empresa" maxLength={20} allowClear />
+                      </Form.Item>
+                    </Col>
                   </Row>
 
                   {vistaPrevia && (
@@ -251,87 +248,6 @@ export function ConfiguracionPage() {
                       style={{ marginBottom: 16 }}
                     />
                   )}
-                </Form>
-              </Card>
-            </Col>
-
-            <Col span={24}>
-              <Card
-                title="Datos legales del contrato"
-                style={{ borderRadius: 12, marginTop: 16 }}
-                extra={
-                  <span style={{ color: "#8c8c8c", fontSize: 12 }}>
-                    Se usan al generar el contrato: si un dato no está, el contrato sale sin él
-                  </span>
-                }
-              >
-                <Form form={form} layout="vertical">
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        name="ruc"
-                        label="RUC de la empresa"
-                        extra="Se imprime en la cláusula PRIMERA del contrato, junto al nombre."
-                      >
-                        <Input placeholder="RUC de la empresa" maxLength={20} allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        name="representante"
-                        label="Representante de la empresa"
-                        extra="Quien firma como propietario (gerente o apoderado)."
-                      >
-                        <Input placeholder="Nombre y apellido del representante" allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        name="representante_cedula"
-                        label="Cédula del representante"
-                        extra="Sin puntos ni guiones."
-                      >
-                        <Input placeholder="Cédula del representante sin puntos ni guiones" allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item name="representante_email" label="Correo del representante">
-                        <Input placeholder="Correo del representante" allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={12}>
-                      <Form.Item
-                        name="ciudad"
-                        label="Ciudad donde se firma"
-                        extra="Sale en la fecha de firma y en la cláusula de aceptación."
-                      >
-                        <Input placeholder="Ciudad donde se firma el contrato" allowClear />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={24}>
-                      <Form.Item
-                        name="cuentas_bancarias"
-                        label="Cuentas para el pago"
-                        extra="Se escribe en la cláusula de precio y forma de pago (una cuenta por línea)."
-                      >
-                        <Input.TextArea
-                          rows={3}
-                          placeholder="Cuentas de cobro, una por línea"
-                          showCount
-                          maxLength={1000}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} sm={24}>
-                      <Form.Item
-                        name="direccion_canje"
-                        label="Dirección de canje de papeletas"
-                        extra="Dónde se cambian las papeletas de depósito por los recibos."
-                      >
-                        <Input placeholder="Dirección donde se canjean las papeletas" allowClear />
-                      </Form.Item>
-                    </Col>
-                  </Row>
                 </Form>
               </Card>
             </Col>
