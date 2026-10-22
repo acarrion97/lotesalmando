@@ -1,15 +1,13 @@
-import type { Cobranza } from "@/domain/cobranza/entities";
-import type { CobranzaRepository } from "@/domain/cobranza/repositories";
 import type { Pago } from "@/domain/pago/entities";
-import type { PagoRepository } from "@/domain/pago/repositories";
 import type { PagoDto } from "../dto/PagoDto";
+import type { FormaPago, Recibo } from "@/domain/recibo/entities";
+import type { ConfirmarPagoConRecibo } from "@/application/recibos/ports/ConfirmarPagoConRecibo";
 
 export class RegisterPagoUseCase {
-  private cobranzaRepo: CobranzaRepository;
-  private pagoRepo: PagoRepository;
-  constructor(cobranzaRepo: CobranzaRepository, pagoRepo: PagoRepository) {
-    this.cobranzaRepo = cobranzaRepo;
-    this.pagoRepo = pagoRepo;
+  private readonly confirmarPago: ConfirmarPagoConRecibo;
+
+  constructor(confirmarPago: ConfirmarPagoConRecibo) {
+    this.confirmarPago = confirmarPago;
   }
 
   async execute(data: {
@@ -17,24 +15,10 @@ export class RegisterPagoUseCase {
     id_usuario: number;
     monto_pagado: number;
     fecha_pago: string;
-  }): Promise<PagoDto> {
-    const cobranza: Cobranza | null = await this.cobranzaRepo.getById(data.id_cobranza);
-    if (!cobranza) throw new Error(`Cobranza ${data.id_cobranza} not found`);
-
-    if (cobranza.estado === "pagada") {
-      throw new Error(`Cobranza ${data.id_cobranza} ya esta pagada`);
-    }
-
-    const pago: Pago = await this.pagoRepo.create({
-      id_cobranza: data.id_cobranza,
-      id_usuario: data.id_usuario,
-      monto_pagado: data.monto_pagado,
-      fecha_pago: data.fecha_pago,
-    });
-
-    await this.cobranzaRepo.updateEstado(data.id_cobranza, "pagada");
-
-    return this.toDto(pago);
+    forma_pago: FormaPago;
+  }): Promise<PagoDto & { recibo: Recibo }> {
+    const { pago, recibo } = await this.confirmarPago.execute(data);
+    return { ...this.toDto(pago), recibo };
   }
 
   private toDto(pago: Pago): PagoDto {
@@ -44,6 +28,7 @@ export class RegisterPagoUseCase {
       id_usuario: pago.id_usuario,
       monto_pagado: pago.monto_pagado,
       fecha_pago: pago.fecha_pago,
+      forma_pago: pago.forma_pago,
     };
   }
 }

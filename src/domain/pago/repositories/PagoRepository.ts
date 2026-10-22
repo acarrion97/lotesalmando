@@ -1,9 +1,10 @@
 import type { Pago } from "../entities";
+import type { FormaPago } from "@/domain/recibo/entities";
 
 export interface PagoRepository {
   getAll(): Promise<Pago[]>;
   getByEmpresaId(empresaId: number): Promise<Pago[]>;
   getByCobranzaId(cobranzaId: number): Promise<Pago[]>;
   getById(id: number): Promise<Pago | null>;
-  create(data: Omit<Pago, "id_pago">): Promise<Pago>;
+  create(data: Omit<Pago, "id_pago"> & { forma_pago: FormaPago }): Promise<Pago>;
 }

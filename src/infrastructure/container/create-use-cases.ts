@@ -44,6 +44,8 @@ import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobran
 import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
+import { EmitirReciboUseCase } from "@/application/recibos/use-cases/EmitirReciboUseCase";
+import { GetRecibosUseCase } from "@/application/recibos/use-cases/GetRecibosUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
 import { GetProyeccionFinancieraUseCase } from "@/application/proyecciones/use-cases/GetProyeccionFinancieraUseCase";
 import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
@@ -176,6 +178,8 @@ export interface UseCases {
   getCobranzasByContrato: GetCobranzasByContratoUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
+  emitirRecibo: EmitirReciboUseCase;
+  getRecibos: GetRecibosUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
   getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
@@ -327,7 +331,9 @@ export function createUseCases(repos: Repositories): UseCases {
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
-    registerPago: new RegisterPagoUseCase(repos.cobranzaRepo, repos.pagoRepo),
+    registerPago: new RegisterPagoUseCase(repos.confirmarPagoConRecibo),
+    emitirRecibo: new EmitirReciboUseCase(repos.reciboRepo),
+    getRecibos: new GetRecibosUseCase(repos.reciboRepo),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
     getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
       repos.etapaRepo,
@@ -418,7 +424,7 @@ export function createUseCases(repos: Repositories): UseCases {
     aprobarComprobante: new AprobarComprobanteUseCase(
       repos.comprobanteRepo,
       repos.cobranzaRepo,
-      repos.pagoRepo,
+      repos.confirmarPagoConRecibo,
     ),
     rechazarComprobante: new RechazarComprobanteUseCase(repos.comprobanteRepo),
     abrirComprobante: new AbrirComprobanteUseCase(repos.comprobanteRepo, repos.comprobanteStorage),
