@@ -30,7 +30,7 @@ import {
   avisarPagoSinCuenta,
   avisarSuscripcionBaja,
   type EstadoCorreo,
-} from "../lib/correo";
+} from "../lib/correo.js";
 
 /** Formato que acepta la columna JSONB de `hotmart_evento.payload`. */
 type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];

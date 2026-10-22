@@ -16,12 +16,12 @@
  * Si EMAIL_USER/EMAIL_PASS no estan cargadas, los envios se omiten y el
  * webhook sigue funcionando igual: un correo nunca rompe el cobro.
  */
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 /** Resultado de un intento de envio (se refleja en la respuesta del webhook). */
 export type EstadoCorreo = "enviado" | "omitido" | "error";
 
-type Transporte = nodemailer.Transporter;
+type Transporte = Transporter;
 
 let cached: Transporte | null | undefined;
 
@@ -37,7 +37,7 @@ function transporte(): Transporte | null {
           port: 587,
           secure: false,
           auth: { user, pass },
-          sendTimeout: 15000,
+          socketTimeout: 15000,
         })
       : null;
   return cached;
