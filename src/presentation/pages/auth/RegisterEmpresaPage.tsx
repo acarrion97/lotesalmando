@@ -106,9 +106,6 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
     // Alta de agente: el plan elegido queda guardado en la empresa y se abre
     // directo el enlace de pago de Hotmart (no hay paso de eleccion).
     if (esAgente && planActual && planActual.url_checkout && result.idEmpresa) {
-      messageApi.success(
-        `Cuenta creada. Te llevamos al pago del ${planActual.nombre}: usa el mismo correo con el que te registraste.`,
-      );
       // La eleccion del plan es solo para que el webhook y el panel la
       // sepan: si falla, el pago se puede hacer igual.
       seleccionarPlan.mutate(
@@ -116,7 +113,13 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
         { onError: () => undefined },
       );
       window.open(planActual.url_checkout, "_blank", "noopener,noreferrer");
-      irALaSiguientePaso();
+      // El agente NO pasa por /registro/planes: el pago va directo, asi que
+      // esta pestana queda en /login esperando que el webhook confirme.
+      navigate("/login", {
+        state: {
+          avisoPago: `Cuenta creada. Completa el pago del ${planActual.nombre} en Hotmart con este mismo correo y vuelve aqui para iniciar sesion.`,
+        },
+      });
       return;
     }
 
