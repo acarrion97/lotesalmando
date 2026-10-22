@@ -20,6 +20,9 @@ import {
   StopOutlined,
   PlusOutlined,
   InfoCircleOutlined,
+  DownloadOutlined,
+  FilePdfOutlined,
+  FileWordOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import {
@@ -30,6 +33,8 @@ import {
   useUsuarios,
   useAsesores,
   useLookup,
+  useContratos,
+  useDescargarDocumentoContrato,
 } from "@/presentation/hooks";
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -112,6 +117,15 @@ export function VentasPage() {
   const { data: asesores } = useAsesores();
   const asesorMap = useLookup(asesores, "id_asesor", "nombre_comercial", "Asesor");
 
+  // El contrato de la venta: sirve para ofrecer su documento (el que generó
+  // la app o el que anexó un usuario) sin salir del módulo de Ventas.
+  const { data: contratos } = useContratos();
+  const contratoPorVenta = useMemo(
+    () => new Map((contratos ?? []).map((c) => [c.id_venta, c])),
+    [contratos],
+  );
+  const descargarContrato = useDescargarDocumentoContrato();
+
   // Quién vendió el lote: distinto del usuario que registró la venta.
   // Si la venta no tiene asesor, o el asesor ya no existe, se muestra el respaldo.
   const nombreAsesor = (idAsesor?: number | null) =>
@@ -149,6 +163,11 @@ export function VentasPage() {
       valorTotal: filteredData.reduce((sum, v) => sum + Math.round(v.precio_final * 100), 0) / 100,
     };
   }, [filteredData]);
+
+  // Contrato de la venta abierta en el detalle.
+  const contratoDetalle = modalState.record
+    ? contratoPorVenta.get(modalState.record.id_venta)
+    : undefined;
 
   const columns: TableColumnType<Venta>[] = [
     {
@@ -229,6 +248,51 @@ export function VentasPage() {
           >
             {config.label}
           </Tag>
+        );
+      },
+    },
+    {
+      title: "Contrato",
+      key: "contrato",
+      render: (_: unknown, record: Venta) => {
+        const contrato = contratoPorVenta.get(record.id_venta);
+        if (!contrato) return <Text type="secondary">-</Text>;
+        if (!contrato.documento_url) {
+          return (
+            <Space direction="vertical" size={2}>
+              <Tag color="blue">{contrato.numero_contrato}</Tag>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Sin documento
+              </Text>
+            </Space>
+          );
+        }
+        return (
+          <Space direction="vertical" size={2}>
+            <Space size={4}>
+              {contrato.documento_tipo === "pdf" ? (
+                <FilePdfOutlined style={{ color: "#cf1322" }} />
+              ) : (
+                <FileWordOutlined style={{ color: "#1677ff" }} />
+              )}
+              <Tag color={contrato.documento_origen === "generado" ? "green" : "purple"}>
+                {contrato.documento_origen === "generado" ? "Generado" : "Anexado"}
+              </Tag>
+            </Space>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto" }}
+              icon={<DownloadOutlined />}
+              loading={
+                descargarContrato.isPending &&
+                descargarContrato.variables === contrato.id_contrato
+              }
+              onClick={() => descargarContrato.mutate(contrato.id_contrato)}
+            >
+              Descargar
+            </Button>
+          </Space>
         );
       },
     },
@@ -376,6 +440,37 @@ export function VentasPage() {
               <Tag color={configDeEstado(modalState.record.estado).color}>
                 {configDeEstado(modalState.record.estado).label}
               </Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Contrato">
+              {contratoDetalle ? (
+                <Space direction="vertical" size={2}>
+                  <Space>
+                    <Tag color="blue">{contratoDetalle.numero_contrato}</Tag>
+                    {contratoDetalle.documento_url ? (
+                      <Button
+                        size="small"
+                        icon={<DownloadOutlined />}
+                        loading={
+                          descargarContrato.isPending &&
+                          descargarContrato.variables === contratoDetalle.id_contrato
+                        }
+                        onClick={() => descargarContrato.mutate(contratoDetalle.id_contrato)}
+                      >
+                        Descargar contrato
+                      </Button>
+                    ) : (
+                      <Text type="secondary">Sin documento</Text>
+                    )}
+                  </Space>
+                  {contratoDetalle.documento_nombre && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      {contratoDetalle.documento_nombre}
+                    </Text>
+                  )}
+                </Space>
+              ) : (
+                <Text type="secondary">Esta venta no tiene contrato</Text>
+              )}
             </Descriptions.Item>
           </Descriptions>
           <CuotasPendientesVenta idVenta={modalState.record.id_venta} />

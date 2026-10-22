@@ -14,6 +14,7 @@ import { MapasPage } from "@/presentation/pages/mapas";
 import { MapaPublicoPage } from "@/presentation/pages/mapa-publico";
 import { PortalClientePage } from "@/presentation/pages/portal-cliente";
 import { LotesPage } from "@/presentation/pages/lotes";
+import { ReservasPage } from "@/presentation/pages/reservas";
 import { InventarioPage } from "@/presentation/pages/inventario";
 import { ClientesPage } from "@/presentation/pages/clientes";
 import { CotizacionesPage, NuevaCotizacionPage } from "@/presentation/pages/cotizaciones";
@@ -70,6 +71,7 @@ export function AppRouter() {
           <Route path="/manzanas" element={<R ruta="/manzanas"><ManzanasPage /></R>} />
           <Route path="/mapas" element={<R ruta="/mapas"><MapasPage /></R>} />
           <Route path="/lotes" element={<R ruta="/lotes"><LotesPage /></R>} />
+          <Route path="/reservas" element={<R ruta="/reservas"><ReservasPage /></R>} />
           <Route path="/inventario" element={<R ruta="/inventario"><InventarioPage /></R>} />
           <Route path="/clientes" element={<R ruta="/clientes"><ClientesPage /></R>} />
           <Route path="/cotizaciones" element={<R ruta="/cotizaciones"><CotizacionesPage /></R>} />

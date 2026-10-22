@@ -1,1 +1,1 @@
-export type { Contrato } from "./Contrato";
+export type { Contrato, DocumentoContratoTipo, DocumentoContratoOrigen } from "./Contrato";

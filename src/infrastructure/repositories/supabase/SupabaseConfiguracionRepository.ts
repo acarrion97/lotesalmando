@@ -18,9 +18,18 @@ export class SupabaseConfiguracionRepository implements ConfiguracionRepository 
 
   async save(data: SaveConfiguracionInput): Promise<Configuracion> {
     // `configuracion` tiene UNIQUE (id_empresa): un solo registro por empresa.
+    // El upsert sólo recibe moneda/idioma: en el update no se tocan las
+    // columnas legales heredadas (ya se editan por proyecto).
     const { data: saved, error } = await supabase
       .from("configuracion")
-      .upsert(data, { onConflict: "id_empresa" })
+      .upsert(
+        {
+          id_empresa: data.id_empresa,
+          moneda: data.moneda,
+          idioma: data.idioma,
+        },
+        { onConflict: "id_empresa" },
+      )
       .select()
       .single();
     if (error) throw error;

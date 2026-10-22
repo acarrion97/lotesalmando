@@ -169,6 +169,44 @@ export interface Database {
           idioma?: string | null;
         };
       };
+      configuracion_contrato: {
+        Row: {
+          id_configuracion_contrato: number;
+          id_empresa: number;
+          id_proyecto: number;
+          ruc: string | null;
+          representante: string | null;
+          representante_cedula: string | null;
+          representante_email: string | null;
+          ciudad: string | null;
+          cuentas_bancarias: string | null;
+          direccion_canje: string | null;
+        };
+        Insert: {
+          id_configuracion_contrato?: number;
+          id_empresa: number;
+          id_proyecto: number;
+          ruc?: string | null;
+          representante?: string | null;
+          representante_cedula?: string | null;
+          representante_email?: string | null;
+          ciudad?: string | null;
+          cuentas_bancarias?: string | null;
+          direccion_canje?: string | null;
+        };
+        Update: {
+          id_configuracion_contrato?: number;
+          id_empresa?: number;
+          id_proyecto?: number;
+          ruc?: string | null;
+          representante?: string | null;
+          representante_cedula?: string | null;
+          representante_email?: string | null;
+          ciudad?: string | null;
+          cuentas_bancarias?: string | null;
+          direccion_canje?: string | null;
+        };
+      };
       proyectos: {
         Row: {
           id_proyecto: number;

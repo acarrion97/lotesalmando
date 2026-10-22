@@ -43,6 +43,7 @@ import { loteSchema } from "@/presentation/validations";
 import { compararNumeroLote } from "@/utils";
 import { ZodError } from "zod";
 
+
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
   disponible: {
     color: "#52c41a",
@@ -110,6 +111,25 @@ function numeroYaUsado(
       (l) => l.id_lote !== idLoteExcluido && normalizarNumero(l.numero_lote) === buscado,
     ) ?? false
   );
+}
+
+/** Filtra los lotes que pertenecen al proyecto seleccionado a través de su manzana y etapa. */
+function filtroProyectos(
+  lotes: Lote[] | undefined,
+  manzanas: { id_manzana: number; id_etapa: number }[] | undefined,
+  etapas: { id_etapa: number; id_proyecto: number }[] | undefined,
+  proyectoId: number | null,
+): Lote[] {
+  if (!lotes) return [];
+  if (proyectoId === null) return lotes;
+
+  const etapasPorId = new Map((etapas ?? []).map((etapa) => [etapa.id_etapa, etapa.id_proyecto]));
+  const manzanasPorId = new Map((manzanas ?? []).map((manzana) => [manzana.id_manzana, manzana.id_etapa]));
+
+  return lotes.filter((lote) => {
+    const idEtapa = manzanasPorId.get(lote.id_manzana);
+    return idEtapa !== undefined && etapasPorId.get(idEtapa) === proyectoId;
+  });
 }
 
 /** Convierte el error capturado en un mensaje que el usuario pueda entender. */
@@ -223,15 +243,16 @@ function LoteGridCard({ lote, manzanaNombre, onAction }: { lote: Lote; manzanaNo
 
 export function LotesPage() {
   const { data: lotes, isLoading, dataUpdatedAt } = useLotes();
-  const { data: manzanas } = useManzanas();
-  const { data: etapas } = useEtapas();
-  const { data: proyectos } = useProyectos();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   // Limite de lotes por proyecto del plan de la empresa (null = sin limite).
   const plan = usePlanDeEmpresa();
   const manzanaMap = useLookup(manzanas, "id_manzana", "nombre_codigo", "Manzana");
   const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
   const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
@@ -244,6 +265,16 @@ export function LotesPage() {
   const container = getContainer();
 
   const refreshLotes = () => queryClient.invalidateQueries({ queryKey: ["lotes"] });
+
+  const proyectoOptions = useMemo(
+    () => (proyectos ?? []).map((proyecto) => ({ value: proyecto.id_proyecto, label: proyecto.nombre })),
+    [proyectos],
+  );
+
+  const lotesDelProyecto = useMemo(
+    () => filtroProyectos(lotes, manzanas, etapas, proyectoFilter),
+    [lotes, manzanas, etapas, proyectoFilter],
+  );
 
   // Opciones de manzana agrupadas por "Proyecto · Etapa" para poder asignar sin escribir IDs.
   const manzanaOptions = useMemo(() => {
@@ -262,26 +293,26 @@ export function LotesPage() {
   }, [manzanas, etapas, etapaMap, proyectoMap]);
 
   const stats = useMemo(() => {
-    if (!lotes) return { total: 0, disponibles: 0, reservados: 0, vendidos: 0, valorTotal: 0 };
     return {
-      total: lotes.length,
-      disponibles: lotes.filter((l) => l.estado === "disponible").length,
-      reservados: lotes.filter((l) => l.estado === "reservado").length,
-      vendidos: lotes.filter((l) => l.estado === "vendido").length,
-      valorTotal: lotes.reduce((sum, l) => sum + l.precio_lista, 0),
+      total: lotesDelProyecto.length,
+      disponibles: lotesDelProyecto.filter((l) => l.estado === "disponible").length,
+      reservados: lotesDelProyecto.filter((l) => l.estado === "reservado").length,
+      vendidos: lotesDelProyecto.filter((l) => l.estado === "vendido").length,
+      valorTotal: lotesDelProyecto.reduce((sum, l) => sum + l.precio_lista, 0),
     };
-  }, [lotes]);
+  }, [lotesDelProyecto]);
 
   const filteredData = useMemo(() => {
-    if (!lotes) return [];
-    return lotes
+    return lotesDelProyecto
       .filter(
         (l) =>
           l.numero_lote.toLowerCase().includes(searchText.toLowerCase()) ||
           l.estado.toLowerCase().includes(searchText.toLowerCase()),
       )
       .sort(compararNumeroLote);
-  }, [lotes, searchText]);
+  }, [lotesDelProyecto, searchText]);
+  const loadingFilteredData =
+    isLoading || (proyectoFilter !== null && (loadingManzanas || loadingEtapas));
 
   const openModal = (type: "view" | "edit" | "delete", record: Lote) => {
     setModal({ type, visible: true, record });
@@ -562,6 +593,15 @@ export function LotesPage() {
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar lote..." }}
         extra={
           <>
+            <Select
+              allowClear
+              placeholder="Todos los proyectos"
+              value={proyectoFilter}
+              onChange={(value) => setProyectoFilter(value ?? null)}
+              options={proyectoOptions}
+              loading={loadingProyectos}
+              style={{ minWidth: 220 }}
+            />
             {lotes && <FreshnessBadge dataUpdatedAt={dataUpdatedAt} />}
             <div
               style={{
@@ -678,7 +718,7 @@ export function LotesPage() {
             columns={columns}
             dataSource={filteredData}
             rowKey="id_lote"
-            loading={isLoading}
+            loading={loadingFilteredData}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
@@ -693,7 +733,11 @@ export function LotesPage() {
           />
         ) : (
           <div style={{ padding: 24 }}>
-            {filteredData.length === 0 ? (
+            {loadingFilteredData ? (
+              <div style={{ textAlign: "center", padding: 40, color: "#8c8c8c" }}>
+                Cargando lotes...
+              </div>
+            ) : filteredData.length === 0 ? (
               <div style={{ textAlign: "center", padding: 40, color: "#8c8c8c" }}>
                 No se encontraron lotes
               </div>

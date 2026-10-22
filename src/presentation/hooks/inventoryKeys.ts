@@ -25,6 +25,9 @@ export const inventoryKeys = {
   entradasReserva: (empresaId: number) => ["entradasReserva", empresaId] as const,
   asesores: (empresaId: number) => ["asesores", empresaId] as const,
   configuracion: (empresaId: number) => ["configuracion", empresaId] as const,
+  /** Datos legales del contrato de un proyecto (respaldo: configuración). */
+  configuracionContrato: (empresaId: number, proyectoId: number) =>
+    ["configuracionContrato", empresaId, proyectoId] as const,
   /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */
   mapaByProyecto: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId] as const,

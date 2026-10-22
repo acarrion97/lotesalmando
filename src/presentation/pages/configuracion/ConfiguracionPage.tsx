@@ -6,6 +6,7 @@ import {
   Col,
   Descriptions,
   Form,
+  Input,
   Row,
   Select,
   Spin,
@@ -62,7 +63,9 @@ export function ConfiguracionPage() {
   const empresaId = empresaActual?.id_empresa;
   const configId = configuracion?.id_configuracion ?? null;
   const monedaGuardada = configuracion?.moneda ?? null;
-  const idiomaGuardada = configuracion?.idioma ?? null;
+  const idiomaGuardado = configuracion?.idioma ?? null;
+  // El RUC no vive en `configuracion`: es un dato de la empresa.
+  const rucGuardado = empresaActual?.ruc ?? null;
 
   // Hidrata el formulario con lo guardado (o lo limpia si esta empresa aún no tiene config).
   useEffect(() => {
@@ -70,13 +73,14 @@ export function ConfiguracionPage() {
     if (configId !== null) {
       form.setFieldsValue({
         moneda: monedaGuardada ?? undefined,
-        idioma: idiomaGuardada ?? undefined,
+        idioma: idiomaGuardado ?? undefined,
+        ruc: rucGuardado ?? undefined,
       });
     } else {
       form.resetFields();
+      form.setFieldsValue({ ruc: rucGuardado ?? undefined });
     }
-  }, [form, empresaId, configId, monedaGuardada, idiomaGuardada]);
-
+  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, rucGuardado]);
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
 
@@ -115,6 +119,12 @@ export function ConfiguracionPage() {
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracion(empresaActual.id_empresa),
       });
+      // El RUC es de la empresa: se edita acá y se imprime en el contrato.
+      const rucNuevo = parsed.ruc?.trim() ?? "";
+      if (rucNuevo !== (empresaActual.ruc ?? "")) {
+        await container.updateEmpresa.execute(empresaActual.id_empresa, { ruc: rucNuevo });
+        await queryClient.invalidateQueries({ queryKey: ["empresas"] });
+      }
       messageApi.success(
         configuracion
           ? "Configuración actualizada correctamente"
@@ -211,6 +221,15 @@ export function ConfiguracionPage() {
                         extra="Idioma preferido de la empresa."
                       >
                         <Select options={IDIOMAS} placeholder="Seleccione un idioma" allowClear />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="ruc"
+                        label="RUC de la empresa"
+                        extra="Se imprime en el contrato, junto al nombre. Si un proyecto tiene su propio RUC, se usa ese."
+                      >
+                        <Input placeholder="RUC de la empresa" maxLength={20} allowClear />
                       </Form.Item>
                     </Col>
                   </Row>

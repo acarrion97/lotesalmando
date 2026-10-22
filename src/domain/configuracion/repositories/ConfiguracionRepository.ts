@@ -1,6 +1,14 @@
 import type { Configuracion } from "../entities";
 
-/** Datos editables por la empresa; `id_empresa` es la clave natural (UNIQUE). */
+/**
+ * Preferencias de la empresa (`id_empresa` es la clave natural, UNIQUE).
+ *
+ * Los datos legales del contrato (representante, cédula, correo, ciudad,
+ * cuentas, dirección de canje) ya NO se cargan acá: se editan por proyecto
+ * desde Contratos → Configuración (`configuracion_contrato`). Sus columnas
+ * en `configuracion` quedan sólo como respaldo de lectura para los
+ * contratos, y por eso este input ya no las incluye: guardar no las toca.
+ */
 export interface SaveConfiguracionInput {
   id_empresa: number;
   moneda: string;

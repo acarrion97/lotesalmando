@@ -8,6 +8,7 @@ const routeLabels: Record<string, string> = {
   proyectos: "Proyectos",
   mapas: "Mapas",
   lotes: "Lotes",
+  reservas: "Reservas",
   inventario: "Inventario",
   clientes: "Clientes",
   cotizaciones: "Cotizaciones",

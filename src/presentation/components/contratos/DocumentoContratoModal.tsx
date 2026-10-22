@@ -8,7 +8,7 @@ import {
   PaperClipOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
-import { useDocumentoContrato } from "@/presentation/hooks";
+import { useDocumentoContrato, useDescargarDocumentoContrato } from "@/presentation/hooks";
 
 const { Text } = Typography;
 
@@ -28,6 +28,7 @@ export function DocumentoContratoModal({
   onClose: () => void;
 }) {
   const { contrato, generar, anexar, quitar, abrir } = useDocumentoContrato(contratoId);
+  const descargar = useDescargarDocumentoContrato();
   const [quitarAbierto, setQuitarAbierto] = useState(false);
 
   const documento = contrato.data;
@@ -128,6 +129,14 @@ export function DocumentoContratoModal({
                 <Space wrap>
                   <Button icon={<DownloadOutlined />} onClick={() => abrir.mutate()} loading={abrir.isPending}>
                     Abrir documento
+                  </Button>
+                  <Button
+                    type="primary"
+                    icon={<DownloadOutlined />}
+                    onClick={() => descargar.mutate(documento.id_contrato)}
+                    loading={descargar.isPending}
+                  >
+                    Descargar
                   </Button>
                   <Button
                     danger

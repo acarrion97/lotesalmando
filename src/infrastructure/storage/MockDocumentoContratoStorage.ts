@@ -21,6 +21,11 @@ export class MockDocumentoContratoStorage implements DocumentoContratoStorage {
     return this.urls.get(path) ?? path;
   }
 
+  /** En mock el archivo ya es un blob local: la descarga la resuelve el navegador. */
+  async firmarUrlDeDescarga(path: string, _nombre: string): Promise<string> {
+    return this.urls.get(path) ?? path;
+  }
+
   async removeByPath(path: string): Promise<void> {
     const url = this.urls.get(path);
     if (url) URL.revokeObjectURL(url);

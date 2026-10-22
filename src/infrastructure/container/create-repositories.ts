@@ -20,6 +20,7 @@ import type { ActividadRepository } from "@/domain/actividad/repositories";
 import type { AsesorRepository } from "@/domain/asesor/repositories";
 import type { RolRepository } from "@/domain/rol/repositories";
 import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
+import type { ConfiguracionContratoRepository } from "@/domain/configuracion/repositories";
 import type { MapaRepository } from "@/domain/mapa/repositories";
 import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
@@ -54,6 +55,7 @@ import { MockEtapaRepository } from "@/infrastructure/repositories/mock/MockEtap
 import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockManzanaRepository";
 import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
 import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/MockConfiguracionRepository";
+import { MockConfiguracionContratoRepository } from "@/infrastructure/repositories/mock/MockConfiguracionContratoRepository";
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
 import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
@@ -90,6 +92,7 @@ import { SupabaseActividadRepository } from "@/infrastructure/repositories/supab
 import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase/SupabaseAsesorRepository";
 import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
 import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
+import { SupabaseConfiguracionContratoRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionContratoRepository";
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
 import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
@@ -124,6 +127,8 @@ export interface Repositories {
   asesorRepo: AsesorRepository;
   rolRepo: RolRepository;
   configuracionRepo: ConfiguracionRepository;
+  /** Datos legales del contrato por proyecto (respaldo: configuración de empresa). */
+  configuracionContratoRepo: ConfiguracionContratoRepository;
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
@@ -271,6 +276,7 @@ function createMockRepositories(): Repositories {
     asesorRepo,
     rolRepo: new MockRolRepository(),
     configuracionRepo: new MockConfiguracionRepository(),
+    configuracionContratoRepo: new MockConfiguracionContratoRepository(),
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
     planImageStorage: new MockPlanImagenStorage(),
@@ -316,6 +322,7 @@ function createSupabaseRepositories(): Repositories {
     asesorRepo: new SupabaseAsesorRepository(),
     rolRepo: new SupabaseRolRepository(),
     configuracionRepo: new SupabaseConfiguracionRepository(),
+    configuracionContratoRepo: new SupabaseConfiguracionContratoRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
     planImageStorage: new SupabasePlanImagenStorage(),

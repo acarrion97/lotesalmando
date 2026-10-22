@@ -12,7 +12,7 @@ import {
   Tooltip,
   Typography,
 } from "antd";
-import { EyeOutlined, FileTextOutlined, FilePdfOutlined, FileWordOutlined } from "@ant-design/icons";
+import { EyeOutlined, FileTextOutlined, FilePdfOutlined, FileWordOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 
 const { Text } = Typography;
@@ -20,6 +20,7 @@ import { useContratos, useCotizaciones, useVentas, useInfoContratos } from "@/pr
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { DocumentoContratoModal } from "@/presentation/components/contratos/DocumentoContratoModal";
+import { ConfiguracionContratoModal } from "@/presentation/components/contratos/ConfiguracionContratoModal";
 import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
 import { ResumenRangoFechas } from "@/presentation/components/ventas/ResumenRangoFechas";
 import { dentroDelRango, diaEnEmpresa, formatCurrency, formatDateOnly } from "@/utils";
@@ -49,6 +50,7 @@ export function ContratosPage() {
     visible: false,
     id: null,
   });
+  const [configAbierta, setConfigAbierta] = useState(false);
 
   // Contrato -> venta -> cotización: la entrada y las condiciones de pago viven
   // en la cotización, no en el contrato (spec cotizaciones/plan-de-pago).
@@ -205,7 +207,14 @@ export function ContratosPage() {
         title="Contratos"
         subtitle="Contratos generados automaticamente al crear ventas"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar contrato..." }}
-        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
+        extra={
+          <Space size={8}>
+            <Button icon={<SettingOutlined />} onClick={() => setConfigAbierta(true)}>
+              Configuración
+            </Button>
+            <FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />
+          </Space>
+        }
       />
 
       <ResumenRangoFechas filtro={filtroFechas} cantidad={stats.total} singular="contrato" plural="contratos" />
@@ -295,6 +304,8 @@ export function ContratosPage() {
         open={documentoModal.visible}
         onClose={() => setDocumentoModal({ visible: false, id: null })}
       />
+
+      <ConfiguracionContratoModal open={configAbierta} onClose={() => setConfigAbierta(false)} />
     </div>
   );
 }
