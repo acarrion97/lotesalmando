@@ -41,6 +41,7 @@ interface FormValues {
   precio?: number | null;
   orden: number;
   activo: boolean;
+  es_unico: boolean;
   max_proyectos?: number | null;
   max_lotes_por_proyecto?: number | null;
   max_usuarios?: number | null;
@@ -183,6 +184,36 @@ export function PlanesPage() {
         ),
       },
       {
+        title: "Único",
+        dataIndex: "es_unico",
+        key: "es_unico",
+        width: 90,
+        render: (esUnico: boolean, fila: PlanDto) => (
+          <Switch
+            checked={esUnico}
+            disabled={!puedeEditar || guardar.isPending}
+            onChange={(valor) =>
+              guardar.mutate(
+                {
+                  idPlan: fila.id_plan,
+                  input: { ...deDtoAInput(fila), es_unico: valor },
+                  imagenAnteriorUrl: fila.imagen_url,
+                },
+                {
+                  onSuccess: () =>
+                    messageApi.success(
+                      valor
+                        ? `"${fila.nombre}" ahora es plan único: se vende solo por /registro/agente`
+                        : `"${fila.nombre}" ya no es plan único`,
+                    ),
+                  onError: (error) => messageApi.error(mensajeDeError(error)),
+                },
+              )
+            }
+          />
+        ),
+      },
+      {
         title: "Acciones",
         key: "acciones",
         width: 180,
@@ -234,6 +265,7 @@ export function PlanesPage() {
       precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
+      es_unico: plan.es_unico,
       max_proyectos: plan.max_proyectos,
       max_lotes_por_proyecto: plan.max_lotes_por_proyecto,
       max_usuarios: plan.max_usuarios,
@@ -245,7 +277,7 @@ export function PlanesPage() {
     setImagenUrl(null);
     setFileList([]);
     form.resetFields();
-    form.setFieldsValue({ orden: (planes ?? []).length + 1, activo: true });
+    form.setFieldsValue({ orden: (planes ?? []).length + 1, activo: true, es_unico: false });
     setAbierto(true);
   }
 
@@ -265,6 +297,7 @@ export function PlanesPage() {
       precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
+      es_unico: plan.es_unico,
       max_proyectos: plan.max_proyectos,
       max_lotes_por_proyecto: plan.max_lotes_por_proyecto,
       max_usuarios: plan.max_usuarios,
@@ -302,6 +335,7 @@ export function PlanesPage() {
       precio: values.precio ?? null,
       orden: values.orden ?? 0,
       activo: values.activo ?? true,
+      es_unico: values.es_unico ?? false,
       max_proyectos: values.max_proyectos ?? null,
       max_lotes_por_proyecto: values.max_lotes_por_proyecto ?? null,
       max_usuarios: values.max_usuarios ?? null,
@@ -495,6 +529,19 @@ export function PlanesPage() {
             </Col>
             <Col xs={24} sm={8}>
               <Form.Item name="activo" label="Activo" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col xs={24} sm={12}>
+              <Form.Item
+                name="es_unico"
+                label="Plan único"
+                tooltip="Solo se vende por /registro/agente con pago directo: al registrarse ven su precio y descripción y van derecho al enlace de pago. No aparece en /registro/planes."
+                valuePropName="checked"
+              >
                 <Switch />
               </Form.Item>
             </Col>

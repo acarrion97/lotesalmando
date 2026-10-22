@@ -33,6 +33,7 @@ export class GetPlanesUseCase {
       precio: plan.precio,
       orden: plan.orden,
       activo: plan.activo,
+      es_unico: plan.es_unico,
       max_proyectos: plan.max_proyectos,
       max_lotes_por_proyecto: plan.max_lotes_por_proyecto,
       max_usuarios: plan.max_usuarios,

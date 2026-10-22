@@ -18,6 +18,12 @@ export interface Plan {
   orden: number;
   /** Los inactivos no se muestran en la pagina publica de eleccion. */
   activo: boolean;
+  /**
+   * Plan "unico": se vende solo por su propia pagina de registro
+   * (/registro/agente) con pago directo, y NO se lista en /registro/planes.
+   * Cualquier plan con true sigue la logica que tenia el plan de agentes.
+   */
+  es_unico: boolean;
   /** Limites por plan. NULL = sin limite. */
   max_proyectos: number | null;
   max_lotes_por_proyecto: number | null;

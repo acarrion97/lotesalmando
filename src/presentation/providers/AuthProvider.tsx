@@ -110,7 +110,7 @@ interface AuthContextType {
     razonSocial: string,
     /** Codigo de partnership (vendedor de la plataforma), opcional. */
     codigoPartner?: string,
-  ) => Promise<{ success: boolean; error?: string }>;
+  ) => Promise<{ success: boolean; error?: string; idEmpresa?: number }>;
   cambiarPassword: (
     nuevaPassword: string,
   ) => Promise<{ success: boolean; error?: string; aviso?: string }>;
@@ -524,7 +524,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         estadoPago: "pendiente",
       });
 
-      return { success: true };
+      return { success: true, idEmpresa: Number(empresa.id_empresa) };
     },
     [],
   );
