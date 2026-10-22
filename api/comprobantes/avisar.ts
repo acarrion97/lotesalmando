@@ -35,7 +35,7 @@ import {
   avisarComprobanteAprobado,
   avisarComprobanteRechazado,
   type EstadoCorreo,
-} from "../../lib/correo";
+} from "../../lib/correo.js";
 
 type Req = IncomingMessage & { body?: unknown };
 
