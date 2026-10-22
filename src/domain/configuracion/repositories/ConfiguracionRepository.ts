@@ -20,4 +20,6 @@ export interface ConfiguracionRepository {
   getByEmpresaId(empresaId: number): Promise<Configuracion | null>;
   /** Crea la configuración si no existe; la actualiza si ya existe (upsert). */
   save(data: SaveConfiguracionInput): Promise<Configuracion>;
+  /** Guarda o elimina la URL del logo sin modificar las demás preferencias. */
+  setLogo(empresaId: number, logoUrl: string | null): Promise<Configuracion>;
 }

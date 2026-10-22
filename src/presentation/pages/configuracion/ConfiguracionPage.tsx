@@ -23,6 +23,7 @@ import { configuracionSchema } from "@/presentation/validations";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { MapaProyectoCard } from "./MapaProyectoCard";
 import { GaleriaProyectoCard } from "./GaleriaProyectoCard";
+import { LogoEmpresaPage } from "./LogoEmpresaPage";
 import { ExportacionWizard } from "./exportacion";
 
 const MONEDAS = [
@@ -280,6 +281,12 @@ export function ConfiguracionPage() {
                   )}
                 </div>
               </Card>
+            </Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+            <Col span={24}>
+              <LogoEmpresaPage />
             </Col>
           </Row>
 

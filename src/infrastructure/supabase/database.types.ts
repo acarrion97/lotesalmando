@@ -155,18 +155,21 @@ export interface Database {
           id_empresa: number;
           moneda: string | null;
           idioma: string | null;
+          logo_url: string | null;
         };
         Insert: {
           id_configuracion?: number;
           id_empresa: number;
           moneda?: string | null;
           idioma?: string | null;
+          logo_url?: string | null;
         };
         Update: {
           id_configuracion?: number;
           id_empresa?: number;
           moneda?: string | null;
           idioma?: string | null;
+          logo_url?: string | null;
         };
       };
       configuracion_contrato: {

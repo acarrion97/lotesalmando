@@ -29,6 +29,7 @@ import type { PortalClienteRepository } from "@/domain/portal/repositories";
 import type { ComprobanteStorage } from "@/application/comprobantes/ports/ComprobanteStorage";
 import type { DocumentoContratoStorage } from "@/application/contratos/ports/DocumentoContratoStorage";
 import type { PlanImagenStorage } from "@/application/plan/ports/PlanImagenStorage";
+import type { EmpresaLogoStorage } from "@/application/configuracion/ports/EmpresaLogoStorage";
 import type { ProyectoMedioStorage } from "@/application/proyectos/ports/ProyectoMedioStorage";
 import type { AceptarCotizacionPort } from "@/application/cotizaciones/ports/AceptarCotizacionPort";
 import type { RegistrarInteresPublicoPort } from "@/application/prospectos/ports/RegistrarInteresPublicoPort";
@@ -64,6 +65,7 @@ import { MockPortalClienteRepository } from "@/infrastructure/repositories/mock/
 import { MockComprobanteStorage } from "@/infrastructure/storage/MockComprobanteStorage";
 import { MockDocumentoContratoStorage } from "@/infrastructure/storage/MockDocumentoContratoStorage";
 import { MockPlanImagenStorage } from "@/infrastructure/storage/MockPlanImagenStorage";
+import { MockEmpresaLogoStorage } from "@/infrastructure/storage/MockEmpresaLogoStorage";
 import { MockProyectoMedioStorage } from "@/infrastructure/storage/MockProyectoMedioStorage";
 import { MockAceptarCotizacion } from "@/infrastructure/transactions/MockAceptarCotizacion";
 import { SupabaseAceptarCotizacion } from "@/infrastructure/transactions/SupabaseAceptarCotizacion";
@@ -92,6 +94,7 @@ import { SupabaseActividadRepository } from "@/infrastructure/repositories/supab
 import { SupabaseAsesorRepository } from "@/infrastructure/repositories/supabase/SupabaseAsesorRepository";
 import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/SupabaseRolRepository";
 import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
+import { SupabaseEmpresaLogoStorage } from "@/infrastructure/storage/SupabaseEmpresaLogoStorage";
 import { SupabaseConfiguracionContratoRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionContratoRepository";
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
 import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
@@ -127,6 +130,7 @@ export interface Repositories {
   asesorRepo: AsesorRepository;
   rolRepo: RolRepository;
   configuracionRepo: ConfiguracionRepository;
+  empresaLogoStorage: EmpresaLogoStorage;
   /** Datos legales del contrato por proyecto (respaldo: configuración de empresa). */
   configuracionContratoRepo: ConfiguracionContratoRepository;
   mapaRepo: MapaRepository;
@@ -279,6 +283,7 @@ function createMockRepositories(): Repositories {
     asesorRepo,
     rolRepo: new MockRolRepository(),
     configuracionRepo: new MockConfiguracionRepository(),
+    empresaLogoStorage: new MockEmpresaLogoStorage(),
     configuracionContratoRepo: new MockConfiguracionContratoRepository(),
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
@@ -325,6 +330,7 @@ function createSupabaseRepositories(): Repositories {
     asesorRepo: new SupabaseAsesorRepository(),
     rolRepo: new SupabaseRolRepository(),
     configuracionRepo: new SupabaseConfiguracionRepository(),
+    empresaLogoStorage: new SupabaseEmpresaLogoStorage(),
     configuracionContratoRepo: new SupabaseConfiguracionContratoRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
