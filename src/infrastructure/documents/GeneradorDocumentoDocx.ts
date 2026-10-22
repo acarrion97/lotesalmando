@@ -76,50 +76,6 @@ function parrafosDe(bloque: BloqueDocumento): (Paragraph | Table)[] {
           children: [new TextRun({ text: bloque.texto, size: 22, bold: bloque.negrita })],
         }),
       ];
-    case "etiqueta_valor":
-      return [
-        new Paragraph({
-          spacing: { after: 100 },
-          children: [
-            new TextRun({ text: `${bloque.etiqueta}: `, bold: true, size: 22 }),
-            new TextRun({ text: bloque.valor, size: 22 }),
-          ],
-        }),
-      ];
-    case "tabla":
-      return [
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [
-            new TableRow({
-              tableHeader: true,
-              children: bloque.encabezados.map(
-                (encabezado) =>
-                  new TableCell({
-                    shading: { fill: "F0F4F4" },
-                    children: [
-                      new Paragraph({
-                        children: [new TextRun({ text: encabezado, bold: true, size: 20 })],
-                      }),
-                    ],
-                  }),
-              ),
-            }),
-            ...bloque.filas.map(
-              (fila) =>
-                new TableRow({
-                  children: fila.map(
-                    (celda) =>
-                      new TableCell({
-                        children: [new Paragraph({ children: [new TextRun({ text: celda, size: 20 })] })],
-                      }),
-                  ),
-                }),
-            ),
-          ],
-        }),
-        new Paragraph({ spacing: { after: 160 }, children: [] }),
-      ];
     case "firmas":
       return [
         new Table({

@@ -15,9 +15,7 @@ const MARGEN = 72; // 2,54 cm, el margen del documento original
 const ANCHO_UTIL = ANCHO_PAGINA - MARGEN * 2;
 const FIN_UTIL = ALTO_PAGINA - MARGEN;
 
-const TINTA: [number, number, number] = [8, 43, 51]; // #082B33
 const GRIS: [number, number, number] = [55, 65, 81];
-const FONDO_TABLA: [number, number, number] = [240, 244, 244];
 
 const FUENTE = "helvetica";
 const FUENTE_TITULO = "times";
@@ -143,51 +141,6 @@ export class GeneradorDocumentoPdf implements GeneradorDocumentoContrato {
       y += 6;
     };
 
-    const etiquetaValor = (etiqueta: string, valor: string) => {
-      doc.setFontSize(11);
-      const anchoEtiqueta = doc.getTextWidth(`${etiqueta}: `);
-      const lineasValor = doc.splitTextToSize(valor, ANCHO_UTIL - anchoEtiqueta) as string[];
-      const alto = Math.max(1, lineasValor.length) * 15;
-      saltarSiNoCabe(alto);
-      doc.setFont(FUENTE, "bold");
-      doc.setTextColor(...TINTA);
-      doc.text(`${etiqueta}:`, MARGEN, y + 11);
-      doc.setFont(FUENTE, "normal");
-      doc.setTextColor(...GRIS);
-      lineasValor.forEach((l, i) => doc.text(l, MARGEN + anchoEtiqueta, y + 11 + i * 15));
-      y += alto + 2;
-    };
-
-    const tabla = (encabezados: string[], filas: string[][]) => {
-      const columnas = encabezados.length;
-      const anchoColumna = ANCHO_UTIL / columnas;
-      const altoFila = 20;
-
-      const fila = (celdas: string[], esEncabezado: boolean, indice: number) => {
-        saltarSiNoCabe(altoFila);
-        if (esEncabezado) {
-          doc.setFillColor(...FONDO_TABLA);
-          doc.rect(MARGEN, y, ANCHO_UTIL, altoFila, "F");
-        } else if (indice % 2 === 1) {
-          doc.setFillColor(250, 250, 250);
-          doc.rect(MARGEN, y, ANCHO_UTIL, altoFila, "F");
-        }
-        doc.setFont(FUENTE, esEncabezado ? "bold" : "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(...(esEncabezado ? TINTA : GRIS));
-        celdas.forEach((celda, i) => {
-          doc.text(celda, MARGEN + i * anchoColumna + 6, y + 13, { maxWidth: anchoColumna - 12 });
-        });
-        y += altoFila;
-      };
-
-      fila(encabezados, true, 0);
-      filas.forEach((celdas, i) => fila(celdas, false, i));
-      doc.setDrawColor(220, 222, 224);
-      doc.line(MARGEN, y, MARGEN + ANCHO_UTIL, y);
-      y += 14;
-    };
-
     /** Bloque de firmas: dos columnas, una por firmante. */
     const firmas = (columnas: { lineas: string[] }[]) => {
       const anchoColumna = ANCHO_UTIL / Math.max(2, columnas.length);
@@ -243,12 +196,6 @@ export class GeneradorDocumentoPdf implements GeneradorDocumentoContrato {
           break;
         case "parrafo":
           parrafoRico([{ texto: bloque.texto, negrita: bloque.negrita }]);
-          break;
-        case "etiqueta_valor":
-          etiquetaValor(bloque.etiqueta, bloque.valor);
-          break;
-        case "tabla":
-          tabla(bloque.encabezados, bloque.filas);
           break;
         case "firmas":
           firmas(bloque.columnas);

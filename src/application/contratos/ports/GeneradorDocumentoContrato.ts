@@ -1,5 +1,3 @@
-import { formatCurrency, formatDateOnly } from "@/utils";
-
 /** Formato del documento que se genera o anexa. */
 export type FormatoDocumentoContrato = "docx" | "pdf";
 
@@ -60,8 +58,6 @@ export type BloqueDocumento =
   /** Clausula legal: encabezado en negrita y cuerpo justificado. */
   | { tipo: "clausula"; encabezado: string; cuerpo: SegmentoTexto[] }
   | { tipo: "parrafo"; texto: string; negrita?: boolean }
-  | { tipo: "etiqueta_valor"; etiqueta: string; valor: string }
-  | { tipo: "tabla"; encabezados: string[]; filas: string[][] }
   /** Bloque de firmas: una columna por firmante, con sus lineas. */
   | { tipo: "firmas"; columnas: { lineas: string[] }[] }
   | { tipo: "espacio" };
@@ -75,18 +71,6 @@ export type BloqueDocumento =
 export interface DocumentoPlano {
   titulo: string;
   bloques: BloqueDocumento[];
-}
-
-export function moneyDeContenido(valor: number, moneda: string): string {
-  return formatCurrency(valor, moneda);
-}
-
-export function fechaDeContenido(o: string | null | undefined): string {
-  return o ? formatDateOnly(o.slice(0, 10)) : "—";
-}
-
-export function datoDeContenido(valor: string | null | undefined): string {
-  return valor && valor.trim() ? valor : "—";
 }
 
 /**

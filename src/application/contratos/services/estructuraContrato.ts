@@ -65,8 +65,10 @@ export function medidasEnPalabras(medidas: string | null | undefined): string | 
   const numeros = medidas.match(/\d+([.,]\d+)?/g);
   if (!numeros || numeros.length < 2) return medidas.trim();
 
-  const frente = numeros[0].replace(",", ".");
-  const fondo = numeros[1].replace(",", ".");
+  // Se dejan como están escritas: el contrato usa coma decimal ("8,00",
+  // "14.400,00") y darles otra forma cambiaría el dato.
+  const frente = numeros[0];
+  const fondo = numeros[1];
   return `${frente} metros de frente por ${fondo} metros de fondo`;
 }
 
