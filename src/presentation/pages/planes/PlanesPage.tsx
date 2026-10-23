@@ -187,30 +187,41 @@ export function PlanesPage() {
         title: "Único",
         dataIndex: "es_unico",
         key: "es_unico",
-        width: 90,
+        width: 210,
         render: (esUnico: boolean, fila: PlanDto) => (
-          <Switch
-            checked={esUnico}
-            disabled={!puedeEditar || guardar.isPending}
-            onChange={(valor) =>
-              guardar.mutate(
-                {
-                  idPlan: fila.id_plan,
-                  input: { ...deDtoAInput(fila), es_unico: valor },
-                  imagenAnteriorUrl: fila.imagen_url,
-                },
-                {
-                  onSuccess: () =>
-                    messageApi.success(
-                      valor
-                        ? `"${fila.nombre}" ahora es plan único: se vende solo por /registro/agente`
-                        : `"${fila.nombre}" ya no es plan único`,
-                    ),
-                  onError: (error) => messageApi.error(mensajeDeError(error)),
-                },
-              )
-            }
-          />
+          <Space direction="vertical" size={4}>
+            <Switch
+              checked={esUnico}
+              disabled={!puedeEditar || guardar.isPending}
+              onChange={(valor) =>
+                guardar.mutate(
+                  {
+                    idPlan: fila.id_plan,
+                    input: { ...deDtoAInput(fila), es_unico: valor },
+                    imagenAnteriorUrl: fila.imagen_url,
+                  },
+                  {
+                    onSuccess: () =>
+                      messageApi.success(
+                        valor
+                          ? `"${fila.nombre}" ahora es plan único: se vende por /registro/${fila.clave}`
+                          : `"${fila.nombre}" ya no es plan único`,
+                      ),
+                    onError: (error) => messageApi.error(mensajeDeError(error)),
+                  },
+                )
+              }
+            />
+            {esUnico && (
+              <Text
+                type="secondary"
+                copyable={{ text: `${window.location.origin}/registro/${fila.clave}` }}
+                style={{ fontSize: 12 }}
+              >
+                /registro/{fila.clave}
+              </Text>
+            )}
+          </Space>
         ),
       },
       {
@@ -539,7 +550,7 @@ export function PlanesPage() {
               <Form.Item
                 name="es_unico"
                 label="Plan único"
-                tooltip="Solo se vende por /registro/agente con pago directo: al registrarse ven su precio y descripción y van derecho al enlace de pago. No aparece en /registro/planes."
+                tooltip="Solo se vende por su propia pagina de registro /registro/<clave> con pago directo: al registrarse ven su precio y descripción y van derecho al enlace de pago. No aparece en /registro/planes."
                 valuePropName="checked"
               >
                 <Switch />

@@ -11,14 +11,16 @@ import type { PlanDto } from "@/application/plan/dto/PlanDto";
 
 /**
  * Helpers visuales compartidos por las paginas publicas de registro:
- * /registro/planes (elegir plan) y /registro/agente (planes "unicos" con
- * pago directo, junto al formulario).
+ * /registro/planes (elegir plan), /registro/agente (lista de planes
+ * "unicos" con pago directo, junto al formulario) y /registro/<clave>
+ * (pagina propia de cada plan unico).
  */
 
 /**
  * Planes "unicos": los que tienen `plan.es_unico = true` en la BD (lo
- * decide el superadmin desde /planes). Se venden solo por /registro/agente
- * con pago directo al checkout, y no se listan en /registro/planes.
+ * decide el superadmin desde /planes). Cada uno se vende por su pagina
+ * /registro/<clave> con pago directo al checkout (/registro/agente los
+ * lista todos juntos), y no se listan en /registro/planes.
  */
 export function planesUnicos(planes: PlanDto[] | undefined | null): PlanDto[] {
   return (planes ?? []).filter((p) => p.activo && p.es_unico);

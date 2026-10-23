@@ -10,8 +10,8 @@ export interface PlanDto {
   orden: number;
   activo: boolean;
   /**
-   * Plan "unico": solo se vende por /registro/agente (pago directo) y no
-   * aparece en la lista de /registro/planes.
+   * Plan "unico": solo se vende por su pagina de registro /registro/<clave>
+   * (pago directo) y no aparece en la lista de /registro/planes.
    */
   es_unico: boolean;
   /** Limites por plan. NULL = sin limite. */
