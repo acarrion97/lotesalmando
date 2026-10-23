@@ -7,6 +7,7 @@ import {
   Descriptions,
   Form,
   Input,
+  InputNumber,
   Row,
   Select,
   Spin,
@@ -65,6 +66,7 @@ export function ConfiguracionPage() {
   const configId = configuracion?.id_configuracion ?? null;
   const monedaGuardada = configuracion?.moneda ?? null;
   const idiomaGuardado = configuracion?.idioma ?? null;
+  const diasAvisoGuardados = configuracion?.dias_aviso_cuota ?? 5;
   // El RUC no vive en `configuracion`: es un dato de la empresa.
   const rucGuardado = empresaActual?.ruc ?? null;
 
@@ -75,13 +77,14 @@ export function ConfiguracionPage() {
       form.setFieldsValue({
         moneda: monedaGuardada ?? undefined,
         idioma: idiomaGuardado ?? undefined,
+        dias_aviso_cuota: diasAvisoGuardados,
         ruc: rucGuardado ?? undefined,
       });
     } else {
       form.resetFields();
-      form.setFieldsValue({ ruc: rucGuardado ?? undefined });
+      form.setFieldsValue({ ruc: rucGuardado ?? undefined, dias_aviso_cuota: 5 });
     }
-  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, rucGuardado]);
+  }, [form, empresaId, configId, monedaGuardada, idiomaGuardado, diasAvisoGuardados, rucGuardado]);
   const moneda = Form.useWatch("moneda", form);
   const idioma = Form.useWatch("idioma", form);
 
@@ -116,6 +119,7 @@ export function ConfiguracionPage() {
         id_empresa: empresaActual.id_empresa,
         moneda: parsed.moneda,
         idioma: parsed.idioma,
+        dias_aviso_cuota: parsed.dias_aviso_cuota,
       });
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracion(empresaActual.id_empresa),
@@ -233,6 +237,22 @@ export function ConfiguracionPage() {
                         <Input placeholder="RUC de la empresa" maxLength={20} allowClear />
                       </Form.Item>
                     </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="dias_aviso_cuota"
+                        label="Avisar cuotas antes del vencimiento"
+                        rules={[{ required: true, message: "Indique los días de anticipación" }]}
+                        extra="El correo se enviará una sola vez por cuota, dentro de este período."
+                      >
+                        <InputNumber
+                          min={1}
+                          max={30}
+                          precision={0}
+                          addonAfter="días antes"
+                          style={{ width: "100%" }}
+                        />
+                      </Form.Item>
+                    </Col>
                   </Row>
 
                   {vistaPrevia && (
@@ -270,6 +290,9 @@ export function ConfiguracionPage() {
                     {IDIOMAS.find((i) => i.value === configuracion?.idioma)?.label ??
                       configuracion?.idioma ??
                       "—"}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Aviso de cuotas">
+                    {diasAvisoGuardados} días antes
                   </Descriptions.Item>
                 </Descriptions>
 

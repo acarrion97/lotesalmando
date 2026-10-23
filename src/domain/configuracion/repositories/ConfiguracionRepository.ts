@@ -13,6 +13,7 @@ export interface SaveConfiguracionInput {
   id_empresa: number;
   moneda: string;
   idioma: string;
+  dias_aviso_cuota: number;
 }
 
 export interface ConfiguracionRepository {

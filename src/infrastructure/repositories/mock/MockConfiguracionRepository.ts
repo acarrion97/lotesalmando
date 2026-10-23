@@ -20,6 +20,7 @@ export class MockConfiguracionRepository implements ConfiguracionRepository {
       id_empresa: data.id_empresa,
       moneda: data.moneda,
       idioma: data.idioma,
+      dias_aviso_cuota: data.dias_aviso_cuota,
       logo_url: existente?.logo_url ?? null,
       // Lo legal no se edita acá (vive por proyecto): al actualizar se
       // conserva lo que ya tenía la fila.
@@ -41,6 +42,7 @@ export class MockConfiguracionRepository implements ConfiguracionRepository {
       id_empresa: empresaId,
       moneda: existente?.moneda ?? null,
       idioma: existente?.idioma ?? null,
+      dias_aviso_cuota: existente?.dias_aviso_cuota ?? 5,
       logo_url: logoUrl,
       representante: existente?.representante ?? null,
       representante_cedula: existente?.representante_cedula ?? null,
