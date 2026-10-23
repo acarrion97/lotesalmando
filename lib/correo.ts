@@ -347,3 +347,43 @@ export async function avisarCuotaVencida(
     plantilla("Tu cuota esta vencida", cuerpo, PIE_CUOTA),
   );
 }
+
+export interface AvisoDocumentacionProspecto {
+  para: string;
+  /** Nombre del prospecto que envio la documentacion. */
+  nombreProspecto: string;
+  emailProspecto: string;
+  /** Nombres visibles de los documentos recibidos (ya en revision). */
+  documentos: string[];
+  /** Enlace al backoffice (Prospectos -> Documentacion). */
+  revisionUrl: string;
+}
+
+/**
+ * Un prospecto envio documentacion desde el portal publico: se avisa al
+ * asesor para que la revise en el backoffice. Solo aviso al asesor: al
+ * prospecto no se le manda nada (el portal le muestra el estado).
+ * Maximo un aviso por prospecto por dia (tabla aviso_documento_prospecto).
+ */
+export async function avisarDocumentacionProspecto(
+  datos: AvisoDocumentacionProspecto,
+): Promise<EstadoCorreo> {
+  const lista = datos.documentos.length
+    ? `<ul>${datos.documentos.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>`
+    : "<p>Documentacion nueva.</p>";
+  const cuerpo = [
+    `${saludo({ nombre: datos.nombreProspecto, razonSocial: "" })} envio documentacion para la venta de un lote.`,
+    `Prospecto: <strong>${esc(datos.nombreProspecto)}</strong> (${esc(datos.emailProspecto)}).`,
+    `Documentos recibidos (pendientes de revision):`,
+    lista,
+    `Revisala en el backoffice: <a href="${esc(
+      datos.revisionUrl,
+    )}" style="color:#1677ff">${esc(datos.revisionUrl)}</a>.`,
+  ];
+  return enviar(
+    datos.para,
+    "Nueva documentacion de un prospecto - Lotes al Mando",
+    cuerpo.join("\n").replace(/<[^>]+>/g, ""),
+    plantilla("Documentacion de prospecto", cuerpo, PIE_REVISION),
+  );
+}

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip } from "antd";
-import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
+import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, Space } from "antd";
+import { PlusOutlined, EyeOutlined, DollarOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import {
   usePagos,
@@ -9,6 +9,9 @@ import {
   useContratos,
   useLookup,
   useInfoContratos,
+  useRecibosPorPagos,
+  useDescargarRecibo,
+  useEmitirReciboPagoPrevio,
 } from "@/presentation/hooks";
 import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -34,6 +37,16 @@ export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
   const { data: cobranzas } = useCobranzas();
   const { data: contratos } = useContratos();
+  // Recibos ya emitidos: solo los pagos con recibo ofrecen la descarga.
+  const idsPago = useMemo(() => (pagos ?? []).map((p) => p.id_pago), [pagos]);
+  const { data: recibos } = useRecibosPorPagos(idsPago);
+  const reciboPorPago = useMemo(
+    () => new Map((recibos ?? []).map((r) => [r.id_pago, r])),
+    [recibos],
+  );
+  const descargarRecibo = useDescargarRecibo();
+  // Pagos antiguos sin recibo: permiten emitirlo desde la lista.
+  const emitirRecibo = useEmitirReciboPagoPrevio();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const { infoDeCobranza } = useInfoContratos();
@@ -154,14 +167,44 @@ export function PagosPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 80,
+      width: 120,
       render: (_: unknown, record: PagoRow) => (
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          style={{ color: "#1677ff" }}
-          onClick={() => setViewModal({ visible: true, record })}
-        />
+        <Space size={4}>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            style={{ color: "#1677ff" }}
+            onClick={() => setViewModal({ visible: true, record })}
+          />
+          {/* Con recibo se descarga; un pago anterior al cambio lo tiene sin
+              recibo y ofrece emitirlo (primera emisión, reserva número). */}
+          {reciboPorPago.has(record.id_pago) ? (
+            <Tooltip title="Descargar recibo">
+              <Button
+                type="text"
+                icon={<FileTextOutlined />}
+                loading={descargarRecibo.isPending && descargarRecibo.variables === record.id_pago}
+                style={{ color: "#d4380d" }}
+                onClick={() => descargarRecibo.mutate(record.id_pago)}
+              />
+            </Tooltip>
+          ) : (
+            <Tooltip title={isOnline ? "Generar recibo" : "Sin conexión: no se puede generar el recibo"}>
+              <Button
+                type="text"
+                icon={<FileTextOutlined />}
+                disabled={!isOnline}
+                loading={emitirRecibo.isPending && emitirRecibo.variables === record.id_pago}
+                style={{ color: "#8c8c8c" }}
+                onClick={() =>
+                  emitirRecibo.mutate(record.id_pago, {
+                    onSuccess: (recibo) => descargarRecibo.mutate(recibo.id_pago),
+                  })
+                }
+              />
+            </Tooltip>
+          )}
+        </Space>
       ),
     },
   ];
@@ -234,6 +277,40 @@ export function PagosPage() {
         open={viewModal.visible}
         onCancel={() => setViewModal({ visible: false, record: null })}
         footer={[
+          viewModal.record && !reciboPorPago.has(viewModal.record.id_pago) ? (
+            <Button
+              key="recibo"
+              icon={<FileTextOutlined />}
+              disabled={!isOnline}
+              loading={
+                emitirRecibo.isPending &&
+                viewModal.record !== null &&
+                emitirRecibo.variables === viewModal.record.id_pago
+              }
+              onClick={() =>
+                viewModal.record &&
+                emitirRecibo.mutate(viewModal.record.id_pago, {
+                  onSuccess: (recibo) => descargarRecibo.mutate(recibo.id_pago),
+                })
+              }
+            >
+              Generar recibo
+            </Button>
+          ) : (
+            <Button
+              key="recibo"
+              icon={<FileTextOutlined />}
+              disabled={!viewModal.record || !reciboPorPago.has(viewModal.record.id_pago)}
+              loading={
+                descargarRecibo.isPending &&
+                viewModal.record !== null &&
+                descargarRecibo.variables === viewModal.record.id_pago
+              }
+              onClick={() => viewModal.record && descargarRecibo.mutate(viewModal.record.id_pago)}
+            >
+              Descargar recibo
+            </Button>
+          ),
           <Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>
             Cerrar
           </Button>,

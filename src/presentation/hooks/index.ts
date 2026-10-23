@@ -27,6 +27,7 @@ export { useCobranzas } from "./useCobranzas";
 export { useCobranzasByContrato } from "./useCobranzasByContrato";
 export { useEntradasReserva } from "./useEntradasReserva";
 export { usePagos } from "./usePagos";
+export { useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio } from "./useRecibos";
 export { useUsuarios } from "./useUsuarios";
 export { useUsuariosPlataforma } from "./useUsuariosPlataforma";
 export { useReservarLote } from "./useReservarLote";
@@ -57,5 +58,11 @@ export { useMediosProyecto } from "./useMediosProyecto";
 export { useInfoContratos } from "./useInfoContratos";
 export { useComprobantes, useRevisionComprobante } from "./useComprobantes";
 export { usePortalCliente } from "./usePortalCliente";
+export { usePortalProspecto } from "./usePortalProspecto";
+export {
+  useDocumentosProspecto,
+  useAbrirDocumentoProspecto,
+  useRevisionDocumentoProspecto,
+} from "./useDocumentosProspecto";
 export { useDocumentoContrato, useDescargarDocumentoContrato } from "./useDocumentoContrato";
 export { useAbrirComprobante } from "./useAbrirComprobante";

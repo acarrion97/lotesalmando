@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, Descriptions, Image, Input, Modal, Select, Space, Spin, Typography } from "antd";
-import { CheckOutlined, CloseOutlined, FilePdfOutlined } from "@ant-design/icons";
+import { CheckOutlined, CloseOutlined, FilePdfOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { Comprobante } from "@/domain/comprobante/entities";
-import { useAbrirComprobante, useRevisionComprobante } from "@/presentation/hooks";
+import { useAbrirComprobante, useRevisionComprobante, useRecibosPorPagos, useDescargarRecibo, usePagos } from "@/presentation/hooks";
+import type { Recibo } from "@/domain/recibo/entities";
 import { ComprobanteTag } from "./ComprobanteTag";
 import { formatCurrency, formatDateOnly } from "@/utils";
 
@@ -32,10 +33,30 @@ export function ModalRevisionComprobante({
   const [nota, setNota] = useState("");
   const [rechazando, setRechazando] = useState(false);
   const [formaPago, setFormaPago] = useState<import("@/domain/recibo/entities").FormaPago | undefined>();
+  // Recibo que devuelve la aprobación recién hecha (queda en memoria para
+  // poder bajarlo sin volver a consultar).
+  const [reciboEmitido, setReciboEmitido] = useState<Recibo | null>(null);
   const abrir = useAbrirComprobante();
   const { aprobar, rechazar } = useRevisionComprobante();
+  const descargarRecibo = useDescargarRecibo();
 
   const idComprobante = comprobante?.id_comprobante ?? null;
+  const idCobranza = comprobante?.id_cobranza ?? null;
+
+  // Para comprobantes ya aprobados: ubicar su pago y el recibo persistido.
+  const { data: pagos } = usePagos();
+  const idPagoDeLaCuota = useMemo(
+    () => (pagos ?? []).find((p) => p.id_cobranza === idCobranza)?.id_pago,
+    [pagos, idCobranza],
+  );
+  const { data: recibos } = useRecibosPorPagos(idPagoDeLaCuota !== undefined ? [idPagoDeLaCuota] : []);
+  const reciboGuardado = useMemo(
+    () => (recibos ?? []).find((r) => r.id_pago === idPagoDeLaCuota),
+    [recibos, idPagoDeLaCuota],
+  );
+
+  // Manda el recibo recién emitido; si no, el persistido (ya aprobado).
+  const reciboDescargable = reciboEmitido ?? (comprobante?.estado === "aprobado" ? reciboGuardado : null);
 
   useEffect(() => {
     if (!open || idComprobante === null) return;
@@ -58,10 +79,11 @@ export function ModalRevisionComprobante({
     setUrlGuardada(null);
     setNota("");
     setRechazando(false);
+    setReciboEmitido(null);
     onClose();
   };
 
-  const pendiente = comprobante?.estado === "pendiente";
+  const pendiente = comprobante?.estado === "pendiente" && reciboEmitido === null;
   // Mientras no llegue la URL del comprobante que se está viendo se muestra
   // el spinner, así no aparece el aviso de error en el cambio de uno a otro.
   const cargando = idComprobante !== null && (abrir.isPending || urlGuardada?.id !== idComprobante);
@@ -100,7 +122,11 @@ export function ModalRevisionComprobante({
                 disabled={!formaPago}
                 onClick={() =>
                   formaPago && aprobar.mutate({ id: comprobante.id_comprobante, formaPago }, {
-                    onSuccess: () => cerrar(),
+                    onSuccess: (resultado) => {
+                      // El recibo sale de la misma confirmación: se queda a
+                      // mano para poder bajarlo sin salir del modal.
+                      setReciboEmitido(resultado.recibo ?? null);
+                    },
                   })
                 }
               >
@@ -108,7 +134,18 @@ export function ModalRevisionComprobante({
               </Button>
             </Space>
           ) : (
-            <Button onClick={cerrar}>Cerrar</Button>
+            <Space>
+              {reciboDescargable && (
+                <Button
+                  icon={<FileTextOutlined />}
+                  loading={descargarRecibo.isPending}
+                  onClick={() => descargarRecibo.mutate(reciboDescargable.id_pago)}
+                >
+                  Descargar recibo
+                </Button>
+              )}
+              <Button onClick={cerrar}>Cerrar</Button>
+            </Space>
           )
         }
       >
@@ -171,6 +208,16 @@ export function ModalRevisionComprobante({
                 />
               )}
             </div>
+
+            {reciboEmitido && (
+              <Alert
+                type="success"
+                showIcon
+                style={{ marginTop: 12 }}
+                message={`Pago registrado · Recibo ${reciboEmitido.numero_recibo}`}
+                description="El recibo quedó guardado: se puede descargar las veces que haga falta desde el pago o desde acá."
+              />
+            )}
 
             {pendiente && (
               <Paragraph type="secondary" style={{ fontSize: 12, marginTop: 12, marginBottom: 0 }}>

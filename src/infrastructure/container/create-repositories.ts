@@ -26,7 +26,10 @@ import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
 import type { ComprobanteRepository } from "@/domain/comprobante/repositories";
 import type { PortalClienteRepository } from "@/domain/portal/repositories";
+import type { PortalProspectoRepository } from "@/domain/portalProspecto/repositories";
+import type { DocumentoProspectoRepository } from "@/domain/portalProspecto/repositories";
 import type { ComprobanteStorage } from "@/application/comprobantes/ports/ComprobanteStorage";
+import type { PortalProspectoStorage } from "@/application/portalProspecto/ports/PortalProspectoStorage";
 import type { DocumentoContratoStorage } from "@/application/contratos/ports/DocumentoContratoStorage";
 import type { PlanImagenStorage } from "@/application/plan/ports/PlanImagenStorage";
 import type { EmpresaLogoStorage } from "@/application/configuracion/ports/EmpresaLogoStorage";
@@ -39,6 +42,7 @@ import type { Actividad } from "@/domain/actividad/entities";
 import type { Asesor } from "@/domain/asesor/entities";
 import type { ReciboRepository } from "@/domain/recibo/repositories";
 import type { ConfirmarPagoConRecibo } from "@/application/recibos/ports/ConfirmarPagoConRecibo";
+import type { EmitirReciboPagoPrevio as EmitirReciboPagoPrevioPort } from "@/application/recibos/ports/EmitirReciboPagoPrevio";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
 import { MockPlanRepository } from "@/infrastructure/repositories/mock/MockPlanRepository";
@@ -65,7 +69,10 @@ import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
 import { MockComprobanteRepository } from "@/infrastructure/repositories/mock/MockComprobanteRepository";
 import { MockPortalClienteRepository } from "@/infrastructure/repositories/mock/MockPortalClienteRepository";
+import { MockPortalProspectoRepository } from "@/infrastructure/repositories/mock/MockPortalProspectoRepository";
+import { MockDocumentoProspectoRepository } from "@/infrastructure/repositories/mock/MockDocumentoProspectoRepository";
 import { MockComprobanteStorage } from "@/infrastructure/storage/MockComprobanteStorage";
+import { MockPortalProspectoStorage } from "@/infrastructure/storage/MockPortalProspectoStorage";
 import { MockDocumentoContratoStorage } from "@/infrastructure/storage/MockDocumentoContratoStorage";
 import { MockPlanImagenStorage } from "@/infrastructure/storage/MockPlanImagenStorage";
 import { MockEmpresaLogoStorage } from "@/infrastructure/storage/MockEmpresaLogoStorage";
@@ -76,6 +83,8 @@ import { MockRegistrarInteresPublico } from "@/infrastructure/transactions/MockR
 import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/SupabaseRegistrarInteresPublico";
 import { MockConfirmarPagoConRecibo } from "@/infrastructure/transactions/MockConfirmarPagoConRecibo";
 import { SupabaseConfirmarPagoConRecibo } from "@/infrastructure/transactions/SupabaseConfirmarPagoConRecibo";
+import { MockEmitirReciboPagoPrevio } from "@/infrastructure/transactions/MockEmitirReciboPagoPrevio";
+import { SupabaseEmitirReciboPagoPrevio } from "@/infrastructure/transactions/SupabaseEmitirReciboPagoPrevio";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabasePlanRepository } from "@/infrastructure/repositories/supabase/SupabasePlanRepository";
@@ -107,7 +116,10 @@ import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/s
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
 import { SupabaseComprobanteRepository } from "@/infrastructure/repositories/supabase/SupabaseComprobanteRepository";
 import { SupabasePortalClienteRepository } from "@/infrastructure/repositories/supabase/SupabasePortalClienteRepository";
+import { SupabasePortalProspectoRepository } from "@/infrastructure/repositories/supabase/SupabasePortalProspectoRepository";
+import { SupabaseDocumentoProspectoRepository } from "@/infrastructure/repositories/supabase/SupabaseDocumentoProspectoRepository";
 import { SupabaseComprobanteStorage } from "@/infrastructure/storage/SupabaseComprobanteStorage";
+import { SupabasePortalProspectoStorage } from "@/infrastructure/storage/SupabasePortalProspectoStorage";
 import { SupabaseDocumentoContratoStorage } from "@/infrastructure/storage/SupabaseDocumentoContratoStorage";
 import { SupabasePlanImagenStorage } from "@/infrastructure/storage/SupabasePlanImagenStorage";
 import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
@@ -126,6 +138,11 @@ export interface Repositories {
   pagoRepo: PagoRepository;
   reciboRepo: ReciboRepository;
   confirmarPagoConRecibo: ConfirmarPagoConRecibo;
+  /**
+   * Emite el recibo de un pago registrado antes del cambio de recibos
+   * (RPC 044 en Supabase / misma lógica fiscal en el modo demo).
+   */
+  emitirReciboPagoPrevio: EmitirReciboPagoPrevioPort;
   /** Entradas (señas) cobradas al reservar un lote; no apuntan a cuota. */
   entradaRepo: EntradaReservaRepository;
   usuarioRepo: UsuarioRepository;
@@ -146,7 +163,13 @@ export interface Repositories {
   mapaImageStorage: MapaImageStorage;
   comprobanteRepo: ComprobanteRepository;
   portalClienteRepo: PortalClienteRepository;
+  /** Puerta del portal de prospectos (RPCs 044, rol anon). */
+  portalProspectoRepo: PortalProspectoRepository;
+  /** Documentación enviada por el portal, para revisión del backoffice (RLS por empresa). */
+  documentoProspectoRepo: DocumentoProspectoRepository;
   comprobanteStorage: ComprobanteStorage;
+  /** Puerto de infraestructura: subida de documentos del portal de prospectos. */
+  portalProspectoStorage: PortalProspectoStorage;
   documentoContratoStorage: DocumentoContratoStorage;
   planImageStorage: PlanImagenStorage;
   /** Fotos y videos del proyecto que alimentan la galería pública. */
@@ -189,6 +212,22 @@ function createMockRepositories(): Repositories {
     cobranzaRepo,
     pagoRepo,
     comprobanteRepo,
+    reciboRepo,
+    configuracionContratoRepo,
+    contractRepo,
+    saleRepo,
+    clienteRepo,
+    lotRepository,
+    manzanaRepo,
+    etapaRepo,
+    proyectoRepo,
+    empresaRepo,
+  );
+  // Emisión de recibos para pagos antiguos: misma numeración y validaciones
+  // que la confirmación normal, compartiendo el contador del repositorio.
+  const emitirReciboPagoPrevio = new MockEmitirReciboPagoPrevio(
+    pagoRepo,
+    cobranzaRepo,
     reciboRepo,
     configuracionContratoRepo,
     contractRepo,
@@ -301,6 +340,7 @@ function createMockRepositories(): Repositories {
     pagoRepo,
     reciboRepo,
     confirmarPagoConRecibo,
+    emitirReciboPagoPrevio,
     entradaRepo: new MockEntradaReservaRepository(),
     usuarioRepo: new MockUsuarioRepository(),
     aceptarCotizacion,
@@ -326,7 +366,10 @@ function createMockRepositories(): Repositories {
     proyectoMedioStorage: new MockProyectoMedioStorage(),
     comprobanteRepo,
     portalClienteRepo: new MockPortalClienteRepository(),
+    portalProspectoRepo: new MockPortalProspectoRepository(),
+    documentoProspectoRepo: new MockDocumentoProspectoRepository(),
     comprobanteStorage: new MockComprobanteStorage(),
+    portalProspectoStorage: new MockPortalProspectoStorage(),
     documentoContratoStorage: new MockDocumentoContratoStorage(),
   };
 }
@@ -343,6 +386,7 @@ function createSupabaseRepositories(): Repositories {
 
   const reciboRepo = new SupabaseReciboRepository();
   const confirmarPagoConRecibo = new SupabaseConfirmarPagoConRecibo();
+  const emitirReciboPagoPrevio = new SupabaseEmitirReciboPagoPrevio();
 
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
@@ -358,6 +402,7 @@ function createSupabaseRepositories(): Repositories {
     pagoRepo: new SupabasePagoRepository(),
     reciboRepo,
     confirmarPagoConRecibo,
+    emitirReciboPagoPrevio,
     entradaRepo: new SupabaseEntradaReservaRepository(),
     usuarioRepo: new SupabaseUsuarioRepository(),
     inventarioRepo: new SupabaseInventarioRepository(),
@@ -380,7 +425,10 @@ function createSupabaseRepositories(): Repositories {
     registrarInteresPublico: new SupabaseRegistrarInteresPublico(),
     comprobanteRepo: new SupabaseComprobanteRepository(),
     portalClienteRepo: new SupabasePortalClienteRepository(),
+    portalProspectoRepo: new SupabasePortalProspectoRepository(),
+    documentoProspectoRepo: new SupabaseDocumentoProspectoRepository(),
     comprobanteStorage: new SupabaseComprobanteStorage(),
+    portalProspectoStorage: new SupabasePortalProspectoStorage(),
     documentoContratoStorage: new SupabaseDocumentoContratoStorage(),
   };
 }

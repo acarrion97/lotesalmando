@@ -19,7 +19,6 @@ import type { Recibo } from "@/domain/recibo/entities";
 import { MockReciboRepository } from "@/infrastructure/repositories/mock/MockReciboRepository";
 
 export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
-  private sequence = 0;
   private readonly cobranzas: CobranzaRepository;
   private readonly pagos: PagoRepository;
   private readonly comprobantes: ComprobanteRepository;
@@ -141,8 +140,9 @@ export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
       );
     }
 
-    this.sequence += 1;
-    const secuencia = this.sequence;
+    // La secuencia vive en el repositorio: así la emisión de pagos viejos
+    // (MockEmitirReciboPagoPrevio) comparte la misma numeración.
+    const secuencia = this.recibos.siguienteSecuencia();
     const recibo: Recibo = {
       id_recibo: secuencia,
       id_empresa: proyecto.id_empresa,

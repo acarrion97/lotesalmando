@@ -132,7 +132,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
       // esta pestana queda en /login esperando que el webhook confirme.
       navigate("/login", {
         state: {
-          avisoPago: `Cuenta creada. Completa el pago del ${planActual.nombre} en Hotmart con este mismo correo y vuelve aqui para iniciar sesion.`,
+          avisoPago: `Cuenta creada. Completa el pago del ${planActual.nombre} con este mismo correo y vuelve aqui para iniciar sesion.`,
         },
       });
       return;
@@ -278,8 +278,8 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
               )}
 
               <Text type="secondary" style={{ fontSize: 12, display: "block", textAlign: "center" }}>
-                <SafetyCertificateOutlined /> Pagas en Hotmart al terminar el registro. Usa el mismo
-                correo con el que te registraste.
+                <SafetyCertificateOutlined /> Usa el mismo
+                correo con el que te registraste al realizar el pago.
               </Text>
             </div>
           );
@@ -360,7 +360,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
 
             <Form.Item
               name="email"
-              extra="Usa este mismo correo al pagar en Hotmart, asi asociamos el pago a tu cuenta."
+              extra="Usa este mismo correo al pagar , asi asociamos el pago a tu cuenta."
               rules={[
                 { required: true, message: "Ingresa tu correo electronico" },
                 { type: "email", message: "Correo electronico invalido" },

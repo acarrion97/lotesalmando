@@ -45,6 +45,13 @@ export const MODULOS: ItemMenuAuth[] = [
 
   { key: "/ventas", label: "Ventas", permiso: "ver_ventas" },
   { key: "/prospectos", label: "Prospectos", permiso: "ver_prospectos" },
+  // Revisión de la documentación que los prospectos envían desde el portal
+  // público; permiso propio para que no todos los que ven prospectos revisen.
+  {
+    key: "/prospectos/documentacion",
+    label: "Documentación de prospectos",
+    permiso: "revisar_documentos_prospectos",
+  },
   { key: "/asesores", label: "Asesores", permiso: "ver_asesores" },
   // Financiero
   { key: "/contratos", label: "Contratos", permiso: "ver_contratos" },
@@ -77,7 +84,7 @@ export interface GrupoMenu {
 
 export const GRUPOS_MENU: GrupoMenu[] = [
   { key: "inventario", groupLabel: "INVENTARIO", items: ["/proyectos", "/etapas", "/manzanas", "/lotes","/mapas"] },
-  { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/reservas", "/ventas", "/prospectos", "/asesores"] },
+  { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/reservas", "/ventas", "/prospectos", "/prospectos/documentacion", "/asesores"] },
   { key: "financiero", groupLabel: "FINANCIERO", items: ["/contratos", "/cobranzas", "/pagos", "/proyeccion"] },
   { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas"] },
   { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/roles-permisos"] },

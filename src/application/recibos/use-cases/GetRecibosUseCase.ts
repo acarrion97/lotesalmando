@@ -1,7 +1,11 @@
 import type { ReciboRepository } from "@/domain/recibo/repositories";
 
 export class GetRecibosUseCase {
-  constructor(private readonly recibos: ReciboRepository) {}
+  private readonly recibos: ReciboRepository;
+
+  constructor(recibos: ReciboRepository) {
+    this.recibos = recibos;
+  }
 
   async execute(idsPago: number[]) {
     const idsValidos = [...new Set(idsPago.filter((id) => Number.isInteger(id) && id > 0))];
