@@ -46,6 +46,7 @@ import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { EmitirReciboUseCase } from "@/application/recibos/use-cases/EmitirReciboUseCase";
 import { GetRecibosUseCase } from "@/application/recibos/use-cases/GetRecibosUseCase";
+import { DescargarReciboUseCase } from "@/application/recibos/use-cases/DescargarReciboUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
 import { GetProyeccionFinancieraUseCase } from "@/application/proyecciones/use-cases/GetProyeccionFinancieraUseCase";
 import { DetectarCuotasVencidasUseCase } from "@/application/cobranzas/use-cases/DetectarCuotasVencidasUseCase";
@@ -128,6 +129,7 @@ import { AbrirDocumentoContratoUseCase } from "@/application/contratos/use-cases
 import { DescargarDocumentoContratoUseCase } from "@/application/contratos/use-cases/DescargarDocumentoContratoUseCase";
 import { ConsultarPortalClienteUseCase } from "@/application/portal/use-cases/ConsultarPortalClienteUseCase";
 import { generadorDocumentoContrato } from "@/infrastructure/documents/generadorDocumentoContrato";
+import { generadorReciboDocumento } from "@/infrastructure/documents/generadorReciboDocumento";
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
 import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
 import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/QuitarMedioProyectoUseCase";
@@ -180,6 +182,7 @@ export interface UseCases {
   registerPago: RegisterPagoUseCase;
   emitirRecibo: EmitirReciboUseCase;
   getRecibos: GetRecibosUseCase;
+  descargarRecibo: DescargarReciboUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
   getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
@@ -334,6 +337,7 @@ export function createUseCases(repos: Repositories): UseCases {
     registerPago: new RegisterPagoUseCase(repos.confirmarPagoConRecibo),
     emitirRecibo: new EmitirReciboUseCase(repos.reciboRepo),
     getRecibos: new GetRecibosUseCase(repos.reciboRepo),
+    descargarRecibo: new DescargarReciboUseCase(repos.reciboRepo, generadorReciboDocumento),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
     getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
       repos.etapaRepo,

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip } from "antd";
-import { PlusOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
+import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, Space } from "antd";
+import { PlusOutlined, EyeOutlined, DollarOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import {
   usePagos,
@@ -9,6 +9,8 @@ import {
   useContratos,
   useLookup,
   useInfoContratos,
+  useRecibosPorPagos,
+  useDescargarRecibo,
 } from "@/presentation/hooks";
 import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -34,6 +36,14 @@ export function PagosPage() {
   const { data: pagos, isLoading } = usePagos();
   const { data: cobranzas } = useCobranzas();
   const { data: contratos } = useContratos();
+  // Recibos ya emitidos: solo los pagos con recibo ofrecen la descarga.
+  const idsPago = useMemo(() => (pagos ?? []).map((p) => p.id_pago), [pagos]);
+  const { data: recibos } = useRecibosPorPagos(idsPago);
+  const reciboPorPago = useMemo(
+    () => new Map((recibos ?? []).map((r) => [r.id_pago, r])),
+    [recibos],
+  );
+  const descargarRecibo = useDescargarRecibo();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const { infoDeCobranza } = useInfoContratos();
@@ -154,14 +164,28 @@ export function PagosPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 80,
+      width: 120,
       render: (_: unknown, record: PagoRow) => (
-        <Button
-          type="text"
-          icon={<EyeOutlined />}
-          style={{ color: "#1677ff" }}
-          onClick={() => setViewModal({ visible: true, record })}
-        />
+        <Space size={4}>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            style={{ color: "#1677ff" }}
+            onClick={() => setViewModal({ visible: true, record })}
+          />
+          {/* Solo los pagos con recibo persistido ofrecen la descarga; un pago
+              anterior al cambio de recibos queda sin acción, sin inventar número. */}
+          <Tooltip title={reciboPorPago.has(record.id_pago) ? "Descargar recibo" : "Sin recibo emitido"}>
+            <Button
+              type="text"
+              icon={<FileTextOutlined />}
+              disabled={!reciboPorPago.has(record.id_pago)}
+              loading={descargarRecibo.isPending && descargarRecibo.variables === record.id_pago}
+              style={{ color: reciboPorPago.has(record.id_pago) ? "#d4380d" : undefined }}
+              onClick={() => descargarRecibo.mutate(record.id_pago)}
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
@@ -234,6 +258,19 @@ export function PagosPage() {
         open={viewModal.visible}
         onCancel={() => setViewModal({ visible: false, record: null })}
         footer={[
+          <Button
+            key="recibo"
+            icon={<FileTextOutlined />}
+            disabled={!viewModal.record || !reciboPorPago.has(viewModal.record.id_pago)}
+            loading={
+              descargarRecibo.isPending &&
+              viewModal.record !== null &&
+              descargarRecibo.variables === viewModal.record.id_pago
+            }
+            onClick={() => viewModal.record && descargarRecibo.mutate(viewModal.record.id_pago)}
+          >
+            Descargar recibo
+          </Button>,
           <Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>
             Cerrar
           </Button>,

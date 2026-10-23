@@ -27,6 +27,7 @@ export { useCobranzas } from "./useCobranzas";
 export { useCobranzasByContrato } from "./useCobranzasByContrato";
 export { useEntradasReserva } from "./useEntradasReserva";
 export { usePagos } from "./usePagos";
+export { useRecibosPorPagos, useDescargarRecibo } from "./useRecibos";
 export { useUsuarios } from "./useUsuarios";
 export { useUsuariosPlataforma } from "./useUsuariosPlataforma";
 export { useReservarLote } from "./useReservarLote";

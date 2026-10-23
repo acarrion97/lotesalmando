@@ -186,12 +186,12 @@ export function SeleccionarPlanPage() {
           icon={<MailOutlined style={{ color: token.colorWarning }} />}
           title={
             <span style={{ color: token.colorText, fontWeight: 600 }}>
-              Usa el mismo correo electronico al pagar en Hotmart
+              Usa el mismo correo electronico al pagar 
             </span>
           }
           description={
             <span style={{ color: token.colorTextSecondary }}>
-              En el checkout de Hotmart ingresa el correo con el que te registraste aqui. Asi
+              En el checkout de pago ingresa el correo con el que te registraste aqui. Asi
               vinculamos tu pago a tu empresa automaticamente; si usas otro correo, el pago no se
               reconoce.
             </span>
@@ -316,7 +316,7 @@ export function SeleccionarPlanPage() {
               display: "block",
             }}
           >
-            <SafetyCertificateOutlined /> Pago seguro procesado por Hotmart
+            <SafetyCertificateOutlined /> Pago seguro
           </Text>
           {verificandoPago && (
             <Text

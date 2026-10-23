@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
-import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -34,6 +34,24 @@ export function CobranzasPage() {
   const { data: cobranzas, isLoading } = useCobranzas();
   const { data: contratos } = useContratos();
   const { data: comprobantes } = useComprobantes();
+  const { data: pagos } = usePagos();
+  // Recibo de cada cuota: cobranza → pago → recibo persistido.
+  const idsPago = useMemo(() => (pagos ?? []).map((p) => p.id_pago), [pagos]);
+  const { data: recibos } = useRecibosPorPagos(idsPago);
+  const idPagoPorCobranza = useMemo(
+    () => new Map((pagos ?? []).map((p) => [p.id_cobranza, p.id_pago])),
+    [pagos],
+  );
+  // True cuando la cuota tiene un recibo ya emitido (nunca se inventa uno).
+  const cuotaConRecibo = useMemo(() => {
+    const pagosConRecibo = new Set((recibos ?? []).map((r) => r.id_pago));
+    return new Set(
+      (pagos ?? [])
+        .filter((p) => pagosConRecibo.has(p.id_pago))
+        .map((p) => p.id_cobranza),
+    );
+  }, [pagos, recibos]);
+  const descargarRecibo = useDescargarRecibo();
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const { infoDeContrato } = useInfoContratos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
@@ -177,6 +195,28 @@ export function CobranzasPage() {
               Ver
             </Button>
           </div>
+        );
+      },
+    },
+    {
+      title: "Recibo",
+      key: "recibo",
+      width: 110,
+      render: (_: unknown, record: CobranzaRow) => {
+        const idPago = idPagoPorCobranza.get(record.id_cobranza);
+        const disponible = idPago !== undefined && cuotaConRecibo.has(record.id_cobranza);
+        if (!disponible) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        return (
+          <Button
+            type="link"
+            size="small"
+            style={{ padding: 0, height: "auto" }}
+            icon={<FileTextOutlined />}
+            loading={descargarRecibo.isPending && descargarRecibo.variables === idPago}
+            onClick={() => descargarRecibo.mutate(idPago)}
+          >
+            Descargar
+          </Button>
         );
       },
     },
