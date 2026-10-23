@@ -5,14 +5,15 @@
  *
  * Cualquier campo vacío se toma de `configuracion` (la empresa) como
  * respaldo; el RUC vacío se toma de `empresa.ruc`.
+ *
+ * Los datos fiscales de los recibos (razón social emisora, direcciones
+ * y códigos SRI) viven aparte, en `ConfiguracionPagos`.
  */
 export interface ConfiguracionContrato {
   id_configuracion_contrato: number;
   id_empresa: number;
   id_proyecto: number;
-  /** Razón social que emite comprobantes para este proyecto. */
-  razon_social?: string | null;
-  /** RUC de la razón social de este proyecto. */
+  /** RUC de la razón social que firma este proyecto (vacío = `empresa.ruc`). */
   ruc?: string | null;
   /** Quien firma como propietario (gerente / apoderado). */
   representante?: string | null;
@@ -26,12 +27,4 @@ export interface ConfiguracionContrato {
   cuentas_bancarias?: string | null;
   /** Dirección para canjear las papeletas de depósito. */
   direccion_canje?: string | null;
-  /** Dirección fiscal de la matriz del emisor. */
-  direccion_matriz?: string | null;
-  /** Dirección fiscal del establecimiento emisor. */
-  direccion_establecimiento?: string | null;
-  /** Código de tres dígitos del establecimiento emisor. */
-  codigo_establecimiento?: string | null;
-  /** Código de tres dígitos del punto de emisión. */
-  punto_emision?: string | null;
 }

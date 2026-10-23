@@ -29,6 +29,9 @@ export const inventoryKeys = {
   /** Datos legales del contrato de un proyecto (respaldo: configuración). */
   configuracionContrato: (empresaId: number, proyectoId: number) =>
     ["configuracionContrato", empresaId, proyectoId] as const,
+  /** Datos fiscales de los recibos de pago de un proyecto. */
+  configuracionPagos: (empresaId: number, proyectoId: number) =>
+    ["configuracionPagos", empresaId, proyectoId] as const,
   /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */
   mapaByProyecto: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId] as const,

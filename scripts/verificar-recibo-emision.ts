@@ -1,8 +1,8 @@
 /**
  * Verificación de la emisión de recibos de pago (tarea 2.4 del cambio
  * recibos-pago-formato-sri): numeración secuencial, duplicados, configura-
- * fiscal faltante, identificación de consumidor final y redondeo a centavos.
- * Se ejecuta con:
+ * ción de pagos faltante, identificación de consumidor final y redondeo a
+ * centavos. Se ejecuta con:
  *
  *   node scripts/verificar-recibo-emision.ts
  *
@@ -39,17 +39,27 @@ async function errorDe(accion: () => Promise<unknown>): Promise<string | null> {
   }
 }
 
-const CONFIG_FISCAL = {
+/**
+ * Configuración de pagos del proyecto: lo que se carga en Cobranzas/
+ * Pagos (razón social emisora, direcciones y códigos SRI).
+ */
+const CONFIG_PAGOS = {
   razon_social: "TERRENOS DEL VALLE S.A.",
-  ruc: "0912345678001",
   direccion_matriz: "Av. Amazonas N1-23 y Naciones Unidas, Quito",
   direccion_establecimiento: "Km 3 vía Machala, Babahoyo",
   codigo_establecimiento: "001",
   punto_emision: "001",
 };
 
+/**
+ * El RUC no se carga en la configuración de pagos: es el del contrato
+ * del proyecto (o el de la empresa). Acá se simula esa fila.
+ */
+const CONFIG_CONTRATO = { ruc: "0912345678001" };
+
 type OpcionesEscenario = {
-  config?: (typeof CONFIG_FISCAL) | null;
+  config?: (typeof CONFIG_PAGOS) | null;
+  configContrato?: (typeof CONFIG_CONTRATO) | null;
   empresa?: { razon_social?: string; ruc?: string };
   cedulaRuc?: string | null;
 };
@@ -57,11 +67,14 @@ type OpcionesEscenario = {
 /**
  * Escenario en memoria: 3 cuotas pagaderas (10, 11 y 12) y los repositorios
  * mínimos que consulta la confirmación. `setConfig` permite cambiar la
- * configuración fiscal entre intentos (para probar que un error no consume
+ * configuración de pagos entre intentos (para probar que un error no consume
  * número de secuencia).
  */
 function crearEscenario(opciones: OpcionesEscenario = {}) {
-  const caja = { config: opciones.config === undefined ? CONFIG_FISCAL : opciones.config };
+  const caja = {
+    config: opciones.config === undefined ? CONFIG_PAGOS : opciones.config,
+    configContrato: opciones.configContrato === undefined ? null : opciones.configContrato,
+  };
   const pagosCreados: Array<{ id_pago: number; id_cobranza: number; monto_pagado: number }> = [];
   const recibos = new MockReciboRepository();
 
@@ -102,6 +115,7 @@ function crearEscenario(opciones: OpcionesEscenario = {}) {
     { async revisar() { return null; } } as never,
     recibos,
     { async getByProyectoId() { return caja.config; } } as never,
+    { async getByProyectoId() { return caja.configContrato; } } as never,
     { async getById() { return { id_venta: 1, numero_contrato: "C-001" }; } } as never,
     { async getById() { return { id_cliente: 1, id_lote: 7 }; } } as never,
     {
@@ -121,8 +135,11 @@ function crearEscenario(opciones: OpcionesEscenario = {}) {
     recibos,
     pagosCreados,
     estadoCobranza,
-    setConfig(config: typeof CONFIG_FISCAL | null) {
+    setConfig(config: typeof CONFIG_PAGOS | null) {
       caja.config = config;
+    },
+    setConfigContrato(configContrato: typeof CONFIG_CONTRATO | null) {
+      caja.configContrato = configContrato;
     },
   };
 }
@@ -194,13 +211,13 @@ async function main(): Promise<void> {
     verificar("la cuota pagada no creó pagos", e.pagosCreados.length === 2, e.pagosCreados.length);
   }
 
-  console.log("Configuración fiscal faltante");
+  console.log("Configuración de pagos faltante");
   {
     const e = crearEscenario({ config: null, empresa: { razon_social: "TERRENOS DEL VALLE S.A.", ruc: undefined } });
     const error = await errorDe(() => e.confirmar.execute(entrada(10, 100)));
     verificar(
       "avisa qué dato fiscal falta completar",
-      error === "Complete razón social, RUC y direcciones fiscales del proyecto antes de confirmar el pago",
+      error === "Complete la configuración de pagos del proyecto (razón social, RUC y direcciones fiscales) antes de confirmar el pago",
       error,
     );
     verificar("no se creó el pago", e.pagosCreados.length === 0, e.pagosCreados.length);
@@ -211,9 +228,11 @@ async function main(): Promise<void> {
     );
     verificar("no se emitió ningún recibo", (await e.recibos.getByPagoIds([1])).length === 0);
 
-    // Corregido el dato fiscal, la emisión sale y usa el primer número:
-    // el error no había reservado ninguno.
-    e.setConfig(CONFIG_FISCAL);
+    // Corregido lo que faltaba, la emisión sale y usa el primer número:
+    // el error no había reservado ninguno. El RUC ya estaba cargado en la
+    // configuración del contrato (lo que falta era lo de pagos).
+    e.setConfig(CONFIG_PAGOS);
+    e.setConfigContrato(CONFIG_CONTRATO);
     const { recibo } = await e.confirmar.execute(entrada(10, 100));
     verificar(
       "reintentado con la config completa usa el 001-001-000000001",
@@ -222,8 +241,34 @@ async function main(): Promise<void> {
     );
   }
 
+  console.log("RUC del emisor: se toma del contrato, sin cargarlo dos veces");
   {
-    const e = crearEscenario({ config: { ...CONFIG_FISCAL, codigo_establecimiento: "01" } });
+    // El RUC de la empresa difiere del del contrato del proyecto: gana el
+    // del contrato, que es el que el usuario ya cargó en Configuración.
+    const e = crearEscenario({
+      configContrato: CONFIG_CONTRATO,
+      empresa: { razon_social: "TERRENOS DEL VALLE S.A.", ruc: "0999999999999" },
+    });
+    const { recibo } = await e.confirmar.execute(entrada(10, 100));
+    verificar(
+      "el recibo usa el RUC de la configuración del contrato",
+      recibo.emisor_ruc === "0912345678001",
+      recibo.emisor_ruc,
+    );
+
+    const sinContrato = crearEscenario({
+      empresa: { razon_social: "TERRENOS DEL VALLE S.A.", ruc: "0999999999999" },
+    });
+    const { recibo: respaldo } = await sinContrato.confirmar.execute(entrada(10, 100));
+    verificar(
+      "sin fila de contrato el RUC sale de la empresa",
+      respaldo.emisor_ruc === "0999999999999",
+      respaldo.emisor_ruc,
+    );
+  }
+
+  {
+    const e = crearEscenario({ config: { ...CONFIG_PAGOS, codigo_establecimiento: "01" } });
     const error = await errorDe(() => e.confirmar.execute(entrada(10, 100)));
     verificar(
       "códigos de establecimiento/punto con menos de tres dígitos se rechazan",

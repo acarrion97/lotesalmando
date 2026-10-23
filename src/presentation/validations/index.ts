@@ -11,6 +11,10 @@ export {
   configuracionContratoSchema,
   type ConfiguracionContratoFormData,
 } from "./configuracionContratoSchema";
+export {
+  configuracionPagosSchema,
+  type ConfiguracionPagosFormData,
+} from "./configuracionPagosSchema";
 export { loginSchema, type LoginFormData } from "./loginSchema";
 export { registroSchema, type RegistroFormData } from "./registroSchema";
 export { registroEmpresaSchema, type RegistroEmpresaFormData } from "./registroEmpresaSchema";

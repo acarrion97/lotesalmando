@@ -49,6 +49,7 @@ export { usePuede } from "./usePuede";
 export { useConfiguracion } from "./useConfiguracion";
 export { useLogoByEmpresa } from "./useLogoByEmpresa";
 export { useConfiguracionContrato } from "./useConfiguracionContrato";
+export { useConfiguracionPagos } from "./useConfiguracionPagos";
 export { useMapaByProyecto } from "./useMapaByProyecto";
 export { useLookup } from "./useLookup";
 export { useLotesPlano } from "./useLotesPlano";
