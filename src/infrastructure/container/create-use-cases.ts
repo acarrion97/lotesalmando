@@ -107,6 +107,8 @@ import { SubirLogoEmpresaUseCase } from "@/application/configuracion/use-cases/S
 import { QuitarLogoEmpresaUseCase } from "@/application/configuracion/use-cases/QuitarLogoEmpresaUseCase";
 import { GetConfiguracionContratoUseCase } from "@/application/configuracion/use-cases/GetConfiguracionContratoUseCase";
 import { SaveConfiguracionContratoUseCase } from "@/application/configuracion/use-cases/SaveConfiguracionContratoUseCase";
+import { GetConfiguracionPagosUseCase } from "@/application/configuracion/use-cases/GetConfiguracionPagosUseCase";
+import { SaveConfiguracionPagosUseCase } from "@/application/configuracion/use-cases/SaveConfiguracionPagosUseCase";
 import { UpdateEmpresaUseCase } from "@/application/empresa/use-cases/UpdateEmpresaUseCase";
 import { GetMapaByProyectoUseCase } from "@/application/mapas/use-cases/GetMapaByProyectoUseCase";
 import { SubirImagenMapaUseCase } from "@/application/mapas/use-cases/SubirImagenMapaUseCase";
@@ -253,6 +255,9 @@ export interface UseCases {
   /** Datos legales del contrato por proyecto (botón "Configuración" de Contratos). */
   getConfiguracionContrato: GetConfiguracionContratoUseCase;
   saveConfiguracionContrato: SaveConfiguracionContratoUseCase;
+  /** Datos fiscales de los recibos por proyecto (Cobranzas/Pagos). */
+  getConfiguracionPagos: GetConfiguracionPagosUseCase;
+  saveConfiguracionPagos: SaveConfiguracionPagosUseCase;
   /** Editar datos de la empresa desde Configuración (hoy: el RUC). */
   updateEmpresa: UpdateEmpresaUseCase;
   getMapaByProyecto: GetMapaByProyectoUseCase;
@@ -433,6 +438,8 @@ export function createUseCases(repos: Repositories): UseCases {
     saveConfiguracionContrato: new SaveConfiguracionContratoUseCase(
       repos.configuracionContratoRepo,
     ),
+    getConfiguracionPagos: new GetConfiguracionPagosUseCase(repos.configuracionPagosRepo),
+    saveConfiguracionPagos: new SaveConfiguracionPagosUseCase(repos.configuracionPagosRepo),
     updateEmpresa: new UpdateEmpresaUseCase(repos.empresaRepo),
     getMapaByProyecto: new GetMapaByProyectoUseCase(repos.mapaRepo),
     subirImagenMapa: new SubirImagenMapaUseCase(repos.mapaRepo, repos.mapaImageStorage),

@@ -20,7 +20,7 @@ import type { ActividadRepository } from "@/domain/actividad/repositories";
 import type { AsesorRepository } from "@/domain/asesor/repositories";
 import type { RolRepository } from "@/domain/rol/repositories";
 import type { ConfiguracionRepository } from "@/domain/configuracion/repositories";
-import type { ConfiguracionContratoRepository } from "@/domain/configuracion/repositories";
+import type { ConfiguracionContratoRepository, ConfiguracionPagosRepository } from "@/domain/configuracion/repositories";
 import type { MapaRepository } from "@/domain/mapa/repositories";
 import type { ProyectoMedioRepository } from "@/domain/proyecto/repositories";
 import type { MapaImageStorage } from "@/application/mapas/ports/MapaImageStorage";
@@ -64,6 +64,7 @@ import { MockManzanaRepository } from "@/infrastructure/repositories/mock/MockMa
 import { MockRolRepository } from "@/infrastructure/repositories/mock/MockRolRepository";
 import { MockConfiguracionRepository } from "@/infrastructure/repositories/mock/MockConfiguracionRepository";
 import { MockConfiguracionContratoRepository } from "@/infrastructure/repositories/mock/MockConfiguracionContratoRepository";
+import { MockConfiguracionPagosRepository } from "@/infrastructure/repositories/mock/MockConfiguracionPagosRepository";
 import { MockMapaRepository } from "@/infrastructure/repositories/mock/MockMapaRepository";
 import { MockProyectoMedioRepository } from "@/infrastructure/repositories/mock/MockProyectoMedioRepository";
 import { MockMapaImageStorage } from "@/infrastructure/storage/MockMapaImageStorage";
@@ -111,6 +112,7 @@ import { SupabaseRolRepository } from "@/infrastructure/repositories/supabase/Su
 import { SupabaseConfiguracionRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionRepository";
 import { SupabaseEmpresaLogoStorage } from "@/infrastructure/storage/SupabaseEmpresaLogoStorage";
 import { SupabaseConfiguracionContratoRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionContratoRepository";
+import { SupabaseConfiguracionPagosRepository } from "@/infrastructure/repositories/supabase/SupabaseConfiguracionPagosRepository";
 import { SupabaseMapaRepository } from "@/infrastructure/repositories/supabase/SupabaseMapaRepository";
 import { SupabaseProyectoMedioRepository } from "@/infrastructure/repositories/supabase/SupabaseProyectoMedioRepository";
 import { SupabaseMapaImageStorage } from "@/infrastructure/storage/SupabaseMapaImageStorage";
@@ -158,6 +160,8 @@ export interface Repositories {
   empresaLogoStorage: EmpresaLogoStorage;
   /** Datos legales del contrato por proyecto (respaldo: configuración de empresa). */
   configuracionContratoRepo: ConfiguracionContratoRepository;
+  /** Datos fiscales de los recibos de pago por proyecto (Cobranzas/Pagos). */
+  configuracionPagosRepo: ConfiguracionPagosRepository;
   mapaRepo: MapaRepository;
   /** Puerto de infraestructura: subida de la imagen del plano a Storage. */
   mapaImageStorage: MapaImageStorage;
@@ -198,6 +202,7 @@ function createMockRepositories(): Repositories {
   const manzanaRepo = new MockManzanaRepository();
   const etapaRepo = new MockEtapaRepository();
   const configuracionContratoRepo = new MockConfiguracionContratoRepository();
+  const configuracionPagosRepo = new MockConfiguracionPagosRepository();
   const comprobanteRepo = new MockComprobanteRepository();
   const inventarioRepo = new MockInventarioRepository();
   const aceptarCotizacion = new MockAceptarCotizacion(
@@ -213,6 +218,7 @@ function createMockRepositories(): Repositories {
     pagoRepo,
     comprobanteRepo,
     reciboRepo,
+    configuracionPagosRepo,
     configuracionContratoRepo,
     contractRepo,
     saleRepo,
@@ -229,6 +235,7 @@ function createMockRepositories(): Repositories {
     pagoRepo,
     cobranzaRepo,
     reciboRepo,
+    configuracionPagosRepo,
     configuracionContratoRepo,
     contractRepo,
     saleRepo,
@@ -359,6 +366,7 @@ function createMockRepositories(): Repositories {
     configuracionRepo: new MockConfiguracionRepository(),
     empresaLogoStorage: new MockEmpresaLogoStorage(),
     configuracionContratoRepo,
+    configuracionPagosRepo,
     mapaRepo: new MockMapaRepository(),
     mapaImageStorage: new MockMapaImageStorage(),
     planImageStorage: new MockPlanImagenStorage(),
@@ -416,6 +424,7 @@ function createSupabaseRepositories(): Repositories {
     configuracionRepo: new SupabaseConfiguracionRepository(),
     empresaLogoStorage: new SupabaseEmpresaLogoStorage(),
     configuracionContratoRepo: new SupabaseConfiguracionContratoRepository(),
+    configuracionPagosRepo: new SupabaseConfiguracionPagosRepository(),
     mapaRepo: new SupabaseMapaRepository(),
     mapaImageStorage: new SupabaseMapaImageStorage(),
     planImageStorage: new SupabasePlanImagenStorage(),

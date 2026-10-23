@@ -14,7 +14,7 @@ import type { ManzanaRepository } from "@/domain/manzana/repositories";
 import type { PagoRepository } from "@/domain/pago/repositories";
 import type { ProyectoRepository } from "@/domain/proyecto/repositories";
 import type { SaleRepository } from "@/domain/venta/repositories";
-import type { ConfiguracionContratoRepository } from "@/domain/configuracion/repositories";
+import type { ConfiguracionContratoRepository, ConfiguracionPagosRepository } from "@/domain/configuracion/repositories";
 import type { Recibo } from "@/domain/recibo/entities";
 import { MockReciboRepository } from "@/infrastructure/repositories/mock/MockReciboRepository";
 
@@ -23,7 +23,9 @@ export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
   private readonly pagos: PagoRepository;
   private readonly comprobantes: ComprobanteRepository;
   private readonly recibos: MockReciboRepository;
-  private readonly configuracion: ConfiguracionContratoRepository;
+  private readonly configuracionPagos: ConfiguracionPagosRepository;
+  /** Sólo para el RUC del emisor: es el mismo que firma el contrato. */
+  private readonly configuracionContrato: ConfiguracionContratoRepository;
   private readonly contratos: ContractRepository;
   private readonly ventas: SaleRepository;
   private readonly clientes: ClienteRepository;
@@ -38,7 +40,8 @@ export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
     pagos: PagoRepository,
     comprobantes: ComprobanteRepository,
     recibos: MockReciboRepository,
-    configuracion: ConfiguracionContratoRepository,
+    configuracionPagos: ConfiguracionPagosRepository,
+    configuracionContrato: ConfiguracionContratoRepository,
     contratos: ContractRepository,
     ventas: SaleRepository,
     clientes: ClienteRepository,
@@ -52,7 +55,8 @@ export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
     this.pagos = pagos;
     this.comprobantes = comprobantes;
     this.recibos = recibos;
-    this.configuracion = configuracion;
+    this.configuracionPagos = configuracionPagos;
+    this.configuracionContrato = configuracionContrato;
     this.contratos = contratos;
     this.ventas = ventas;
     this.clientes = clientes;
@@ -85,14 +89,17 @@ export class MockConfirmarPagoConRecibo implements ConfirmarPagoConRecibo {
     if (!proyecto) throw new Error("No se encontró el proyecto del lote");
     const empresa = await this.empresas.getById(proyecto.id_empresa);
     if (!empresa) throw new Error("No se encontró la empresa emisora");
-    const config = await this.configuracion.getByProyectoId(proyecto.id_proyecto);
+    const config = await this.configuracionPagos.getByProyectoId(proyecto.id_proyecto);
+    // El RUC no se configura en pagos: es el del contrato del proyecto
+    // (o el de la empresa), igual que en la función SQL.
+    const configContrato = await this.configuracionContrato.getByProyectoId(proyecto.id_proyecto);
 
     const razonSocial = config?.razon_social?.trim() || empresa.razon_social;
-    const ruc = config?.ruc?.trim() || empresa.ruc?.trim();
+    const ruc = configContrato?.ruc?.trim() || empresa.ruc?.trim();
     const direccionMatriz = config?.direccion_matriz?.trim();
     const direccionEstablecimiento = config?.direccion_establecimiento?.trim();
     if (!razonSocial || !ruc || !direccionMatriz || !direccionEstablecimiento) {
-      throw new Error("Complete razón social, RUC y direcciones fiscales del proyecto antes de confirmar el pago");
+      throw new Error("Complete la configuración de pagos del proyecto (razón social, RUC y direcciones fiscales) antes de confirmar el pago");
     }
 
     const identificacion = (cliente.cedula_ruc ?? "").replace(/\D/g, "");

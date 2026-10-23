@@ -20,6 +20,10 @@ interface ConfiguracionContratoModalProps {
  *
  * Los campos vacíos no rompen nada: el contrato toma el dato de la
  * configuración de la empresa (y el RUC de `empresa.ruc`).
+ *
+ * Los datos fiscales de los recibos (razón social emisora, direcciones y
+ * códigos SRI) se configuran en Cobranzas/Pagos → «Configuración de
+ * recibos».
  */
 export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContratoModalProps) {
   const [form] = Form.useForm();
@@ -45,7 +49,6 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
   useEffect(() => {
     if (!open) return;
     form.setFieldsValue({
-      razon_social: config?.razon_social ?? empresaActual?.razon_social ?? undefined,
       ruc: config?.ruc ?? undefined,
       representante: config?.representante ?? undefined,
       representante_cedula: config?.representante_cedula ?? undefined,
@@ -53,12 +56,8 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
       ciudad: config?.ciudad ?? undefined,
       cuentas_bancarias: config?.cuentas_bancarias ?? undefined,
       direccion_canje: config?.direccion_canje ?? undefined,
-      direccion_matriz: config?.direccion_matriz ?? undefined,
-      direccion_establecimiento: config?.direccion_establecimiento ?? undefined,
-      codigo_establecimiento: config?.codigo_establecimiento ?? "001",
-      punto_emision: config?.punto_emision ?? "001",
     });
-  }, [form, open, config, empresaActual?.razon_social]);
+  }, [form, open, config]);
 
   const proyectosSeleccion = (proyectos ?? []).map((p) => ({
     value: p.id_proyecto,
@@ -81,7 +80,6 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
       await container.saveConfiguracionContrato.execute({
         id_empresa: empresaActual.id_empresa,
         id_proyecto: idProyectoActivo,
-        razon_social: parsed.razon_social?.trim() || empresaActual.razon_social,
         ruc: parsed.ruc?.trim() || null,
         representante: parsed.representante?.trim() || null,
         representante_cedula: parsed.representante_cedula?.trim() || null,
@@ -89,10 +87,6 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
         ciudad: parsed.ciudad?.trim() || null,
         cuentas_bancarias: parsed.cuentas_bancarias?.trim() || null,
         direccion_canje: parsed.direccion_canje?.trim() || null,
-        direccion_matriz: parsed.direccion_matriz?.trim() || null,
-        direccion_establecimiento: parsed.direccion_establecimiento?.trim() || null,
-        codigo_establecimiento: parsed.codigo_establecimiento || "001",
-        punto_emision: parsed.punto_emision || "001",
       });
       await queryClient.invalidateQueries({
         queryKey: inventoryKeys.configuracionContrato(empresaActual.id_empresa, idProyectoActivo),
@@ -162,21 +156,12 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
             <Alert
               type="info"
               showIcon
-              message="Datos fiscales requeridos para generar recibos de pago"
-              description="Completa la razón social/RUC y las direcciones fiscales de matriz y establecimiento. Los códigos de establecimiento y punto de emisión inician en 001. La razón social y el RUC pueden heredarse de la empresa."
+              message="Datos del contrato, no de los recibos"
+              description="Acá se cargan los datos legales que van en el contrato (representante, ciudad, cuentas y dirección de canje). Los datos fiscales de los recibos (razón social emisora, direcciones y códigos SRI) se configuran en Cobranzas → «Configuración de recibos»."
               style={{ marginBottom: 16 }}
             />
 
             <Row gutter={[16, 16]}>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="razon_social"
-                  label="Razón social del emisor"
-                  rules={[{ required: true, message: "Ingresa la razón social" }]}
-                >
-                  <Input placeholder="Razón social del emisor" allowClear />
-                </Form.Item>
-              </Col>
               <Col xs={24} sm={12}>
                 <Form.Item
                   name="ruc"
@@ -184,34 +169,6 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
                   extra="Se imprime en la cláusula PRIMERA, junto al nombre."
                 >
                   <Input placeholder="RUC de la razón social de este proyecto" allowClear />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Form.Item name="direccion_matriz" label="Dirección de matriz">
-                  <Input placeholder="Dirección fiscal de la matriz" allowClear />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Form.Item name="direccion_establecimiento" label="Dirección del establecimiento">
-                  <Input placeholder="Dirección fiscal del establecimiento" allowClear />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="codigo_establecimiento"
-                  label="Código de establecimiento"
-                  rules={[{ required: true, message: "Ingresa el código de establecimiento" }]}
-                >
-                  <Input maxLength={3} placeholder="001" />
-                </Form.Item>
-              </Col>
-              <Col xs={24} sm={12}>
-                <Form.Item
-                  name="punto_emision"
-                  label="Punto de emisión"
-                  rules={[{ required: true, message: "Ingresa el punto de emisión" }]}
-                >
-                  <Input maxLength={3} placeholder="001" />
                 </Form.Item>
               </Col>
               <Col xs={24} sm={12}>
@@ -249,7 +206,7 @@ export function ConfiguracionContratoModal({ open, onClose }: ConfiguracionContr
               <Col xs={24} sm={24}>
                 <Form.Item
                   name="cuentas_bancarias"
-                  label="Cuentas para el pago"
+                  label="Cuentas del contrato"
                   extra="Se escribe en la cláusula de precio y forma de pago (una cuenta por línea)."
                 >
                   <Input.TextArea

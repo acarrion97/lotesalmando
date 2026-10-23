@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
-import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined } from "@ant-design/icons";
+import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { ConfiguracionPagosModal } from "@/presentation/components/pagos";
 import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
 import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
 import type { Comprobante } from "@/domain/comprobante/entities";
@@ -60,6 +61,8 @@ export function CobranzasPage() {
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
+  // Datos fiscales de los recibos por proyecto (Configuración de pagos).
+  const [configPagosAbierta, setConfigPagosAbierta] = useState(false);
   const [comprobanteSel, setComprobanteSel] = useState<{
     comprobante: Comprobante;
     contexto: string;
@@ -267,7 +270,14 @@ export function CobranzasPage() {
         subtitle="Control de cuotas y morosidad"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar cobranza..." }}
         extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
-        actions={<Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>}
+        actions={
+          <>
+            <Button icon={<SettingOutlined />} onClick={() => setConfigPagosAbierta(true)}>
+              Configuración de recibos
+            </Button>
+            <Button icon={<ReloadOutlined />} onClick={handleDetectarVencidas}>Detectar Vencidas</Button>
+          </>
+        }
       />
 
       <ResumenRangoFechas filtro={filtroFechas} cantidad={filteredData.length} singular="cuota" plural="cuotas" />
@@ -340,6 +350,11 @@ export function CobranzasPage() {
         open={comprobanteSel !== null}
         onClose={() => setComprobanteSel(null)}
         contexto={comprobanteSel?.contexto}
+      />
+
+      <ConfiguracionPagosModal
+        open={configPagosAbierta}
+        onClose={() => setConfigPagosAbierta(false)}
       />
     </div>
   );

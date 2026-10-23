@@ -177,7 +177,6 @@ export interface Database {
           id_configuracion_contrato: number;
           id_empresa: number;
           id_proyecto: number;
-          razon_social: string | null;
           ruc: string | null;
           representante: string | null;
           representante_cedula: string | null;
@@ -185,40 +184,58 @@ export interface Database {
           ciudad: string | null;
           cuentas_bancarias: string | null;
           direccion_canje: string | null;
+        };
+        Insert: {
+          id_configuracion_contrato?: number;
+          id_empresa: number;
+          id_proyecto: number;
+          ruc?: string | null;
+          representante?: string | null;
+          representante_cedula?: string | null;
+          representante_email?: string | null;
+          ciudad?: string | null;
+          cuentas_bancarias?: string | null;
+          direccion_canje?: string | null;
+        };
+        Update: {
+          id_configuracion_contrato?: number;
+          id_empresa?: number;
+          id_proyecto?: number;
+          ruc?: string | null;
+          representante?: string | null;
+          representante_cedula?: string | null;
+          representante_email?: string | null;
+          ciudad?: string | null;
+          cuentas_bancarias?: string | null;
+          direccion_canje?: string | null;
+        };
+      };
+      configuracion_pagos: {
+        Row: {
+          id_configuracion_pagos: number;
+          id_empresa: number;
+          id_proyecto: number;
+          razon_social: string | null;
           direccion_matriz: string | null;
           direccion_establecimiento: string | null;
           codigo_establecimiento: string;
           punto_emision: string;
         };
         Insert: {
-          id_configuracion_contrato?: number;
+          id_configuracion_pagos?: number;
           id_empresa: number;
           id_proyecto: number;
           razon_social?: string | null;
-          ruc?: string | null;
-          representante?: string | null;
-          representante_cedula?: string | null;
-          representante_email?: string | null;
-          ciudad?: string | null;
-          cuentas_bancarias?: string | null;
-          direccion_canje?: string | null;
           direccion_matriz?: string | null;
           direccion_establecimiento?: string | null;
           codigo_establecimiento?: string;
           punto_emision?: string;
         };
         Update: {
-          id_configuracion_contrato?: number;
+          id_configuracion_pagos?: number;
           id_empresa?: number;
           id_proyecto?: number;
           razon_social?: string | null;
-          ruc?: string | null;
-          representante?: string | null;
-          representante_cedula?: string | null;
-          representante_email?: string | null;
-          ciudad?: string | null;
-          cuentas_bancarias?: string | null;
-          direccion_canje?: string | null;
           direccion_matriz?: string | null;
           direccion_establecimiento?: string | null;
           codigo_establecimiento?: string;

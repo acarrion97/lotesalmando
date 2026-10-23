@@ -4,7 +4,6 @@ import type { ConfiguracionContrato } from "../entities";
 export interface SaveConfiguracionContratoInput {
   id_empresa: number;
   id_proyecto: number;
-  razon_social?: string | null;
   ruc?: string | null;
   representante?: string | null;
   representante_cedula?: string | null;
@@ -12,10 +11,6 @@ export interface SaveConfiguracionContratoInput {
   ciudad?: string | null;
   cuentas_bancarias?: string | null;
   direccion_canje?: string | null;
-  direccion_matriz?: string | null;
-  direccion_establecimiento?: string | null;
-  codigo_establecimiento?: string | null;
-  punto_emision?: string | null;
 }
 
 export interface ConfiguracionContratoRepository {
