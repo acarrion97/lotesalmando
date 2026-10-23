@@ -49,7 +49,8 @@ const PLANES_INICIALES: Plan[] = [
     max_usuarios: null,
   },
   {
-    // Solo se vende por /registro/agente (no se lista en /registro/planes).
+    // Se vende por su pagina propia /registro/agente (no se lista en
+    // /registro/planes).
     // Link de checkout de prueba: en produccion lo configura el superadmin
     // desde /planes.
     id_plan: 4,

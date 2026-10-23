@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router-dom";
 import { Alert, Button, Form, Input, Spin, Tag, Typography, message } from "antd";
 import {
   BankOutlined,
@@ -24,10 +24,13 @@ const { Text, Title } = Typography;
 /**
  * Tipo de alta que se esta haciendo. Sale del path de la ruta:
  *   /registro/empresa -> empresa (alta + eleccion de plan en /registro/planes)
- *   /registro/agente  -> agente  (alta + pago directo del plan de agentes)
+ *   /registro/agente  -> agente  (alta + pago directo de los planes unicos)
+ *   /registro/<clave> -> plan    (alta + pago directo del plan unico con esa
+ *                        clave; cualquier plan con es_unico = true tiene su
+ *                        propia pagina aqui)
  * Ambos aceptan el codigo de partnership como query param: ?codigo=XXXX
  */
-export type TipoRegistro = "empresa" | "agente";
+export type TipoRegistro = "empresa" | "agente" | "plan";
 
 interface Props {
   tipo?: TipoRegistro;
@@ -35,6 +38,10 @@ interface Props {
 
 export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
   const esAgente = tipo === "agente";
+  // Alta con pago directo del plan (unico): la de agente lista todos los
+  // planes unicos; la de /registro/<clave> solo el de la URL.
+  const esRegistroDirecto = tipo === "agente" || tipo === "plan";
+  const { clave } = useParams<{ clave: string }>();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [searchParams] = useSearchParams();
@@ -44,20 +51,28 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  // Link compartible por un partner: /registro/empresa?codigo=XXX o
-  // /registro/agente?codigo=XXX. El codigo viene de la URL y precarga el
-  // campo (se puede borrar o corregir antes de enviar).
+  // Link compartible por un partner: /registro/empresa?codigo=XXX,
+  // /registro/agente?codigo=XXX o /registro/<clave>?codigo=XXX. El codigo
+  // viene de la URL y precarga el campo (se puede borrar o corregir antes
+  // de enviar).
   const codigoDeUrl = (searchParams.get("codigo") ?? "").trim().toUpperCase();
 
-  // Catalogo de planes: en el registro de agente se muestran los planes
+  // Catalogo de planes: en el registro directo se muestran los planes
   // "unicos" (plan.es_unico = true) como tarjetas con nombre, precio,
   // descripcion y limites, igual que lo que se ve en /planes.
+  //   /registro/agente -> todos los planes unicos
+  //   /registro/<clave> -> solo el plan unico con esa clave (si dejo de
+  //                        ser unico o activo, no se ofrece y el alta
+  //                        sigue como registro de empresa normal).
   const { data: planes, isLoading: cargandoPlanes } = usePlanes();
   const [planElegido, setPlanElegido] = useState<string | null>(null);
-  const planesDelRegistro = esAgente ? planesUnicos(planes) : [];
+  const planesDelRegistro = esRegistroDirecto
+    ? planesUnicos(planes).filter((p) => tipo !== "plan" || p.clave === clave)
+    : [];
   const planActual =
     planesDelRegistro.find((p) => p.clave === planElegido) ?? planesDelRegistro[0] ?? null;
-  const planesSinConfigurar = esAgente && !cargandoPlanes && planesDelRegistro.length === 0;
+  const planesSinConfigurar =
+    esRegistroDirecto && !cargandoPlanes && planesDelRegistro.length === 0;
 
   useEffect(() => {
     if (!codigoDeUrl) return;
@@ -103,9 +118,9 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
       return;
     }
 
-    // Alta de agente: el plan elegido queda guardado en la empresa y se abre
-    // directo el enlace de pago de Hotmart (no hay paso de eleccion).
-    if (esAgente && planActual && planActual.url_checkout && result.idEmpresa) {
+    // Alta con pago directo: el plan elegido queda guardado en la empresa y
+    // se abre directo el enlace de pago de Hotmart (no hay paso de eleccion).
+    if (esRegistroDirecto && planActual && planActual.url_checkout && result.idEmpresa) {
       // La eleccion del plan es solo para que el webhook y el panel la
       // sepan: si falla, el pago se puede hacer igual.
       seleccionarPlan.mutate(
@@ -113,7 +128,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
         { onError: () => undefined },
       );
       window.open(planActual.url_checkout, "_blank", "noopener,noreferrer");
-      // El agente NO pasa por /registro/planes: el pago va directo, asi que
+      // El registro NO pasa por /registro/planes: el pago va directo, asi que
       // esta pestana queda en /login esperando que el webhook confirme.
       navigate("/login", {
         state: {
@@ -123,7 +138,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
       return;
     }
 
-    if (esAgente && planActual && !planActual.url_checkout) {
+    if (esRegistroDirecto && planActual && !planActual.url_checkout) {
       messageApi.warning(
         `El ${planActual.nombre} aun no tiene link de pago configurado. Elige tu plan en el siguiente paso.`,
       );
@@ -132,7 +147,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
     }
 
     messageApi.success(
-      esAgente ? "Cuenta creada correctamente" : "Empresa y cuenta creadas correctamente",
+      esRegistroDirecto ? "Cuenta creada correctamente" : "Empresa y cuenta creadas correctamente",
     );
     irALaSiguientePaso();
   };
@@ -152,7 +167,7 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
       <div
         style={{
           width: "100%",
-          maxWidth: esAgente ? 900 : 420,
+          maxWidth: esRegistroDirecto ? 900 : 420,
           display: "flex",
           flexWrap: "wrap",
           gap: 24,
@@ -160,8 +175,9 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
           alignItems: "flex-start",
         }}
       >
-        {/* Tarjetas de los planes unicos (es_unico): solo en /registro/agente */}
-        {esAgente && cargandoPlanes && (
+        {/* Tarjetas de los planes unicos (es_unico): /registro/agente lista
+            todos, /registro/<clave> solo el de la URL. */}
+        {esRegistroDirecto && cargandoPlanes && (
           <div
             style={{
               width: 340,
@@ -289,7 +305,9 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
             <Text type="secondary" style={{ fontSize: 14, display: "block", marginTop: 8 }}>
               {esAgente
                 ? "Crea tu cuenta de agente y publica tus lotes al instante"
-                : "Crea tu empresa para empezar a usar Lotes al Mando"}
+                : planActual
+                  ? `Crea tu cuenta para contratar el ${planActual.nombre}`
+                  : "Crea tu empresa para empezar a usar Lotes al Mando"}
             </Text>
           </div>
 
@@ -308,8 +326,12 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
             <Alert
               type="warning"
               showIcon
-              title="Sin planes de registro directo"
-              description="Todavia no hay ningun plan marcado como unico. Puedes continuar con tu registro y elegir tu plan en el siguiente paso."
+              title={tipo === "plan" ? "Plan no disponible" : "Sin planes de registro directo"}
+              description={
+                tipo === "plan"
+                  ? "Este plan ya no está disponible para registro directo. Puedes continuar con tu registro y elegir tu plan en el siguiente paso."
+                  : "Todavia no hay ningun plan marcado como unico. Puedes continuar con tu registro y elegir tu plan en el siguiente paso."
+              }
               closable
               style={{ marginBottom: 24 }}
             />
@@ -389,9 +411,9 @@ export function RegisterEmpresaPage({ tipo = "empresa" }: Props) {
                   borderColor: "#10B981",
                 }}
               >
-                {esAgente && planActual?.url_checkout
+                {esRegistroDirecto && planActual?.url_checkout
                   ? "Crear cuenta y pagar"
-                  : esAgente
+                  : esRegistroDirecto
                     ? "Crear Cuenta"
                     : "Crear Empresa y Cuenta"}
               </Button>

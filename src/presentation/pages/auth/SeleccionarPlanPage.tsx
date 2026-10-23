@@ -114,8 +114,8 @@ export function SeleccionarPlanPage() {
   }
 
   // Fuente de verdad: tabla `plan` (activos). Fallback: constantes.
-  // Los planes "unicos" (es_unico) no se listan aca: se venden solos por
-  // /registro/agente con pago directo.
+  // Los planes "unicos" (es_unico) no se listan aca: se venden por su
+  // pagina propia /registro/<clave> con pago directo.
   const planesDisponibles = (planesBD ?? []).filter((p) => p.activo && !p.es_unico);
   const planesAMostrar = planesDisponibles.length > 0 ? planesDisponibles : PLANES_FALLBACK;
 

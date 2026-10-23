@@ -50,9 +50,13 @@ export function AppRouter() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         {/* Registro dinámico: /registro/empresa y /registro/agente aceptan
-            ademas el codigo de partnership como query param (?codigo=XXX). */}
+            ademas el codigo de partnership como query param (?codigo=XXX).
+            /registro/:clave es la pagina propia de cualquier plan "unico"
+            (es_unico = true); las rutas estaticas de arriba tienen prioridad
+            sobre el param. */}
         <Route path="/registro/empresa" element={<RegisterEmpresaPage tipo="empresa" />} />
         <Route path="/registro/agente" element={<RegisterEmpresaPage tipo="agente" />} />
+        <Route path="/registro/:clave" element={<RegisterEmpresaPage tipo="plan" />} />
         <Route path="/olvide-contrasena" element={<OlvideContrasenaPage />} />
         <Route path="/reestablecer-contrasena" element={<ReestablecerContrasenaPage />} />
         <Route path="/registro/planes" element={<SeleccionarPlanPage />} />

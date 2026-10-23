@@ -19,9 +19,9 @@ export interface Plan {
   /** Los inactivos no se muestran en la pagina publica de eleccion. */
   activo: boolean;
   /**
-   * Plan "unico": se vende solo por su propia pagina de registro
-   * (/registro/agente) con pago directo, y NO se lista en /registro/planes.
-   * Cualquier plan con true sigue la logica que tenia el plan de agentes.
+   * Plan "unico": se vende por su propia pagina de registro
+   * (/registro/<clave>, p. ej. /registro/agente) con pago directo, y NO se
+   * lista en /registro/planes. Cualquier plan con true sigue esta logica.
    */
   es_unico: boolean;
   /** Limites por plan. NULL = sin limite. */

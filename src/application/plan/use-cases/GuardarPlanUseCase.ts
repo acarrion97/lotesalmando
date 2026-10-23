@@ -13,7 +13,7 @@ export interface GuardarPlanInput {
   precio: number | null;
   orden: number;
   activo: boolean;
-  /** Plan "unico": solo por /registro/agente (pago directo), fuera de /registro/planes. */
+  /** Plan "unico": solo por su pagina /registro/<clave> (pago directo), fuera de /registro/planes. */
   es_unico: boolean;
   /** Limites por plan. NULL = sin limite. */
   max_proyectos: number | null;
