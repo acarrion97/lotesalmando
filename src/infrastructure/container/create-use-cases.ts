@@ -45,6 +45,7 @@ import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { EmitirReciboUseCase } from "@/application/recibos/use-cases/EmitirReciboUseCase";
+import { EmitirReciboPagoPrevioUseCase } from "@/application/recibos/use-cases/EmitirReciboPagoPrevioUseCase";
 import { GetRecibosUseCase } from "@/application/recibos/use-cases/GetRecibosUseCase";
 import { DescargarReciboUseCase } from "@/application/recibos/use-cases/DescargarReciboUseCase";
 import { GetCarteraMetricasUseCase } from "@/application/cobranzas/use-cases/GetCarteraMetricasUseCase";
@@ -128,6 +129,12 @@ import { QuitarDocumentoContratoUseCase } from "@/application/contratos/use-case
 import { AbrirDocumentoContratoUseCase } from "@/application/contratos/use-cases/AbrirDocumentoContratoUseCase";
 import { DescargarDocumentoContratoUseCase } from "@/application/contratos/use-cases/DescargarDocumentoContratoUseCase";
 import { ConsultarPortalClienteUseCase } from "@/application/portal/use-cases/ConsultarPortalClienteUseCase";
+import { ConsultarPortalProspectoUseCase } from "@/application/portalProspecto/use-cases/ConsultarPortalProspectoUseCase";
+import { IniciarProspectoPortalUseCase } from "@/application/portalProspecto/use-cases/IniciarProspectoPortalUseCase";
+import { RegistrarDocumentoPortalUseCase } from "@/application/portalProspecto/use-cases/RegistrarDocumentoPortalUseCase";
+import { GetDocumentosProspectoUseCase } from "@/application/portalProspecto/use-cases/GetDocumentosProspectoUseCase";
+import { RevisarDocumentoProspectoUseCase } from "@/application/portalProspecto/use-cases/RevisarDocumentoProspectoUseCase";
+import { AbrirDocumentoProspectoUseCase } from "@/application/portalProspecto/use-cases/AbrirDocumentoProspectoUseCase";
 import { generadorDocumentoContrato } from "@/infrastructure/documents/generadorDocumentoContrato";
 import { generadorReciboDocumento } from "@/infrastructure/documents/generadorReciboDocumento";
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
@@ -181,6 +188,8 @@ export interface UseCases {
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
   emitirRecibo: EmitirReciboUseCase;
+  /** Emite el recibo de un pago anterior al cambio (botón «Generar recibo»). */
+  emitirReciboPagoPrevio: EmitirReciboPagoPrevioUseCase;
   getRecibos: GetRecibosUseCase;
   descargarRecibo: DescargarReciboUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
@@ -261,6 +270,12 @@ export interface UseCases {
   abrirComprobante: AbrirComprobanteUseCase;
   registrarComprobantePortal: RegistrarComprobantePortalUseCase;
   consultarPortalCliente: ConsultarPortalClienteUseCase;
+  consultarPortalProspecto: ConsultarPortalProspectoUseCase;
+  iniciarProspectoPortal: IniciarProspectoPortalUseCase;
+  registrarDocumentoPortal: RegistrarDocumentoPortalUseCase;
+  getDocumentosProspecto: GetDocumentosProspectoUseCase;
+  revisarDocumentoProspecto: RevisarDocumentoProspectoUseCase;
+  abrirDocumentoProspecto: AbrirDocumentoProspectoUseCase;
   generarDocumentoContrato: GenerarDocumentoContratoUseCase;
   anexarDocumentoContrato: AnexarDocumentoContratoUseCase;
   quitarDocumentoContrato: QuitarDocumentoContratoUseCase;
@@ -336,6 +351,10 @@ export function createUseCases(repos: Repositories): UseCases {
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.confirmarPagoConRecibo),
     emitirRecibo: new EmitirReciboUseCase(repos.reciboRepo),
+    emitirReciboPagoPrevio: new EmitirReciboPagoPrevioUseCase(
+      repos.reciboRepo,
+      repos.emitirReciboPagoPrevio,
+    ),
     getRecibos: new GetRecibosUseCase(repos.reciboRepo),
     descargarRecibo: new DescargarReciboUseCase(repos.reciboRepo, generadorReciboDocumento),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
@@ -437,6 +456,18 @@ export function createUseCases(repos: Repositories): UseCases {
       repos.portalClienteRepo,
     ),
     consultarPortalCliente: new ConsultarPortalClienteUseCase(repos.portalClienteRepo),
+    consultarPortalProspecto: new ConsultarPortalProspectoUseCase(repos.portalProspectoRepo),
+    iniciarProspectoPortal: new IniciarProspectoPortalUseCase(repos.portalProspectoRepo),
+    registrarDocumentoPortal: new RegistrarDocumentoPortalUseCase(
+      repos.portalProspectoStorage,
+      repos.portalProspectoRepo,
+    ),
+    getDocumentosProspecto: new GetDocumentosProspectoUseCase(repos.documentoProspectoRepo),
+    revisarDocumentoProspecto: new RevisarDocumentoProspectoUseCase(repos.documentoProspectoRepo),
+    abrirDocumentoProspecto: new AbrirDocumentoProspectoUseCase(
+      repos.documentoProspectoRepo,
+      repos.portalProspectoStorage,
+    ),
     generarDocumentoContrato: new GenerarDocumentoContratoUseCase({
       contratos: repos.contractRepo,
       ventas: repos.saleRepo,

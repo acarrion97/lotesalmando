@@ -1,5 +1,17 @@
 export type ReciboIdentificacionTipo = "04" | "05" | "07";
-export type FormaPago = "efectivo" | "transferencia" | "deposito" | "tarjeta" | "cheque" | "otro";
+/**
+ * Formas de pago que acepta el SRI. `no_especificada` existe solo para los
+ * pagos registrados antes de pedir la forma de pago (la tabla `pagos` usa
+ * ese valor por defecto); la confirmación normal nunca la envía.
+ */
+export type FormaPago =
+  | "efectivo"
+  | "transferencia"
+  | "deposito"
+  | "tarjeta"
+  | "cheque"
+  | "otro"
+  | "no_especificada";
 
 export interface Recibo {
   id_recibo: number;

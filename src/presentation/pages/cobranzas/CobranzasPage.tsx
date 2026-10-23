@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
 import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -52,6 +52,8 @@ export function CobranzasPage() {
     );
   }, [pagos, recibos]);
   const descargarRecibo = useDescargarRecibo();
+  // Cuotas pagadas antes del cambio de recibos: permiten emitirlo acá.
+  const emitirRecibo = useEmitirReciboPagoPrevio();
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
   const { infoDeContrato } = useInfoContratos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
@@ -204,19 +206,40 @@ export function CobranzasPage() {
       width: 110,
       render: (_: unknown, record: CobranzaRow) => {
         const idPago = idPagoPorCobranza.get(record.id_cobranza);
-        const disponible = idPago !== undefined && cuotaConRecibo.has(record.id_cobranza);
-        if (!disponible) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        if (idPago === undefined) return <span style={{ color: "#bfbfbf" }}>—</span>;
+        if (cuotaConRecibo.has(record.id_cobranza)) {
+          return (
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto" }}
+              icon={<FileTextOutlined />}
+              loading={descargarRecibo.isPending && descargarRecibo.variables === idPago}
+              onClick={() => descargarRecibo.mutate(idPago)}
+            >
+              Descargar
+            </Button>
+          );
+        }
+        // Cuota pagada antes del cambio: se emite su recibo la primera vez.
         return (
-          <Button
-            type="link"
-            size="small"
-            style={{ padding: 0, height: "auto" }}
-            icon={<FileTextOutlined />}
-            loading={descargarRecibo.isPending && descargarRecibo.variables === idPago}
-            onClick={() => descargarRecibo.mutate(idPago)}
-          >
-            Descargar
-          </Button>
+          <Tooltip title={isOnline ? undefined : "Sin conexión: no se puede generar el recibo"}>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, height: "auto", color: "#8c8c8c" }}
+              icon={<FileTextOutlined />}
+              disabled={!isOnline}
+              loading={emitirRecibo.isPending && emitirRecibo.variables === idPago}
+              onClick={() =>
+                emitirRecibo.mutate(idPago, {
+                  onSuccess: (recibo) => descargarRecibo.mutate(recibo.id_pago),
+                })
+              }
+            >
+              Generar
+            </Button>
+          </Tooltip>
         );
       },
     },

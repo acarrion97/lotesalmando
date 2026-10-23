@@ -13,6 +13,7 @@ import { ManzanasPage } from "@/presentation/pages/manzanas";
 import { MapasPage } from "@/presentation/pages/mapas";
 import { MapaPublicoPage } from "@/presentation/pages/mapa-publico";
 import { PortalClientePage } from "@/presentation/pages/portal-cliente";
+import { PortalProspectoPage } from "@/presentation/pages/portal-prospecto";
 import { LotesPage } from "@/presentation/pages/lotes";
 import { ReservasPage } from "@/presentation/pages/reservas";
 import { InventarioPage } from "@/presentation/pages/inventario";
@@ -26,7 +27,7 @@ import { ProyeccionFinancieraPage } from "@/presentation/pages/proyeccion";
 import { PagosPage } from "@/presentation/pages/pagos";
 import { UsuariosPage } from "@/presentation/pages/usuarios";
 import { ConfiguracionPage } from "@/presentation/pages/configuracion";
-import { ProspectosPage } from "@/presentation/pages/prospectos";
+import { ProspectosPage, DocumentosProspectoPage } from "@/presentation/pages/prospectos";
 import { AsesoresPage } from "@/presentation/pages/asesores";
 import { RolesPermisosPage } from "@/presentation/pages/roles-permisos";
 import { EmpresasPage } from "@/presentation/pages/empresas";
@@ -58,6 +59,9 @@ export function AppRouter() {
         <Route path="/registro/planes" element={<SeleccionarPlanPage />} />
         <Route path="/mapa/:slug" element={<MapaPublicoPage />} />
         <Route path="/portal-cliente" element={<PortalClientePage />} />
+        {/* Portal de documentación del prospecto: identificación por email,
+            el slug da el alcance de la empresa (igual que /mapa/:slug). */}
+        <Route path="/portal-prospecto/:slug" element={<PortalProspectoPage />} />
         <Route
           element={
             <ProtectedRoute>
@@ -84,6 +88,7 @@ export function AppRouter() {
           <Route path="/pagos" element={<R ruta="/pagos"><PagosPage /></R>} />
           <Route path="/usuarios" element={<R ruta="/usuarios"><UsuariosPage /></R>} />
           <Route path="/prospectos" element={<R ruta="/prospectos"><ProspectosPage /></R>} />
+          <Route path="/prospectos/documentacion" element={<R ruta="/prospectos/documentacion"><DocumentosProspectoPage /></R>} />
           <Route path="/asesores" element={<R ruta="/asesores"><AsesoresPage /></R>} />
           <Route path="/configuracion" element={<R ruta="/configuracion"><ConfiguracionPage /></R>} />
           <Route path="/roles-permisos" element={<R ruta="/roles-permisos"><RolesPermisosPage /></R>} />

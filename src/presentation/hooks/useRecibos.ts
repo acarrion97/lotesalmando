@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { getContainer } from "@/infrastructure/container";
 import { inventoryKeys } from "./inventoryKeys";
@@ -36,6 +36,29 @@ export function useDescargarRecibo() {
   return useMutation({
     mutationFn: (idPago: number) => container.descargarRecibo.execute(idPago),
     onSuccess: ({ blob, nombre }) => descargarBlob(blob, nombre),
+    onError: (error: Error) => message.error(error.message),
+  });
+}
+
+/**
+ * Emite el recibo de un pago registrado antes del cambio de recibos (el
+ * único caso en que se reserva un número fuera de la confirmación del
+ * pago). Si el pago ya tiene recibo devuelve el existente sin tocar la
+ * secuencia.
+ */
+export function useEmitirReciboPagoPrevio() {
+  const container = getContainer();
+  const queryClient = useQueryClient();
+  const { empresaActual } = useEmpresa();
+  const empresaId = empresaActual?.id_empresa ?? 0;
+
+  return useMutation({
+    mutationFn: (idPago: number) => container.emitirReciboPagoPrevio.execute(idPago),
+    onSuccess: (recibo) => {
+      // La lista de recibos cuelga de la clave base de pagos.
+      void queryClient.invalidateQueries({ queryKey: inventoryKeys.pagos(empresaId) });
+      return recibo;
+    },
     onError: (error: Error) => message.error(error.message),
   });
 }

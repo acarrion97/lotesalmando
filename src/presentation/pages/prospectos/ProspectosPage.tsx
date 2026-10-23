@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
-import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined, FileProtectOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva } from "@/presentation/hooks";
+import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva, useDocumentosProspecto, usePuede } from "@/presentation/hooks";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
@@ -34,6 +35,9 @@ interface ModalState {
 
 export function ProspectosPage() {
   const { data: prospectos, isLoading } = useProspectos();
+  const navigate = useNavigate();
+  const puedeRevisarDocumentos = usePuede("revisar_documentos_prospectos");
+  const { data: documentosProspecto } = useDocumentosProspecto();
   const { empresaActual } = useEmpresa();
   const { user } = useAuth();
   const { idAsesor } = useAsesorDeSesion();
@@ -74,6 +78,19 @@ export function ProspectosPage() {
     }
     return stats;
   }, [prospectos]);
+
+  // Documentación enviada desde el portal público, agrupada por prospecto:
+  // alimenta el indicador de la tabla y el enlace a la revisión.
+  const docsPorProspecto = useMemo(() => {
+    const mapa = new Map<number, { pendientes: number; total: number }>();
+    for (const doc of documentosProspecto ?? []) {
+      const actual = mapa.get(doc.id_prospecto) ?? { pendientes: 0, total: 0 };
+      actual.total += 1;
+      if (doc.estado === "pendiente") actual.pendientes += 1;
+      mapa.set(doc.id_prospecto, actual);
+    }
+    return mapa;
+  }, [documentosProspecto]);
 
   // Entradas (señas) que dio el prospecto en estado "reserva"; se suma el
   // total cobrado para mostrarlo en el modal de detalle.
@@ -365,6 +382,31 @@ export function ProspectosPage() {
         return <Tag color={config.color}>{config.label}</Tag>;
       },
     },
+    ...(puedeRevisarDocumentos
+      ? [
+          {
+            title: "Documentación",
+            key: "documentacion",
+            width: 170,
+            render: (_: unknown, record: Prospecto) => {
+              const info = docsPorProspecto.get(record.id_prospecto);
+              if (!info) return <Text type="secondary">Sin envíos</Text>;
+              return (
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<FileProtectOutlined style={{ color: "#1677ff" }} />}
+                  onClick={() => navigate("/prospectos/documentacion")}
+                >
+                  {info.pendientes > 0
+                    ? `${info.pendientes} pendiente${info.pendientes > 1 ? "s" : ""}`
+                    : `${info.total} enviado${info.total > 1 ? "s" : ""}`}
+                </Button>
+              );
+            },
+          },
+        ]
+      : []),
     {
       title: "Acciones",
       key: "acciones",
