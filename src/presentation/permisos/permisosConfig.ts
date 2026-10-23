@@ -63,6 +63,7 @@ export const MODULOS: ItemMenuAuth[] = [
   // Administración
   { key: "/usuarios", label: "Usuarios", permiso: "ver_usuarios" },
   { key: "/configuracion", label: "Configuracion", permiso: "ver_configuracion" },
+  { key: "/suscripcion", label: "Suscripción", permiso: "ver_configuracion" },
   // Sistema (Superusuario / gestión de acceso)
   { key: "/roles-permisos", label: "Roles y Permisos", permiso: "ver_roles" },
   // Plataforma (Superusuario / tenant-level)
@@ -87,7 +88,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
   { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/reservas", "/ventas", "/prospectos", "/prospectos/documentacion", "/asesores"] },
   { key: "financiero", groupLabel: "FINANCIERO", items: ["/contratos", "/cobranzas", "/pagos", "/proyeccion"] },
   { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas"] },
-  { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/roles-permisos"] },
+  { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/suscripcion", "/roles-permisos"] },
   { key: "plataforma", groupLabel: "PLATAFORMA", items: ["/plataforma", "/empresas", "/planes", "/partnerships"] },
 ];
 

@@ -19,6 +19,7 @@ const routeLabels: Record<string, string> = {
   proyeccion: "Proyección",
   usuarios: "Usuarios",
   configuracion: "Configuracion",
+  suscripcion: "Suscripción",
   "roles-permisos": "Roles y Permisos",
   plataforma: "Plataforma",
   empresas: "Empresas",

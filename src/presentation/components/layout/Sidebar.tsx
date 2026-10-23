@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Menu, Typography } from "antd";
-import { useOnlineStatus } from "@/presentation/hooks";
+import { useEsSuperusuario, useOnlineStatus } from "@/presentation/hooks";
 import { usePermiso } from "@/presentation/providers";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useLogoByEmpresa } from "@/presentation/hooks";
@@ -56,6 +56,7 @@ const iconosPorRuta: Record<string, React.ReactNode> = {
   "/alertas": <BellOutlined />,
   "/usuarios": <TeamOutlined />,
   "/configuracion": <SettingOutlined />,
+  "/suscripcion": <CreditCardOutlined />,
   "/roles-permisos": <SafetyCertificateOutlined />,
   "/plataforma": <GlobalOutlined />,
   "/empresas": <BankOutlined />,
@@ -69,14 +70,25 @@ export function Sidebar({ collapsed }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const isOnline = useOnlineStatus();
+  const superusuario = useEsSuperusuario();
   const { tienePermiso } = usePermiso();
   const { empresaActual } = useEmpresa();
   const { data: logoEmpresa } = useLogoByEmpresa(empresaActual?.id_empresa ?? 0);
 
   // Módulos que el usuario puede ver, según sus permisos de la BD.
   const modulosVisibles = useMemo(
-    () => new Set(MODULOS.filter((m) => tienePermiso(m.permiso)).map((m) => m.key)),
-    [tienePermiso],
+    () =>
+      new Set(
+        MODULOS.filter(
+          (m) =>
+            tienePermiso(m.permiso) &&
+            (m.key !== "/suscripcion" ||
+              (!superusuario.isLoading &&
+                !superusuario.isError &&
+                !superusuario.esSuperusuario)),
+        ).map((m) => m.key),
+      ),
+    [tienePermiso, superusuario.isLoading, superusuario.isError, superusuario.esSuperusuario],
   );
 
   const menuItems: MenuItem[] = useMemo(() => {

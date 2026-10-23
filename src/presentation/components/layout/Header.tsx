@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Select, Avatar, Dropdown, Space, Badge, Tooltip } from "antd";
+import { Select, Avatar, Dropdown, Space, Badge, Button, Tooltip } from "antd";
 import {
   SettingOutlined,
   LogoutOutlined,
@@ -10,12 +10,13 @@ import {
   MenuUnfoldOutlined,
   BellOutlined,
   QuestionCircleOutlined,
+  CrownOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { useEmpresa } from "@/presentation/providers";
 import { useTheme } from "@/presentation/theme";
 import { useAuth } from "@/presentation/providers/AuthProvider";
-import { useAlertas, useOnlineStatus } from "@/presentation/hooks";
+import { useAlertas, useEsSuperusuario, useOnlineStatus, usePlanDeEmpresa } from "@/presentation/hooks";
 
 interface HeaderProps {
   collapsed: boolean;
@@ -29,6 +30,8 @@ export function Header({ collapsed, onToggleCollapse, isMobile = false }: Header
   const { setMode, isDark } = useTheme();
   const { user, logout } = useAuth();
   const { data: alertas } = useAlertas();
+  const plan = usePlanDeEmpresa();
+  const superusuario = useEsSuperusuario();
   const alertCount = alertas?.filter((a) => a.prioridad === "alta").length ?? 0;
   const isOnline = useOnlineStatus();
 
@@ -181,6 +184,30 @@ export function Header({ collapsed, onToggleCollapse, isMobile = false }: Header
             ),
           }))}
         />
+
+        {!superusuario.isLoading && !superusuario.isError && !superusuario.esSuperusuario && (
+          <Tooltip title={`Plan actual: ${plan.nombre ?? plan.clave ?? "Sin plan asignado"}`}>
+            <Button
+              size="small"
+              icon={<CrownOutlined />}
+              onClick={() => navigate("/suscripcion")}
+              style={{ maxWidth: isMobile ? 112 : 190, minWidth: 0 }}
+            >
+              <span
+                style={{
+                  display: "inline-block",
+                  maxWidth: isMobile ? 64 : 138,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  verticalAlign: "bottom",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {plan.nombre ?? plan.clave ?? "Sin plan"}
+              </span>
+            </Button>
+          </Tooltip>
+        )}
 
         <div
           style={{
