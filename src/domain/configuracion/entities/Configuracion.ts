@@ -5,19 +5,7 @@ export interface Configuracion {
   idioma: string | null;
   /** URL pública del logo de la empresa almacenado en Supabase Storage. */
   logo_url?: string | null;
-  // Datos legales: ya no se editan en Configuración (viven por proyecto en
-  // `configuracion_contrato`); siguen acá sólo como respaldo de lectura
-  // para los contratos.
-  /** Nombre de quien representa a la empresa en el contrato. */
-  representante?: string | null;
-  /** Cédula del representante de la empresa. */
-  representante_cedula?: string | null;
-  /** Correo electrónico del representante de la empresa. */
-  representante_email?: string | null;
-  /** Ciudad donde se firma el contrato. */
-  ciudad?: string | null;
-  /** Cuentas donde se reciben los pagos (texto libre). */
-  cuentas_bancarias?: string | null;
-  /** Dirección para canjear las papeletas de depósito por recibos. */
-  direccion_canje?: string | null;
+  // Los datos legales del contrato (representante, ciudad, cuentas,
+  // dirección de canje) NO viven acá: cada proyecto carga los suyos en
+  // `configuracion_contrato` (migraciones 038 y 045).
 }

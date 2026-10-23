@@ -30,7 +30,7 @@ export interface DepsContrato {
   proyectos: ProyectoRepository;
   empresas: EmpresaRepository;
   configuraciones: ConfiguracionRepository;
-  /** Datos legales del contrato del proyecto de la venta (respaldo: configuraciones). */
+  /** Datos legales del contrato del proyecto de la venta (moneda de `configuraciones`). */
   configuracionContrato: ConfiguracionContratoRepository;
   cobranzas: CobranzaRepository;
   storage: DocumentoContratoStorage;
@@ -88,8 +88,9 @@ export class GenerarDocumentoContratoUseCase {
       }
     }
 
-    // Datos legales del proyecto de la venta; los campos vacíos se toman
-    // de la configuración de la empresa (y el RUC de `empresa.ruc`).
+    // Datos legales del proyecto de la venta (Contratos → Configuración).
+    // Es la única fuente: los datos legales ya no existen a nivel empresa
+    // (migración 045). Sólo el RUC vacío se toma de `empresa.ruc`.
     const configProyecto = idProyecto
       ? await d.configuracionContrato.getByProyectoId(idProyecto)
       : null;
@@ -105,17 +106,13 @@ export class GenerarDocumentoContratoUseCase {
       empresa: {
         nombre: empresa?.razon_social || "La empresa",
         ruc: configProyecto?.ruc?.trim() || empresa?.ruc || null,
-        // Datos legales: primero los del proyecto, después los de la
-        // empresa (Configuración); el contrato usa lo que esté cargado.
-        representante: configProyecto?.representante || configuracion?.representante || null,
-        representante_cedula:
-          configProyecto?.representante_cedula || configuracion?.representante_cedula || null,
-        representante_email:
-          configProyecto?.representante_email || configuracion?.representante_email || null,
-        ciudad: configProyecto?.ciudad || configuracion?.ciudad || null,
-        cuentas_bancarias:
-          configProyecto?.cuentas_bancarias || configuracion?.cuentas_bancarias || null,
-        direccion_canje: configProyecto?.direccion_canje || configuracion?.direccion_canje || null,
+        // Datos legales del proyecto; vacío = no se imprime en el contrato.
+        representante: configProyecto?.representante || null,
+        representante_cedula: configProyecto?.representante_cedula || null,
+        representante_email: configProyecto?.representante_email || null,
+        ciudad: configProyecto?.ciudad || null,
+        cuentas_bancarias: configProyecto?.cuentas_bancarias || null,
+        direccion_canje: configProyecto?.direccion_canje || null,
       },
       cliente: {
         nombres: cliente.nombres,
