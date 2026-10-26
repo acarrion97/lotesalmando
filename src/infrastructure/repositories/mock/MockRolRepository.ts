@@ -49,6 +49,8 @@ export class MockRolRepository implements RolRepository {
       "ver_pagos",
       "ver_proyeccion",
       "ver_alertas",
+      "ver_reportes",
+      "exportar_reportes",
       "ver_usuarios",
       "ver_configuracion",
       "ver_roles",

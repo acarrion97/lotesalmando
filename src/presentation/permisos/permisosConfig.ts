@@ -60,6 +60,7 @@ export const MODULOS: ItemMenuAuth[] = [
   { key: "/proyeccion", label: "Proyección", permiso: "ver_proyeccion" },
   // Inteligencia
   { key: "/alertas", label: "Mando IA", permiso: "ver_alertas" },
+  { key: "/reportes", label: "Reportes", permiso: "ver_reportes" },
   // Administración
   { key: "/usuarios", label: "Usuarios", permiso: "ver_usuarios" },
   { key: "/configuracion", label: "Configuracion", permiso: "ver_configuracion" },
@@ -87,7 +88,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
   { key: "inventario", groupLabel: "INVENTARIO", items: ["/proyectos", "/etapas", "/manzanas", "/lotes","/mapas"] },
   { key: "comercial", groupLabel: "COMERCIAL", items: ["/clientes", "/reservas", "/ventas", "/prospectos", "/prospectos/documentacion", "/asesores"] },
   { key: "financiero", groupLabel: "FINANCIERO", items: ["/contratos", "/cobranzas", "/pagos", "/proyeccion"] },
-  { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas"] },
+  { key: "ia", groupLabel: "INTELIGENCIA", items: ["/alertas", "/reportes"] },
   { key: "administracion", groupLabel: "ADMINISTRACION", items: ["/usuarios", "/configuracion", "/suscripcion", "/roles-permisos"] },
   { key: "plataforma", groupLabel: "PLATAFORMA", items: ["/plataforma", "/empresas", "/planes", "/partnerships"] },
 ];

@@ -24,6 +24,7 @@ import { ContratosPage } from "@/presentation/pages/contratos";
 import { AlertasPage } from "@/presentation/pages/alertas";
 import { CobranzasPage } from "@/presentation/pages/cobranzas";
 import { ProyeccionFinancieraPage } from "@/presentation/pages/proyeccion";
+import { ReportesPage } from "@/presentation/pages/reportes";
 import { PagosPage } from "@/presentation/pages/pagos";
 import { UsuariosPage } from "@/presentation/pages/usuarios";
 import { ConfiguracionPage } from "@/presentation/pages/configuracion";
@@ -90,6 +91,7 @@ export function AppRouter() {
           <Route path="/alertas" element={<R ruta="/alertas"><AlertasPage /></R>} />
           <Route path="/cobranzas" element={<R ruta="/cobranzas"><CobranzasPage /></R>} />
           <Route path="/proyeccion" element={<R ruta="/proyeccion"><ProyeccionFinancieraPage /></R>} />
+          <Route path="/reportes" element={<R ruta="/reportes"><ReportesPage /></R>} />
           <Route path="/pagos" element={<R ruta="/pagos"><PagosPage /></R>} />
           <Route path="/usuarios" element={<R ruta="/usuarios"><UsuariosPage /></R>} />
           <Route path="/prospectos" element={<R ruta="/prospectos"><ProspectosPage /></R>} />
