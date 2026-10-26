@@ -14,7 +14,7 @@ import {
   message,
 } from "antd";
 import type { TableColumnType } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, FilePdfOutlined } from "@ant-design/icons";
 import {
   useAsesores,
   useClientes,
@@ -39,7 +39,12 @@ import {
   FILTRO_FECHAS_INICIAL,
   type FiltroFechas,
 } from "@/presentation/components/ventas/FiltroRangoFechas";
-import { exportarReporteXlsx, type HojaReporte } from "@/infrastructure/export/exportarReporte";
+import { generarReportePdf } from "@/infrastructure/documents/generadorReporteDocumento";
+import {
+  exportarReporteXlsx,
+  type HojaReporte,
+  type TipoColumnaReporte,
+} from "@/infrastructure/export/exportarReporte";
 import {
   agruparPagos,
   antiguedadDeSaldos,
@@ -61,6 +66,7 @@ import {
   type VentasPorMes,
 } from "@/application/reportes/calcularReportes";
 import {
+  descargarArchivo,
   dentroDelRango,
   diaEnEmpresa,
   etiquetaNumeroLote,
@@ -85,43 +91,89 @@ const FORMA_PAGO_LABEL: Record<string, string> = {
   no_especificada: "No especificada",
 };
 
-/** Botón de exportación a Excel; sólo se muestra con el permiso `exportar_reportes`. */
-function BotonExportar({
-  onExportar,
+interface ReporteListo {
+  base: string;
+  titulo: string;
+  hojas: HojaReporte[];
+}
+
+/** Botones de exportación a Excel y PDF; sólo se muestran con el permiso `exportar_reportes`. */
+function BotonesExportar({
+  generar,
+  contextoPdf,
   disabled,
 }: {
-  onExportar: () => Promise<void>;
+  generar: () => ReporteListo;
+  /** Empresa y líneas de contexto (período, filtros) que encabezan el PDF. */
+  contextoPdf: () => { empresa: string; detalle: string[] };
   disabled?: boolean;
 }) {
   const puedeExportar = usePuede("exportar_reportes");
-  const [cargando, setCargando] = useState(false);
+  const [cargando, setCargando] = useState<"xlsx" | "pdf" | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
   if (!puedeExportar) return null;
+
+  const ejecutar = (formato: "xlsx" | "pdf") => async () => {
+    setCargando(formato);
+    try {
+      const reporte = generar();
+      const archivo = `reporte-${reporte.base}-${diaEnEmpresa(new Date())}`;
+      if (formato === "xlsx") {
+        await exportarReporteXlsx(archivo, reporte.hojas);
+      } else {
+        const blob = await generarReportePdf({
+          ...contextoPdf(),
+          titulo: reporte.titulo,
+          hojas: reporte.hojas,
+        });
+        const url = URL.createObjectURL(blob);
+        descargarArchivo(url, `${archivo}.pdf`);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch {
+      messageApi.error(`No se pudo generar el archivo ${formato === "xlsx" ? "de Excel" : "PDF"}`);
+    } finally {
+      setCargando(null);
+    }
+  };
+
   return (
-    <>
+    <Space>
       {contextHolder}
       <Button
         icon={<DownloadOutlined />}
-        loading={cargando}
+        loading={cargando === "xlsx"}
         disabled={disabled}
-        onClick={async () => {
-          setCargando(true);
-          try {
-            await onExportar();
-          } catch {
-            messageApi.error("No se pudo generar el archivo de Excel");
-          } finally {
-            setCargando(false);
-          }
-        }}
+        onClick={ejecutar("xlsx")}
       >
         Exportar a Excel
       </Button>
-    </>
+      <Button
+        icon={<FilePdfOutlined />}
+        loading={cargando === "pdf"}
+        disabled={disabled}
+        onClick={ejecutar("pdf")}
+      >
+        Exportar a PDF
+      </Button>
+    </Space>
   );
 }
 
-const nombreArchivo = (base: string) => `reporte-${base}-${diaEnEmpresa(new Date())}`;
+const TITULOS_REPORTE: Record<string, string> = {
+  ventas: "Reporte de ventas",
+  cartera: "Reporte de cartera y mora",
+  recaudacion: "Reporte de recaudación",
+  inventario: "Reporte de inventario",
+  comercial: "Reporte comercial",
+};
+
+/** Tipo de presentación (PDF) de una columna según su título. */
+function tipoDeColumna(titulo: string): TipoColumnaReporte | undefined {
+  if (titulo.includes("%")) return "porcentaje";
+  if (/^(Monto|Precio|Valor|Meta)/.test(titulo)) return "moneda";
+  return undefined;
+}
 
 export function ReportesPage() {
   const { empresaActual } = useEmpresa();
@@ -429,8 +481,24 @@ export function ReportesPage() {
   ];
 
   // ---- Exportación ----
-  const exportar = (base: string, hojas: HojaReporte[]) =>
-    exportarReporteXlsx(nombreArchivo(base), hojas);
+  const exportar = (base: string, hojas: HojaReporte[]): ReporteListo => ({
+    base,
+    titulo: TITULOS_REPORTE[base] ?? base,
+    hojas: hojas.map((h) => ({ ...h, tipos: h.columnas.map(tipoDeColumna) })),
+  });
+
+  /** Encabezado del PDF: empresa y filtros vigentes al momento de exportar. */
+  const contextoPdf = () => {
+    const { desde, hasta } = filtroFechas.rango;
+    return {
+      empresa: empresaActual?.razon_social ?? "Lotes al Mando",
+      detalle: [
+        `Período: ${desde && hasta ? `${formatDateOnly(desde)} al ${formatDateOnly(hasta)}` : "Todo"}`,
+        `Proyecto: ${idProyecto === undefined ? "Todos" : (mapas.proyecto.get(idProyecto)?.nombre ?? "-")}  ·  Asesor: ${idAsesor === undefined ? "Todos" : (mapas.asesor.get(idAsesor)?.nombre_comercial ?? "-")}`,
+        `Emitido el ${formatDateOnly(hoy)}`,
+      ],
+    };
+  };
 
   const exportarVentas = () =>
     exportar("ventas", [
@@ -575,14 +643,14 @@ export function ReportesPage() {
 
   const tab = (
     kpis: React.ReactNode,
-    exportador: () => Promise<void>,
+    exportador: () => ReporteListo,
     vacio: boolean,
     contenido: React.ReactNode,
   ) => (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
       <Row gutter={[12, 12]}>{kpis}</Row>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <BotonExportar onExportar={exportador} disabled={vacio} />
+        <BotonesExportar generar={exportador} contextoPdf={contextoPdf} disabled={vacio} />
       </div>
       {contenido}
     </Space>

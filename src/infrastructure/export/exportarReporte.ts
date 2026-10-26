@@ -1,10 +1,15 @@
 import { cargarMotor } from "./xlsxEngine";
 
+/** Cómo se presenta una columna numérica en el PDF (Excel recibe el número crudo). */
+export type TipoColumnaReporte = "moneda" | "porcentaje";
+
 export interface HojaReporte {
   /** Nombre de la pestaña (Excel lo limita a 31 caracteres). */
   nombre: string;
   columnas: string[];
   filas: (string | number | null)[][];
+  /** Tipo por columna (mismo orden que `columnas`); omitido = texto o número simple. */
+  tipos?: (TipoColumnaReporte | undefined)[];
 }
 
 /**
