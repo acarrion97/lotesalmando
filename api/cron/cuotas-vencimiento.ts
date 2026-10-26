@@ -23,7 +23,8 @@
  *                                Authorization: Bearer <secreto> (obligatoria)
  *   APP_URL                   -> opcional, base del sitio (por defecto
  *                                https://lotesalmando.com)
- *   DIAS_AVISO_CUOTA          -> opcional, dias de anticipacion (5)
+ *   DIAS_AVISO_CUOTA          -> opcional, valor de respaldo si una empresa
+ *                                no tiene configuracion (5)
  *   EMAIL_USER / EMAIL_PASS   -> Gmail y su contrasena de aplicacion; sin
  *                                ellas los correos se omiten y el cron
  *                                sigue funcionando.
@@ -131,7 +132,13 @@ export default async function handler(req: Req, res: ServerResponse) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const diasAviso = Number(process.env.DIAS_AVISO_CUOTA ?? "5") || 5;
+  const diasAvisoConfigurado = Number(process.env.DIAS_AVISO_CUOTA ?? "5");
+  const diasAvisoPorDefecto =
+    Number.isInteger(diasAvisoConfigurado) &&
+    diasAvisoConfigurado >= 1 &&
+    diasAvisoConfigurado <= 30
+      ? diasAvisoConfigurado
+      : 5;
   const baseSitio = (process.env.APP_URL ?? "https://lotesalmando.com").replace(/\/+$/, "");
   const portalUrl = `${baseSitio}/portal-cliente`;
   const hoy = hoyLocal();
@@ -199,15 +206,29 @@ export default async function handler(req: Req, res: ServerResponse) {
 
   // Moneda de cada empresa (el monto del correo va con su moneda).
   const idsEmpresa = [...new Set(clientes.map((c) => c.id_empresa).filter((v): v is number => v !== null))];
-  const { data: configuracionesRaw } = await sb
-    .from("configuracion")
-    .select("id_empresa, moneda")
-    .in("id_empresa", idsEmpresa);
+  let configuracionesRaw: {
+    id_empresa: number;
+    moneda: string | null;
+    dias_aviso_cuota: number;
+  }[] = [];
+  if (idsEmpresa.length > 0) {
+    const { data, error } = await sb
+      .from("configuracion")
+      .select("id_empresa, moneda, dias_aviso_cuota")
+      .in("id_empresa", idsEmpresa);
+    if (error) {
+      return responder(res, 500, {
+        ok: false,
+        error: `No se pudo cargar la configuracion de las empresas: ${error.message}`,
+      });
+    }
+    configuracionesRaw = data ?? [];
+  }
   const monedaPorEmpresa = new Map(
-    ((configuracionesRaw ?? []) as { id_empresa: number; moneda: string | null }[]).map((c) => [
-      c.id_empresa,
-      c.moneda ?? "USD",
-    ]),
+    configuracionesRaw.map((c) => [c.id_empresa, c.moneda ?? "USD"]),
+  );
+  const diasAvisoPorEmpresa = new Map(
+    configuracionesRaw.map((c) => [c.id_empresa, c.dias_aviso_cuota]),
   );
 
   const idsLote = [...new Set(ventas.map((v) => v.id_lote))];
@@ -237,6 +258,14 @@ export default async function handler(req: Req, res: ServerResponse) {
   for (const cuota of cuotas) {
     if (!cuota.fecha_vencimiento) continue;
 
+    const contrato = contratoPorId.get(cuota.id_contrato);
+    if (!contrato) continue;
+    const venta = ventaPorId.get(contrato.id_venta);
+    if (!venta) continue;
+    const cliente = clientePorId.get(venta.id_cliente);
+    const diasAviso = cliente?.id_empresa
+      ? (diasAvisoPorEmpresa.get(cliente.id_empresa) ?? diasAvisoPorDefecto)
+      : diasAvisoPorDefecto;
     const dias = diasHasta(cuota.fecha_vencimiento);
     const tipo: "por_vencer" | "vencida" | null =
       cuota.estado === "vencida" ? "vencida" : dias >= 0 && dias <= diasAviso ? "por_vencer" : null;
@@ -247,11 +276,6 @@ export default async function handler(req: Req, res: ServerResponse) {
     // Si el cliente ya mando la prueba, no se le reclama.
     if (tipo === "vencida" && conComprobante.has(cuota.id_cobranza)) continue;
 
-    const contrato = contratoPorId.get(cuota.id_contrato);
-    if (!contrato) continue;
-    const venta = ventaPorId.get(contrato.id_venta);
-    if (!venta) continue;
-    const cliente = clientePorId.get(venta.id_cliente);
     if (!cliente?.email?.trim()) {
       omitidos++;
       continue;

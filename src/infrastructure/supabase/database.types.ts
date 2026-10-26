@@ -155,6 +155,7 @@ export interface Database {
           id_empresa: number;
           moneda: string | null;
           idioma: string | null;
+          dias_aviso_cuota: number;
           logo_url: string | null;
         };
         Insert: {
@@ -162,6 +163,7 @@ export interface Database {
           id_empresa: number;
           moneda?: string | null;
           idioma?: string | null;
+          dias_aviso_cuota?: number;
           logo_url?: string | null;
         };
         Update: {
@@ -169,6 +171,7 @@ export interface Database {
           id_empresa?: number;
           moneda?: string | null;
           idioma?: string | null;
+          dias_aviso_cuota?: number;
           logo_url?: string | null;
         };
       };

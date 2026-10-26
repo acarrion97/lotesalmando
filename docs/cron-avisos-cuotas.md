@@ -10,9 +10,13 @@ Correr en el SQL Editor de Supabase:
 
 ```
 supabase/migrations/035_contratos_documentos_comprobantes.sql
+supabase/migrations/045_configuracion_dias_aviso_cuota.sql
 ```
 
-Crea:
+La migración 045 agrega a `configuracion` el período de anticipación por
+empresa, con valor inicial de 5 días (rango permitido: 1 a 30 días).
+
+La migración 035 crea:
 
 - columnas de documento en `contratos` (para **anexar** o generar el contrato),
 - tabla `comprobantes` (prueba de pago subida desde el portal),
@@ -33,7 +37,7 @@ En **Settings → Environment Variables** (serverless, nada de esto es `VITE_`):
 | `EMAIL_USER` / `EMAIL_PASS` | Gmail con contraseña de aplicación | sí (si faltan, los correos se omiten y el cron sigue corriendo) |
 | `EMAIL_FROM` | Nombre visible del que envía | no |
 | `APP_URL` | Base del link al portal (por defecto `https://lotesalmando.com`) | no |
-| `DIAS_AVISO_CUOTA` | Días de anticipación del aviso (5) | no |
+| `DIAS_AVISO_CUOTA` | Valor de respaldo en días si una empresa no tiene configuración (5) | no |
 | `ADMIN_EMAIL` | Aviso de pagos de Hotmart sin cuenta | no |
 
 El mismo listado está en `.env.example`.
@@ -48,11 +52,17 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
   https://lotesalmando.com/api/cron/cuotas-vencimiento
 ```
 
+Cada empresa puede ajustar la anticipación en **Configuración → Avisar cuotas
+antes del vencimiento**. El valor predeterminado es 5 días y se puede establecer
+entre 1 y 30. El cron conserva su ejecución diaria; el correo se envía una sola
+vez por cuota dentro del período configurado.
+
 Orden de lo que hace:
 
 1. pasa a `vencida` toda cuota pendiente cuya fecha ya pasó;
-2. manda **un** correo por cuota a los clientes cuya cuota vence en los
-   próximos N días (`por_vencer`) o que ya venció (`vencida`);
+2. manda **un** correo por cuota a los clientes cuya cuota vence dentro del
+   período configurado para su empresa (`por_vencer`) o que ya venció
+   (`vencida`);
 3. registra el aviso en `aviso_cuota` para no repetirlo mañana.
 
 No se le reclama a quien ya subió un comprobante (pendiente o aprobado), y los

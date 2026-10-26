@@ -3,6 +3,8 @@ export interface Configuracion {
   id_empresa: number;
   moneda: string | null;
   idioma: string | null;
+  /** Días de anticipación del correo de cuota por vencer (1 a 30). */
+  dias_aviso_cuota: number;
   /** URL pública del logo de la empresa almacenado en Supabase Storage. */
   logo_url?: string | null;
   // Los datos legales del contrato (representante, ciudad, cuentas,

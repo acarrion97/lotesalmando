@@ -4,6 +4,7 @@ export { useGuardarPlan } from "./useGuardarPlan";
 export { useEliminarPlan } from "./useEliminarPlan";
 export { useSubirImagenPlan } from "./useSubirImagenPlan";
 export { usePlanDeEmpresa } from "./usePlanDeEmpresa";
+export { useEsSuperusuario } from "./useEsSuperusuario";
 export { usePartnerships } from "./usePartnerships";
 export { useGuardarPartnership } from "./useGuardarPartnership";
 export { useEliminarPartnership } from "./useEliminarPartnership";
