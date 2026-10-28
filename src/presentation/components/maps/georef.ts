@@ -92,7 +92,18 @@ export function rejillaTiles(limites: LimitesGeo, anchoCaja: number): RejillaTil
   return { zoom, anchoPx, altoPx, tiles };
 }
 
+/**
+ * Plantilla del tile satelital, en el orden `{z}/{y}/{x}` que usa Esri. Es la
+ * misma fuente para `CapaSatelite` (modo Satelte y capa aerea del Visor 3D) y
+ * para la capa de imagenes de la vista 3D real, asi las tres miran exactamente
+ * la misma fotografia del territorio sin necesitar API key.
+ */
+export const PLANTILLA_TILE_ESRI =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
 /** URL del tile satelital (Esri World Imagery, sin API key). */
 export function urlTile(zoom: number, x: number, y: number): string {
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`;
+  return PLANTILLA_TILE_ESRI.replace("{z}", String(zoom))
+    .replace("{y}", String(y))
+    .replace("{x}", String(x));
 }
