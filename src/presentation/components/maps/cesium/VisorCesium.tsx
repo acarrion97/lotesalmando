@@ -76,7 +76,7 @@ function volarAEscena(viewer: Viewer, motor: MotorCesium, puntos: readonly Coord
   );
   viewer.camera.flyToBoundingSphere(esfera, {
     duration: DURACION_VUELO,
-    offset: new motor.HeadingPitchRange(0, motor.CesiumMath.toRadians(PITCH_INICIAL), 0),
+    offset: new motor.HeadingPitchRange(0, motor.Math.toRadians(PITCH_INICIAL), 0),
   });
 }
 
@@ -137,6 +137,9 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
         const cesium = await import("cesium");
         if (!vivo) return;
 
+        const globalCesium = globalThis as typeof globalThis & { CESIUM_BASE_URL?: string };
+        globalCesium.CESIUM_BASE_URL = "/cesium/";
+
         const token = String(import.meta.env.VITE_CESIUM_TOKEN ?? "").trim();
         if (token) cesium.Ion.defaultAccessToken = token;
 
@@ -177,9 +180,16 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
         const escena = viewer.scene;
         // Sin luz solar el slider de hora del día no tendría ningún efecto
         // sobre terreno ni sobre los edificios (design.md D1).
-        escena.globe.enableLighting = true;
+        viewer.shadows = true;
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = true;
+        if (viewer.scene.sun) viewer.scene.sun.show = true;
+        if (viewer.scene.moon) viewer.scene.moon.show = true;
         escena.highDynamicRange = true;
-        escena.postProcessStages.fxaa?.enabled = true;
+        if (escena.postProcessStages.fxaa) {
+          escena.postProcessStages.fxaa.enabled = true;
+        }
 
         if (vivo) setCargando(false);
         volarAEscena(viewer, cesium, posicionesRef.current);
