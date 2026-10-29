@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
-import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
+import { Alert, Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
 import { ubicacionDe, type PlanoLote } from "@/domain/mapa/entities";
-import { useMapaPublico, useRegistrarInteresPublico } from "@/presentation/hooks";
+import { useMapaPublico, useOnlineStatus, useRegistrarInteresPublico } from "@/presentation/hooks";
 import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
 import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
@@ -41,6 +41,7 @@ const RESUMEN_ESTADOS = [
 export function MapaPublicoPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const { data: mapa, isLoading, isError } = useMapaPublico(slug);
+  const enLinea = useOnlineStatus();
   const [searchParams, setSearchParams] = useSearchParams();
   const [imagenFallida, setImagenFallida] = useState(false);
   const [loteFicha, setLoteFicha] = useState<PlanoLote | null>(null);
@@ -139,7 +140,7 @@ export function MapaPublicoPage() {
         <Spin size="large" />
       </div>
     );
-  } else if (isError) {
+  } else if (isError && !mapa) {
     contenido = (
       <Result
         status="warning"
@@ -158,6 +159,14 @@ export function MapaPublicoPage() {
   } else {
     contenido = (
       <>
+        {!enLinea && (
+          <Alert
+            type="warning"
+            showIcon
+            message="Sin conexión: se muestra el último mapa sincronizado."
+            style={{ maxWidth: 1248, margin: "16px auto 0" }}
+          />
+        )}
         {estadisticas && (
           <div
             style={{

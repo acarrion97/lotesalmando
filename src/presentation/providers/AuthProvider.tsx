@@ -2,6 +2,10 @@ import { createContext, useContext, useState, useCallback, useEffect, type React
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/infrastructure/supabase/client";
 import { clearOfflinePersistence } from "@/infrastructure/offline/persistQueryClient";
+import {
+  guardarContextoAutenticacionOffline,
+  leerContextoAutenticacionOffline,
+} from "@/infrastructure/offline/offlineAuthContext";
 import { getContainer } from "@/infrastructure/container";
 
 interface AuthUser {
@@ -133,16 +137,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    const restaurarContextoOffline = async (authUserId: string): Promise<boolean> => {
+      let contexto;
+      try {
+        contexto = await leerContextoAutenticacionOffline(authUserId);
+      } catch (error) {
+        console.error("No se pudo restaurar el contexto offline de autenticación.", error);
+        return false;
+      }
+      if (!contexto) return false;
+
+      setUser({
+        id: contexto.userId,
+        email: contexto.email,
+        nombres: contexto.nombres,
+        id_usuario: contexto.idUsuario,
+        id_empresa: contexto.idEmpresa,
+        estadoPago: contexto.estadoPago,
+      });
+      setTieneRoles(contexto.tieneRoles);
+      return true;
+    };
+
+    const guardarContextoOffline = async (
+      authUserId: string,
+      email: string,
+      nombres: string,
+      idUsuario: number | undefined,
+      idEmpresa: number | undefined,
+      estadoPago: string | null,
+      rolesOk: boolean | null,
+    ) => {
+      if (!idUsuario || !idEmpresa || estadoPago === null || rolesOk === null) return;
+
+      try {
+        await guardarContextoAutenticacionOffline({
+          userId: authUserId,
+          email,
+          nombres,
+          idUsuario,
+          idEmpresa,
+          estadoPago,
+          tieneRoles: rolesOk,
+          savedAt: Date.now(),
+        });
+      } catch (error) {
+        console.error("No se pudo guardar el contexto offline de autenticación.", error);
+      }
+    };
+
     const initAuth = async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       if (session?.user) {
+        if (!navigator.onLine && (await restaurarContextoOffline(session.user.id))) {
+          setLoading(false);
+          return;
+        }
+
         const { data: usuario } = await supabase
           .from("usuario")
           .select("id_usuario, id_empresa, nombres, password_temporal_hasta")
           .eq("email", session.user.email)
           .single();
+
+        if (!usuario && (await restaurarContextoOffline(session.user.id))) {
+          setLoading(false);
+          return;
+        }
 
         // Contraseña temporal vencida: no se puede seguir con la sesión
         // aunque el token de GoTrue siga siendo válido.
@@ -162,7 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
         setTieneRoles(rolesOk);
 
-        setUser({
+        const usuarioAutenticado: AuthUser = {
           id: session.user.id,
           email: session.user.email || "",
           nombres:
@@ -170,7 +233,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
           estadoPago: pago,
-        });
+        };
+        setUser(usuarioAutenticado);
+        await guardarContextoOffline(
+          usuarioAutenticado.id,
+          usuarioAutenticado.email,
+          usuarioAutenticado.nombres,
+          usuarioAutenticado.id_usuario,
+          usuarioAutenticado.id_empresa,
+          pago,
+          rolesOk,
+        );
       }
       setLoading(false);
     };
@@ -179,13 +252,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        if (!navigator.onLine && (await restaurarContextoOffline(session.user.id))) return;
+
         const { data: usuario } = await supabase
           .from("usuario")
           .select("id_usuario, id_empresa, nombres, password_temporal_hasta")
           .eq("email", session.user.email)
           .single();
+
+        if (!usuario && (await restaurarContextoOffline(session.user.id))) return;
 
         // Mismo vencimiento que en initAuth, aplicado a sesiones que ya
         // estaban abiertas (por ejemplo, la pestaña quedó de ayer).
@@ -202,7 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
         setTieneRoles(rolesOk);
 
-        setUser({
+        const usuarioAutenticado: AuthUser = {
           id: session.user.id,
           email: session.user.email || "",
           nombres:
@@ -210,15 +287,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id_usuario: usuario?.id_usuario,
           id_empresa: usuario?.id_empresa,
           estadoPago: pago,
-        });
+        };
+        setUser(usuarioAutenticado);
+        await guardarContextoOffline(
+          usuarioAutenticado.id,
+          usuarioAutenticado.email,
+          usuarioAutenticado.nombres,
+          usuarioAutenticado.id_usuario,
+          usuarioAutenticado.id_empresa,
+          pago,
+          rolesOk,
+        );
       } else {
         setUser(null);
         setTieneRoles(null);
+        if (event === "SIGNED_OUT") {
+          void clearOfflinePersistence(queryClient).catch((error: unknown) => {
+            console.error("No se pudo limpiar la caché offline al cerrar sesión.", error);
+          });
+        }
       }
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [queryClient]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -567,12 +659,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.id_empresa]);
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setTieneRoles(null);
-    // offline/tenant-isolation: nothing this device cached offline should
-    // survive past the session it belonged to.
-    await clearOfflinePersistence(queryClient);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+      setTieneRoles(null);
+      // Offline data must not survive the session that it belonged to.
+      await clearOfflinePersistence(queryClient);
+    }
   }, [queryClient]);
 
   return (

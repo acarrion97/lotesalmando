@@ -121,7 +121,10 @@ El modo SHALL permitir alternar entre una capa base **fotográfica** (malla
 fotogramétrica de imágenes reales) y una capa base **terreno + edificios**
 (relieve real con volúmenes de edificio), y SHALL usar terreno + edificios como
 respaldo automático cuando la capa fotográfica no esté disponible, cuota agotada
-o zona fuera de cobertura, sin perder el modo ni la vista de los lotes.
+o zona fuera de cobertura, sin perder el modo ni la vista de los lotes. La capa
+de imágenes satelitales SHALL evitar niveles sin cobertura en la ventana del
+proyecto y SHALL usar terreno sin imágenes antes que mosaicos de aviso del
+proveedor.
 
 #### Scenario: Capa fotográfica disponible
 
@@ -139,6 +142,13 @@ o zona fuera de cobertura, sin perder el modo ni la vista de los lotes.
 - **WHEN** se agota la cuota mensual de la capa fotográfica
 - **THEN** el modo sigue operativo con terreno + edificios y los lotes siguen
   visibles y clicables
+
+#### Scenario: Teselas satelitales no disponibles al acercar
+
+- **WHEN** la fuente satelital no tiene imágenes para el nivel de zoom de la
+  ubicación del proyecto
+- **THEN** la vista conserva el nivel más alto con cobertura, sin mostrar
+  avisos de falta de datos repetidos sobre el mapa
 
 ### Requirement: Iluminación, sombras, atmósfera y hora del día
 
@@ -264,3 +274,35 @@ selecciona el modo.
 - **WHEN** se instala la aplicación como PWA
 - **THEN** el precache se genera dentro de su límite de tamaño y el arranque
   sin conexión sigue garantizado
+
+### Requirement: Los datos del mapa siguen disponibles tras una recarga offline
+
+Los datos leídos correctamente de un mapa público o interno SHALL conservarse
+en IndexedDB durante un máximo de una hora, de forma separada del caché general
+de inventario. Si la actualización falla sin conexión, SHALL mostrarse la
+última lectura correcta y SHALL seguir disponible el selector de modos no-3D.
+Los datos internos SHALL estar aislados por empresa y proyecto; el contexto
+offline de autenticación SHALL limitarse a identidad, empresa y permiso
+`ver_mapas`, sin guardar credenciales ni permisos de otros módulos. El cierre
+de sesión o el cambio de empresa SHALL purgar estos datos.
+
+#### Scenario: Mapa público recargado sin conexión
+
+- **WHEN** un visitante ya abrió un mapa público y recarga la ruta sin conexión
+  dentro de la hora siguiente
+- **THEN** se muestra el último mapa sincronizado, sin reemplazarlo por el error
+  de carga, y Plano/Satélite/Vista 3D siguen disponibles
+
+#### Scenario: Mapa interno recargado sin conexión
+
+- **WHEN** una sesión autorizada ya abrió el mapa interno y recarga `/mapas`
+  sin conexión dentro de la hora siguiente
+- **THEN** se muestra el último mapa de la misma empresa en modo de solo lectura,
+  con el permiso `ver_mapas` y sin conceder permisos de otros módulos
+
+#### Scenario: Caducidad y limpieza de datos internos
+
+- **WHEN** los datos del mapa superan una hora, el usuario cierra sesión o cambia
+  de empresa
+- **THEN** los datos internos ya no se muestran; después de cerrar sesión o
+  cambiar de empresa no queda su caché disponible en el dispositivo

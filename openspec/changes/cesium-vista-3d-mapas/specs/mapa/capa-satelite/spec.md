@@ -37,13 +37,22 @@ el plano, sin imponer un techo de zoom por debajo de esa necesidad.
 Cuando el proveedor de tiles no tenga la resolución pedida para una zona, la
 capa SHALL retroceder progresivamente a niveles inferiores hasta encontrar
 imágenes, y SHALL seguir cubriendo toda la ventana geográfica sin dejar áreas
-en blanco.
+en blanco. La disponibilidad SHALL comprobarse con los metadatos de tiles del
+proveedor, incluso si una tesela sin datos responde HTTP 200 con una imagen de
+aviso.
 
 #### Scenario: Proveedor con menor alcance máximo
 
 - **WHEN** se pide un nivel superior al máximo que el proveedor sirve en esa zona
 - **THEN** la capa se dibuja con el nivel más alto disponible y no muestra
   huecos ni baldosas vacías
+
+#### Scenario: Tesela sin datos con respuesta HTTP 200
+
+- **WHEN** el proveedor devuelve una imagen de aviso válida porque no tiene
+  datos para la zona en ese nivel
+- **THEN** la capa detecta que la tesela no está publicada y usa su ancestro
+  con datos, en lugar de mostrar el aviso repetido
 
 #### Scenario: Proveedor con buen alcance
 
@@ -52,18 +61,20 @@ en blanco.
 
 ### Requirement: Sobremuestreo mínimo sobre el tamaño dibujado
 
-La rejilla de tiles SHALL renderizarse con al menos 3× los píxeles que ocupará
-la capa en pantalla, de modo que el escalado y las transformaciones de la escena
-3D muestreen una fuente más densa que el destino.
+La rejilla de tiles SHALL solicitar resolución para renderizarse con al menos
+3× los píxeles que ocupará la capa en pantalla, de modo que el escalado y las
+transformaciones de la escena 3D muestreen una fuente más densa que el destino.
+El nivel de zoom SHALL estar limitado a 20; cuando ese límite impida alcanzar
+3×, la capa SHALL usar el nivel 20 disponible en vez de pedir niveles mayores.
 
 #### Scenario: Rendición plana
 
 - **WHEN** la capa satélite se dibuja en modo plano
 - **THEN** la rejilla de tiles se rasteriza a 3× el ancho de la caja destino
-  antes de escalarse al tamaño final
+  antes de escalarse al tamaño final, hasta el límite de zoom 20
 
 #### Scenario: Rendición bajo la escena 3D inclinada
 
 - **WHEN** la misma capa se muestra bajo la escena 3D inclinada
 - **THEN** el muestreo parte de la rejilla sobremuestreada en lugar del tamaño
-  final, reduciendo el blanqueo en ángulo oblicuo
+  final, reduciendo el blanqueo en ángulo oblicuo, hasta el límite de zoom 20

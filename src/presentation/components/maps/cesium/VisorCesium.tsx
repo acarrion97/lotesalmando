@@ -6,6 +6,7 @@ import type { PlanoLote } from "@/domain/mapa/entities";
 import { useOnlineStatus } from "@/presentation/hooks";
 import type { LimitesGeo } from "../georef";
 import { PLANTILLA_TILE_ESRI } from "../georef";
+import { nivelMaximoEsriConCobertura } from "../tilesEsri";
 import { PanelControlesEscena } from "./PanelControlesEscena";
 import type { CalidadEscena } from "./controlesEscena";
 import {
@@ -240,18 +241,38 @@ export function VisorCesium({
         const token = String(import.meta.env.VITE_CESIUM_TOKEN ?? "").trim();
         if (token) cesium.Ion.defaultAccessToken = token;
 
+        let nivelMaximoImagen: number | null;
+        try {
+          nivelMaximoImagen = await nivelMaximoEsriConCobertura(limitesRef.current, 19);
+        } catch (error) {
+          console.warn(
+            "No se pudo determinar la cobertura de imágenes Esri; se limita el zoom satelital.",
+            error,
+          );
+          nivelMaximoImagen = 17;
+          if (vivo) {
+            setAvisoEscena(
+              "No se pudo comprobar la cobertura satelital; se usará una resolución conservadora.",
+            );
+          }
+        }
+        if (!vivo) return;
+
         // No se pasa `creditContainer`: la atribución queda donde Cesium la
         // pone por defecto, visible y sin atajos de CSS (design.md D9).
         viewer = new cesium.Viewer(contenedor, {
           // La misma fotografía del territorio que ya usan el modo Satélite y
           // la capa aérea del Visor 3D: sin API key y sin cuota ion.
-          baseLayer: new cesium.ImageryLayer(
-            new cesium.UrlTemplateImageryProvider({
-              url: PLANTILLA_TILE_ESRI,
-              credit: CREDITO_ESRI,
-              maximumLevel: 19,
-            }),
-          ),
+          baseLayer:
+            nivelMaximoImagen === null
+              ? false
+              : new cesium.ImageryLayer(
+                  new cesium.UrlTemplateImageryProvider({
+                    url: PLANTILLA_TILE_ESRI,
+                    credit: CREDITO_ESRI,
+                    maximumLevel: nivelMaximoImagen,
+                  }),
+                ),
           terrain: cesium.Terrain.fromWorldTerrain(),
           animation: false,
           timeline: false,
@@ -273,6 +294,11 @@ export function VisorCesium({
 
         motorRef.current = cesium;
         viewerRef.current = viewer;
+        if (nivelMaximoImagen === null) {
+          setAvisoEscena(
+            "Esri no tiene imágenes satelitales disponibles para esta ubicación. El terreno y los lotes siguen visibles.",
+          );
+        }
         actualizarEntidadesLote(
           viewer,
           cesium,

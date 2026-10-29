@@ -216,6 +216,15 @@ y ambas capas (satélite y Cesium) se corrigen juntas.
   tile**: si el proveedor devuelve 404/vacío en el nivel pedido, se reintenta
   descendiendo hasta encontrar imagen, sin dejar huecos.
 - `deseado = anchoCaja * 2` → `anchoCaja * 3`.
+- El zoom solicitado se redondea hacia arriba para alcanzar el sobremuestreo
+  objetivo cuando el límite lo permite. Por decisión confirmada por el usuario,
+  el techo 20 prevalece si una caja mayor requeriría zoom 21: en ese caso se
+  usa el mejor nivel permitido, aunque el muestreo efectivo sea menor que 3×.
+- La disponibilidad se comprueba con el endpoint `tilemap` de Esri antes de
+  mostrar una tesela: el servicio puede responder HTTP 200 con una imagen de
+  aviso cuando no hay datos para ese nivel. En `CapaSatelite` cada tile baja al
+  primer ancestro publicado; el visor Cesium limita el `maximumLevel` al nivel
+  que cubre por completo la ventana del proyecto.
 
 **Por qué:** el cálculo actual pide el zoom correcto y luego lo corta. Para un
 plano de 240 m en 600 px el nivel pedido es ~20,5 y se queda en 18 → 0,597 m/px
@@ -228,8 +237,11 @@ Satélite y la capa aérea de `Visor3D` igual de blandas, y son los modos que
 funcionan offline sin token. Hay que mejorar los dos.
 
 **Fallback obligatorio:** el clamp nuevo es inofensivo si Esri no llega a 20
-en la zona — baja solo. Sin fallback, subir el clamp introduce áreas en blanco,
-que sería peor que el problema actual.
+en la zona — baja solo. Un `onError` no alcanza: Esri puede entregar HTTP 200
+con una imagen de texto ("Map data not yet available"). La capa consulta
+disponibilidad vía `tilemap` y baja al ancestro con datos; Cesium limita el
+nivel máximo de su base a la cobertura completa del proyecto. Si no hay datos
+para ningún nivel, se conserva terreno y lotes sin la capa satelital.
 
 ### D8. Nitidez de Cesium: `maximumScreenSpaceError` como control de usuario
 
@@ -287,6 +299,41 @@ la capacidad de mockear con `VITE_DATA_PROVIDER=mock`. El requisito de usuario
 **Nota:** con D5 el catálogo de referencia sale de `useMapaByProyecto` /
 `useMapaPublico`, que ya traen `centro_lat/lng/ancho_m` y `lote.poligono`. El
 repositorio nuevo solo hace falta si aparece una fuente de puntos distinta.
+
+### D12. Datos del mapa disponibles offline durante una hora
+
+**Decisión:** separar la persistencia de datos de mapa de la persistencia general
+de inventario. El mapa público se identifica por slug; el mapa interno se
+identifica por `empresaId` y proyecto. Ambos se conservan en IndexedDB durante
+un máximo de **1 hora**, y una recarga offline muestra la última lectura
+correcta si falla el refresco. La caché general de inventario conserva su
+política existente de 24 horas.
+
+Para reabrir `/mapas` offline se conserva además, por el mismo plazo, solo el
+contexto mínimo de identidad y empresa junto con el permiso `ver_mapas`. No se
+persisten credenciales, tokens ni permisos de otros módulos. La caché interna
+se purga al cerrar sesión o cambiar de empresa; la caché del mapa público se
+purga en los mismos eventos para mantener una sola frontera de limpieza.
+También se conserva la selección del último proyecto, etapa y manzana, vinculada
+al usuario y empresa, para que la recarga de `/mapas` restaure el mapa que ya se
+había abierto; esa selección expira y se purga con el resto de datos internos.
+Los lotes usados por la página interna se guardan bajo una clave específica del
+mapa, no bajo la retención general de inventario de 24 horas.
+
+**Por qué:** el shell de la PWA ya arranca desde el service worker, pero
+`mapa_publico` es una RPC POST y no se recupera del precache de assets. Sin
+persistir su resultado, una recarga offline reemplaza el mapa por una pantalla
+de error. La persistencia existente ya permite datos de mapas interactivos,
+pero su allowlist y sus claves actuales no incluyen esos resultados.
+
+**Alternativas descartadas:**
+- *Guardar todas las respuestas del backend*: mezcla dominios con requisitos
+  de frescura distintos y podría conservar datos financieros.
+- *Persistir todos los permisos del usuario*: ampliaría el acceso offline más
+  allá de lectura de mapas. La caché offline conserva únicamente `ver_mapas`.
+- *Subir a una hora el límite global de precache de consultas*: afectaría la
+  política de 24 horas de inventario ya desplegada; por eso los mapas usan una
+  clave de persistencia separada.
 
 ## Risks / Trade-offs
 

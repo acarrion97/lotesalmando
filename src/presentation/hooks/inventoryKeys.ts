@@ -32,12 +32,15 @@ export const inventoryKeys = {
   /** Datos fiscales de los recibos de pago de un proyecto. */
   configuracionPagos: (empresaId: number, proyectoId: number) =>
     ["configuracionPagos", empresaId, proyectoId] as const,
-  /** Plano (imagen) de un proyecto; nunca es elegible para persistencia offline. */
+  /** Plano (imagen) de un proyecto; persiste en el bucket de mapas de una hora. */
   mapaByProyecto: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId] as const,
   /** Lotes del proyecto con su contorno sobre el plano. */
   lotesPlano: (empresaId: number, proyectoId: number) =>
     ["mapa", empresaId, proyectoId, "lotes"] as const,
+  /** Lotes de la manzana seleccionada en el mapa, con retención de una hora. */
+  lotesByManzanaMapa: (empresaId: number, proyectoId: number, manzanaId: number) =>
+    ["mapa", empresaId, proyectoId, "lotes-manzana", manzanaId] as const,
   /** Fotos y videos del proyecto (galería pública). */
   mediosProyecto: (empresaId: number, proyectoId: number) =>
     ["medios", empresaId, proyectoId] as const,

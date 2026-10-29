@@ -1,4 +1,4 @@
-import { useState, useMemo, type CSSProperties } from "react";
+import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Typography,
@@ -66,6 +66,11 @@ import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/Plano
 import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { ubicacionDe } from "@/domain/mapa/entities";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
+import {
+  borrarSeleccionMapaOffline,
+  guardarSeleccionMapaOffline,
+  leerSeleccionMapaOffline,
+} from "@/infrastructure/offline/offlineMapSelection";
 import { compararNumeroLote, formatCurrency } from "@/utils";
 import { AsistentePoligonosModal } from "@/presentation/components/maps/AsistentePoligonosModal";
 import { InfoVentaLote } from "./InfoVentaLote";
@@ -173,6 +178,8 @@ export function MapasPage() {
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
   const [selectedEtapa, setSelectedEtapa] = useState<number | null>(null);
   const [selectedManzana, setSelectedManzana] = useState<number | null>(null);
+  const [seleccionRestauradaPara, setSeleccionRestauradaPara] = useState<string | null>(null);
+  const scopeSeleccionRef = useRef<string | null>(null);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [cotizacionStep, setCotizacionStep] = useState(0);
@@ -200,12 +207,86 @@ export function MapasPage() {
   const { user } = useAuth();
   const { empresaActual } = useEmpresa();
   const empresaId = empresaActual?.id_empresa ?? 0;
+  const userId = user?.id ?? null;
+  const scopeSeleccion = userId && empresaId > 0 ? `${userId}:${empresaId}` : null;
   // Asesor de la cuenta con sesión: el de las cotizaciones, reservas y ventas
   // directas que se abren desde el mapa (null cuando la cuenta no es asesor).
   const { idAsesor } = useAsesorDeSesion();
   const queryClient = useQueryClient();
   const aceptarCotizacionMutation = useAceptarCotizacion();
   const isOnline = useOnlineStatus();
+
+  useEffect(() => {
+    if (!scopeSeleccion || !userId) {
+      return;
+    }
+
+    const scopeAnterior = scopeSeleccionRef.current;
+    scopeSeleccionRef.current = scopeSeleccion;
+    let activo = true;
+
+    if (scopeAnterior !== null && scopeAnterior !== scopeSeleccion) {
+      setSelectedProyecto(null);
+      setSelectedEtapa(null);
+      setSelectedManzana(null);
+      void borrarSeleccionMapaOffline().catch((error: unknown) => {
+        console.error("No se pudo limpiar la selección al cambiar de empresa o usuario.", error);
+      });
+      setSeleccionRestauradaPara(scopeSeleccion);
+      return () => {
+        activo = false;
+      };
+    }
+
+    void leerSeleccionMapaOffline(userId, empresaId)
+      .then((seleccion) => {
+        if (!activo) return;
+        if (seleccion) {
+          setSelectedProyecto(seleccion.proyectoId);
+          setSelectedEtapa(seleccion.etapaId);
+          setSelectedManzana(seleccion.manzanaId);
+        }
+        setSeleccionRestauradaPara(scopeSeleccion);
+      })
+      .catch((error: unknown) => {
+        console.error("No se pudo restaurar la selección offline del mapa.", error);
+        if (activo) setSeleccionRestauradaPara(scopeSeleccion);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [empresaId, scopeSeleccion, userId]);
+
+  useEffect(() => {
+    if (!scopeSeleccion || !userId || seleccionRestauradaPara !== scopeSeleccion) return;
+
+    if (selectedProyecto === null || selectedEtapa === null || selectedManzana === null) {
+      void borrarSeleccionMapaOffline().catch((error: unknown) => {
+        console.error("No se pudo limpiar la selección offline incompleta del mapa.", error);
+      });
+      return;
+    }
+
+    void guardarSeleccionMapaOffline({
+      userId,
+      empresaId,
+      proyectoId: selectedProyecto,
+      etapaId: selectedEtapa,
+      manzanaId: selectedManzana,
+      savedAt: Date.now(),
+    }).catch((error: unknown) => {
+      console.error("No se pudo guardar la selección offline del mapa.", error);
+    });
+  }, [
+    empresaId,
+    scopeSeleccion,
+    seleccionRestauradaPara,
+    selectedEtapa,
+    selectedManzana,
+    selectedProyecto,
+    userId,
+  ]);
 
   const { data: clientes, isLoading: loadingClientes } = useClientes(empresaId);
   const { data: prospectos, isLoading: loadingProspectos } = useProspectos();
@@ -216,7 +297,7 @@ export function MapasPage() {
     data: lotesData,
     isLoading: loadingLotes,
     dataUpdatedAt: lotesUpdatedAt,
-  } = useLotesByManzana(selectedManzana ?? 0);
+  } = useLotesByManzana(selectedManzana ?? 0, selectedProyecto ?? undefined);
   const { data: mapaProyecto } = useMapaByProyecto(selectedProyecto ?? 0);
 
   const urlPlano = mapaProyecto?.url_publica ?? null;

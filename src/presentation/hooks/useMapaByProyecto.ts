@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { getContainer } from "@/infrastructure/container";
+import { MAP_OFFLINE_CACHE_TTL_MS } from "@/infrastructure/offline/offlineDataPolicy";
 import { useEmpresa } from "@/presentation/providers";
 import { inventoryKeys } from "./inventoryKeys";
 
@@ -13,5 +14,6 @@ export function useMapaByProyecto(proyectoId: number) {
     queryKey: inventoryKeys.mapaByProyecto(empresaId, proyectoId),
     queryFn: () => container.getMapaByProyecto.execute(proyectoId),
     enabled: !!empresaId && !!proyectoId,
+    gcTime: MAP_OFFLINE_CACHE_TTL_MS,
   });
 }

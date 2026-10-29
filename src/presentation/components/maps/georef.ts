@@ -59,16 +59,65 @@ export interface RejillaTiles {
   tiles: { x: number; y: number; left: number; top: number }[];
 }
 
+export interface RecorteTileAncestro {
+  zoom: number;
+  x: number;
+  y: number;
+  /** Factor por el que se amplía el tile ancestro para llenar un tile hijo. */
+  escala: number;
+  /** Desplazamiento en píxeles dentro del tile ancestro. */
+  desplazamientoX: number;
+  desplazamientoY: number;
+}
+
+/**
+ * Coordenadas del tile ancestro que cubre un tile pedido a mayor zoom y
+ * desplazamiento del recorte del ancestro que corresponde al hijo.
+ */
+export function recorteTileAncestro(
+  zoomPedido: number,
+  xPedido: number,
+  yPedido: number,
+  zoomAncestro: number,
+): RecorteTileAncestro {
+  if (
+    !Number.isInteger(zoomPedido) ||
+    !Number.isInteger(zoomAncestro) ||
+    zoomAncestro < 0 ||
+    zoomAncestro > zoomPedido ||
+    !Number.isInteger(xPedido) ||
+    !Number.isInteger(yPedido) ||
+    xPedido < 0 ||
+    yPedido < 0 ||
+    xPedido >= 2 ** zoomPedido ||
+    yPedido >= 2 ** zoomPedido
+  ) {
+    throw new RangeError("Coordenadas de tile o nivel de zoom inválidos.");
+  }
+
+  const escala = 2 ** (zoomPedido - zoomAncestro);
+  const x = Math.floor(xPedido / escala);
+  const y = Math.floor(yPedido / escala);
+  return {
+    zoom: zoomAncestro,
+    x,
+    y,
+    escala,
+    desplazamientoX: (xPedido - x * escala) * TAMANO_TILE,
+    desplazamientoY: (yPedido - y * escala) * TAMANO_TILE,
+  };
+}
+
 /**
  * Tiles que cubren los límites dados, a un zoom que deja la imagen con
- * ~2x la resolución de la caja destino (para que no se vea borrosa al
+ * ~3x la resolución de la caja destino (para que no se vea borrosa al
  * escalar). Se devuelve en píxeles "mundo" para que el caller escale.
  */
 export function rejillaTiles(limites: LimitesGeo, anchoCaja: number): RejillaTiles {
   const anchoGrados = Math.max(1e-9, limites.este - limites.oeste);
-  const deseado = Math.max(TAMANO_TILE, anchoCaja * 2);
+  const deseado = Math.max(TAMANO_TILE, anchoCaja * 3);
   const zoomIdeal = Math.log2((deseado * 360) / (anchoGrados * TAMANO_TILE));
-  const zoom = Math.max(0, Math.min(18, Math.round(zoomIdeal)));
+  const zoom = Math.max(0, Math.min(20, Math.ceil(zoomIdeal)));
 
   const origen = pxMundo(limites.oeste, limites.norte, zoom);
   const fin = pxMundo(limites.este, limites.sur, zoom);
