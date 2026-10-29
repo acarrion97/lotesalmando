@@ -14,7 +14,8 @@ import {
 } from "@ant-design/icons";
 import type { PuntoPlano } from "@/domain/lote/entities";
 import type { PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
-import { ESTILO_ESTADO_PLANO, etiquetaLote } from "./PlanoInteractivo";
+import { etiquetaLote } from "./PlanoInteractivo";
+import { ESTILO_ESTADO_PLANO } from "./estilosEstadoLote";
 import { CapaSatelite } from "./CapaSatelite";
 import { limitesDelPlano } from "./georef";
 
@@ -47,6 +48,7 @@ interface Visor3DProps {
   onImagenError?: () => void;
   /** Alto máximo del visor (px). */
   alturaMaxima?: number;
+  mostrarEtiquetas?: boolean;
 }
 
 interface Hover {
@@ -100,6 +102,7 @@ export function Visor3D({
   mostrarPrecio = false,
   onImagenError,
   alturaMaxima,
+  mostrarEtiquetas = true,
 }: Visor3DProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [medida, setMedida] = useState<{ url: string; w: number; h: number } | null>(null);
@@ -430,7 +433,7 @@ export function Visor3D({
             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain" }}
           />
         ) : capaActiva === "aerea" && limites ? (
-          <CapaSatelite limites={limites} />
+          <CapaSatelite limites={limites} mostrarEtiquetas={mostrarEtiquetas} />
         ) : (
           <img
             src={imagenUrl}

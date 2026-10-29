@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
-import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
+import { Alert, Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
 import { ubicacionDe, type PlanoLote } from "@/domain/mapa/entities";
-import { useMapaPublico, useRegistrarInteresPublico } from "@/presentation/hooks";
-import {
-  LeyendaPlano,
-  etiquetaLote,
-} from "@/presentation/components/maps/PlanoInteractivo";
-import {
-  VisorMapaModos,
-  type ModoMapa,
-} from "@/presentation/components/maps/VisorMapaModos";
+import { useMapaPublico, useOnlineStatus, useRegistrarInteresPublico } from "@/presentation/hooks";
+import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
 import {
   CalculadoraFinanciamiento,
@@ -23,6 +17,13 @@ const { Title, Text } = Typography;
 
 const CLAVES_TAB = ["galeria", "mapa", "financiamiento"] as const;
 type TabClave = (typeof CLAVES_TAB)[number];
+
+/** Ícono de cada pestaña, en un registro (tarea 6.4) para poder componerlo. */
+const MAPA_TAB_ICONS: Record<TabClave, ReactNode> = {
+  galeria: <PictureOutlined />,
+  mapa: <EnvironmentOutlined />,
+  financiamiento: <CalculatorOutlined />,
+};
 
 const RESUMEN_ESTADOS = [
   { clave: "total" as const, etiqueta: "Lotes", color: "#1677ff" },
@@ -40,13 +41,14 @@ const RESUMEN_ESTADOS = [
 export function MapaPublicoPage() {
   const { slug = "" } = useParams<{ slug: string }>();
   const { data: mapa, isLoading, isError } = useMapaPublico(slug);
+  const enLinea = useOnlineStatus();
   const [searchParams, setSearchParams] = useSearchParams();
   const [imagenFallida, setImagenFallida] = useState(false);
   const [loteFicha, setLoteFicha] = useState<PlanoLote | null>(null);
   const [loteCalculadora, setLoteCalculadora] = useState<PlanoLote | null>(null);
   /** Lote del que se muestra el modal de financiamiento (abierto desde la ficha). */
   const [loteSimulador, setLoteSimulador] = useState<PlanoLote | null>(null);
-  /** Modo del visor: plano, satélite o vista 3D (si el proyecto definió GPS). */
+  /** Modo del visor: plano, satélite, vista 3D del plano o Cesium geográfico. */
   const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
   const registrarInteres = useRegistrarInteresPublico();
 
@@ -76,9 +78,21 @@ export function MapaPublicoPage() {
     setSearchParams({ tab: clave }, { replace: true });
   };
 
-  /** Cambio hecho por el visitante: además se cierra la ficha que quede abierta. */
+  /**
+   * Cambio de pestaña hecho por el visitante: además de cambiar la URL se
+   * pliega la ficha de datos que quede abierta y se vuelve al modo Plano al
+   * dejar la pestaña Mapa, de modo que regresar nunca vuelva a montar la
+   * escena 3D automáticamente ni dispare peticiones de tiles (spec «El mapa
+   * público no inicia la escena 3D automáticamente»; decisión conservadora
+   * por la cuota ion del mapa público anónimo).
+   *
+   * Vive en el handler y no en un `useEffect`: todos los cambios de pestaña
+   * pasan por acá (`?tab=` se escribe con `replace: true`, así que no hay
+   * ruta por el historial) y `react-hooks` v7 prohíbe `setState` en effects.
+   */
   const alCambiarTab = (clave: string) => {
     setLoteFicha(null);
+    if (clave !== "mapa") setModoMapa((modo) => (modo === "cesium" ? "plano" : modo));
     cambiarTab(clave);
   };
 
@@ -126,7 +140,7 @@ export function MapaPublicoPage() {
         <Spin size="large" />
       </div>
     );
-  } else if (isError) {
+  } else if (isError && !mapa) {
     contenido = (
       <Result
         status="warning"
@@ -145,6 +159,14 @@ export function MapaPublicoPage() {
   } else {
     contenido = (
       <>
+        {!enLinea && (
+          <Alert
+            type="warning"
+            showIcon
+            message="Sin conexión: se muestra el último mapa sincronizado."
+            style={{ maxWidth: 1248, margin: "16px auto 0" }}
+          />
+        )}
         {estadisticas && (
           <div
             style={{
@@ -191,7 +213,7 @@ export function MapaPublicoPage() {
               {
                 key: "galeria",
                 label: "Galería",
-                icon: <PictureOutlined />,
+                icon: MAPA_TAB_ICONS.galeria,
                 destroyOnHidden: true,
                 children: (
                   <div style={{ padding: "16px 0" }}>
@@ -202,7 +224,7 @@ export function MapaPublicoPage() {
               {
                 key: "mapa",
                 label: "Mapa",
-                icon: <EnvironmentOutlined />,
+                icon: MAPA_TAB_ICONS.mapa,
                 destroyOnHidden: true,
                 children: (
                   <div>
@@ -223,6 +245,7 @@ export function MapaPublicoPage() {
                             renderUrl={mapa.render_3d_url}
                             lotes={mapa.lotes}
                             onLoteClick={abrirFicha}
+                            loteSeleccionadoId={loteFicha?.id_lote}
                             onImagenError={() => setImagenFallida(true)}
                             alturaMaxima={Math.max(360, window.innerHeight - 300)}
                             modo={modoMapa}
@@ -245,7 +268,7 @@ export function MapaPublicoPage() {
               {
                 key: "financiamiento",
                 label: "Financiamiento",
-                icon: <CalculatorOutlined />,
+                icon: MAPA_TAB_ICONS.financiamiento,
                 destroyOnHidden: true,
                 children: (
                   <div style={{ padding: "24px 16px 40px" }}>

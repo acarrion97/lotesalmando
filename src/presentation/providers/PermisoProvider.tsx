@@ -1,7 +1,8 @@
 import { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getContainer } from "@/infrastructure/container";
+import { MAP_OFFLINE_CACHE_TTL_MS } from "@/infrastructure/offline/offlineDataPolicy";
 import { useAuth } from "./AuthProvider";
 import { permisoParaRuta } from "@/presentation/permisos/permisosConfig";
 
@@ -30,16 +31,37 @@ export function PermisoProvider({ children }: { children: ReactNode }) {
   const container = getContainer();
   const { user, isAuthenticated } = useAuth();
   const idUsuario = user?.id_usuario ?? null;
+  const empresaId = user?.id_empresa ?? 0;
+  const queryClient = useQueryClient();
+  const permisoMapas = permisoParaRuta("/mapas");
+  const clavePermisoMapas = ["permiso-mapa", empresaId, idUsuario] as const;
 
   const { data, isLoading } = useQuery({
     queryKey: [...QUERY_KEY, idUsuario],
-    queryFn: () => container.getPermisosByUsuario.execute(idUsuario as number),
+    queryFn: async () => {
+      const permisos = await container.getPermisosByUsuario.execute(idUsuario as number);
+      if (empresaId > 0 && idUsuario && permisoMapas) {
+        queryClient.setQueryData(clavePermisoMapas, permisos.includes(permisoMapas));
+      }
+      return permisos;
+    },
     enabled: isAuthenticated && !!idUsuario,
     // Los permisos cambian poco: se cachean por usuario.
     staleTime: 1000 * 60 * 5,
   });
 
-  const permisos = useMemo(() => data ?? [], [data]);
+  const { data: permisoMapasOffline } = useQuery({
+    queryKey: clavePermisoMapas,
+    queryFn: async () => false,
+    enabled: false,
+    staleTime: MAP_OFFLINE_CACHE_TTL_MS,
+    gcTime: MAP_OFFLINE_CACHE_TTL_MS,
+  });
+
+  const permisos = useMemo(
+    () => data ?? (permisoMapasOffline && permisoMapas ? [permisoMapas] : []),
+    [data, permisoMapasOffline, permisoMapas],
+  );
 
   const permisosSet = useMemo(() => new Set(permisos), [permisos]);
 
@@ -56,12 +78,12 @@ export function PermisoProvider({ children }: { children: ReactNode }) {
     return {
       permisos,
       // Si no hay sesión no hay nada que cargar.
-      cargando: isAuthenticated && !!idUsuario && isLoading,
+      cargando: isAuthenticated && !!idUsuario && isLoading && permisoMapasOffline === undefined,
       tienePermiso,
       puedeVerRuta,
       veTodosLosRegistros: permisosSet.has("ver_registros_de_todos"),
     };
-  }, [permisos, permisosSet, isAuthenticated, idUsuario, isLoading]);
+  }, [permisos, permisosSet, isAuthenticated, idUsuario, isLoading, permisoMapasOffline]);
 
   return <PermisoContext.Provider value={value}>{children}</PermisoContext.Provider>;
 }

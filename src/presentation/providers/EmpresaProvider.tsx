@@ -38,19 +38,17 @@ function getStoredEmpresaId(): number | null {
 
 export function EmpresaProvider({ children }: EmpresaProviderProps) {
   const { user, isAuthenticated } = useAuth();
-  const { data: empresasData } = useEmpresas({ enabled: isAuthenticated });
+  const empresaId = user?.id_empresa ?? 0;
+  const { data: empresasData } = useEmpresas(empresaId, { enabled: isAuthenticated });
   const [manualEmpresaId, setManualEmpresaId] = useState<number | null>(null);
   const queryClient = useQueryClient();
 
   // Cada usuario solo ve la empresa a la que pertenece. Un usuario sin empresa
   // asignada no ve ninguna, en lugar de ver las de otros.
-  const empresas = useMemo(
-    () =>
-      isAuthenticated
-        ? (empresasData ?? []).filter((e) => e.id_empresa === user?.id_empresa)
-        : [],
-    [isAuthenticated, empresasData, user?.id_empresa]
-  );
+  const empresas = useMemo(() => (isAuthenticated ? (empresasData ?? []) : []), [
+    isAuthenticated,
+    empresasData,
+  ]);
 
   const empresaActual = useMemo(() => {
     if (empresas.length === 0) return null;

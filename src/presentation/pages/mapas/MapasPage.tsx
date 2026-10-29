@@ -1,4 +1,4 @@
-import { useState, useMemo, type CSSProperties } from "react";
+import { useState, useMemo, useEffect, useRef, type CSSProperties } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Typography,
@@ -62,16 +62,15 @@ import { useAuth, useEmpresa } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
-import {
-  LeyendaPlano,
-  etiquetaLote,
-} from "@/presentation/components/maps/PlanoInteractivo";
-import {
-  VisorMapaModos,
-  type ModoMapa,
-} from "@/presentation/components/maps/VisorMapaModos";
+import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { ubicacionDe } from "@/domain/mapa/entities";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
+import {
+  borrarSeleccionMapaOffline,
+  guardarSeleccionMapaOffline,
+  leerSeleccionMapaOffline,
+} from "@/infrastructure/offline/offlineMapSelection";
 import { compararNumeroLote, formatCurrency } from "@/utils";
 import { AsistentePoligonosModal } from "@/presentation/components/maps/AsistentePoligonosModal";
 import { InfoVentaLote } from "./InfoVentaLote";
@@ -179,6 +178,8 @@ export function MapasPage() {
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
   const [selectedEtapa, setSelectedEtapa] = useState<number | null>(null);
   const [selectedManzana, setSelectedManzana] = useState<number | null>(null);
+  const [seleccionRestauradaPara, setSeleccionRestauradaPara] = useState<string | null>(null);
+  const scopeSeleccionRef = useRef<string | null>(null);
   const [selectedLote, setSelectedLote] = useState<Lote | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [cotizacionStep, setCotizacionStep] = useState(0);
@@ -206,12 +207,86 @@ export function MapasPage() {
   const { user } = useAuth();
   const { empresaActual } = useEmpresa();
   const empresaId = empresaActual?.id_empresa ?? 0;
+  const userId = user?.id ?? null;
+  const scopeSeleccion = userId && empresaId > 0 ? `${userId}:${empresaId}` : null;
   // Asesor de la cuenta con sesión: el de las cotizaciones, reservas y ventas
   // directas que se abren desde el mapa (null cuando la cuenta no es asesor).
   const { idAsesor } = useAsesorDeSesion();
   const queryClient = useQueryClient();
   const aceptarCotizacionMutation = useAceptarCotizacion();
   const isOnline = useOnlineStatus();
+
+  useEffect(() => {
+    if (!scopeSeleccion || !userId) {
+      return;
+    }
+
+    const scopeAnterior = scopeSeleccionRef.current;
+    scopeSeleccionRef.current = scopeSeleccion;
+    let activo = true;
+
+    if (scopeAnterior !== null && scopeAnterior !== scopeSeleccion) {
+      setSelectedProyecto(null);
+      setSelectedEtapa(null);
+      setSelectedManzana(null);
+      void borrarSeleccionMapaOffline().catch((error: unknown) => {
+        console.error("No se pudo limpiar la selección al cambiar de empresa o usuario.", error);
+      });
+      setSeleccionRestauradaPara(scopeSeleccion);
+      return () => {
+        activo = false;
+      };
+    }
+
+    void leerSeleccionMapaOffline(userId, empresaId)
+      .then((seleccion) => {
+        if (!activo) return;
+        if (seleccion) {
+          setSelectedProyecto(seleccion.proyectoId);
+          setSelectedEtapa(seleccion.etapaId);
+          setSelectedManzana(seleccion.manzanaId);
+        }
+        setSeleccionRestauradaPara(scopeSeleccion);
+      })
+      .catch((error: unknown) => {
+        console.error("No se pudo restaurar la selección offline del mapa.", error);
+        if (activo) setSeleccionRestauradaPara(scopeSeleccion);
+      });
+
+    return () => {
+      activo = false;
+    };
+  }, [empresaId, scopeSeleccion, userId]);
+
+  useEffect(() => {
+    if (!scopeSeleccion || !userId || seleccionRestauradaPara !== scopeSeleccion) return;
+
+    if (selectedProyecto === null || selectedEtapa === null || selectedManzana === null) {
+      void borrarSeleccionMapaOffline().catch((error: unknown) => {
+        console.error("No se pudo limpiar la selección offline incompleta del mapa.", error);
+      });
+      return;
+    }
+
+    void guardarSeleccionMapaOffline({
+      userId,
+      empresaId,
+      proyectoId: selectedProyecto,
+      etapaId: selectedEtapa,
+      manzanaId: selectedManzana,
+      savedAt: Date.now(),
+    }).catch((error: unknown) => {
+      console.error("No se pudo guardar la selección offline del mapa.", error);
+    });
+  }, [
+    empresaId,
+    scopeSeleccion,
+    seleccionRestauradaPara,
+    selectedEtapa,
+    selectedManzana,
+    selectedProyecto,
+    userId,
+  ]);
 
   const { data: clientes, isLoading: loadingClientes } = useClientes(empresaId);
   const { data: prospectos, isLoading: loadingProspectos } = useProspectos();
@@ -222,7 +297,7 @@ export function MapasPage() {
     data: lotesData,
     isLoading: loadingLotes,
     dataUpdatedAt: lotesUpdatedAt,
-  } = useLotesByManzana(selectedManzana ?? 0);
+  } = useLotesByManzana(selectedManzana ?? 0, selectedProyecto ?? undefined);
   const { data: mapaProyecto } = useMapaByProyecto(selectedProyecto ?? 0);
 
   const urlPlano = mapaProyecto?.url_publica ?? null;
@@ -230,7 +305,7 @@ export function MapasPage() {
   const [planosConFallo, setPlanosConFallo] = useState<string[]>([]);
   const hayPlano = !!urlPlano && !planosConFallo.includes(urlPlano);
 
-  // Plano / satélite georreferenciado / vista 3D (mientras se dibuja se fuerza el plano).
+  // Plano / satélite / vista 3D del plano / Cesium (mientras se dibuja se fuerza el plano).
   const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
   const ubicacionMapa = useMemo(() => ubicacionDe(mapaProyecto), [mapaProyecto]);
 
@@ -265,6 +340,7 @@ export function MapasPage() {
     data: lotesPlano,
     isLoading: loadingLotesPlano,
     dataUpdatedAt: lotesPlanoUpdatedAt,
+    refetch: refetchLotesPlano,
   } = useLotesPlano(hayPlano ? (selectedProyecto ?? 0) : 0);
   const [dibujando, setDibujando] = useState<{ lote: PlanoLote; puntos: PuntoPlano[] } | null>(
     null,
@@ -506,7 +582,7 @@ export function MapasPage() {
       message.success(
         reservaEntrada > 0
           ? `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres} · Entrada $${reservaEntrada.toLocaleString()}`
-          : `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`
+          : `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`,
       );
       closeModal();
     } catch (err) {
@@ -516,8 +592,7 @@ export function MapasPage() {
     }
   };
 
-  const prospectoReserva =
-    prospectos?.find((p) => p.id_prospecto === selectedProspecto) ?? null;
+  const prospectoReserva = prospectos?.find((p) => p.id_prospecto === selectedProspecto) ?? null;
 
   const precioVenta = selectedLote?.precio_lista ?? 0;
   const financiamientoValido =
@@ -858,38 +933,41 @@ export function MapasPage() {
                 {lotesUbicados} de {lotesPlano.length} lotes ubicados en el plano
               </Text>
               <Space wrap>
-              <Button icon={<EnvironmentOutlined />} onClick={() => setAsistenteAbierto(true)}>
-                Detectar lotes automáticamente
-              </Button>
-              <Space.Compact>
-                <Select
-                  showSearch
-                  placeholder={
-                    lotesSinUbicar.length
-                      ? `Ubicar lote (${lotesSinUbicar.length} sin ubicar)`
-                      : "Redibujar un lote"
-                  }
-                  style={{ width: 260 }}
-                  value={loteAUbicar}
-                  onChange={setLoteAUbicar}
-                  optionFilterProp="label"
-                  options={[...lotesPlano]
-                    // Primero los que aun no tienen trazado; dentro de cada grupo, por numero de lote.
-                    .sort((a, b) => Number(!!a.poligono) - Number(!!b.poligono) || compararNumeroLote(a, b))
-                    .map((l) => ({
-                      value: l.id_lote,
-                      label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}`,
-                    }))}
-                />
-                <Button
-                  type="primary"
-                  icon={<EditOutlined />}
-                  disabled={!loteAUbicar}
-                  onClick={() => loteAUbicar && empezarDibujo(loteAUbicar)}
-                >
-                  Dibujar
+                <Button icon={<EnvironmentOutlined />} onClick={() => setAsistenteAbierto(true)}>
+                  Detectar lotes automáticamente
                 </Button>
-              </Space.Compact>
+                <Space.Compact>
+                  <Select
+                    showSearch
+                    placeholder={
+                      lotesSinUbicar.length
+                        ? `Ubicar lote (${lotesSinUbicar.length} sin ubicar)`
+                        : "Redibujar un lote"
+                    }
+                    style={{ width: 260 }}
+                    value={loteAUbicar}
+                    onChange={setLoteAUbicar}
+                    optionFilterProp="label"
+                    options={[...lotesPlano]
+                      // Primero los que aun no tienen trazado; dentro de cada grupo, por numero de lote.
+                      .sort(
+                        (a, b) =>
+                          Number(!!a.poligono) - Number(!!b.poligono) || compararNumeroLote(a, b),
+                      )
+                      .map((l) => ({
+                        value: l.id_lote,
+                        label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}`,
+                      }))}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    disabled={!loteAUbicar}
+                    onClick={() => loteAUbicar && empezarDibujo(loteAUbicar)}
+                  >
+                    Dibujar
+                  </Button>
+                </Space.Compact>
               </Space>
             </div>
           ))}
@@ -919,11 +997,13 @@ export function MapasPage() {
             resaltados={resaltados}
             mostrarPrecio
             onLoteClick={abrirLoteDelPlano}
+            loteSeleccionadoId={selectedLote?.id_lote}
             onImagenError={() =>
               setPlanosConFallo((prev) => (prev.includes(urlPlano) ? prev : [...prev, urlPlano]))
             }
             modo={modoMapa}
             onModoChange={setModoMapa}
+            onRefrescarLotes={refetchLotesPlano}
             dibujo={
               dibujando && {
                 puntos: dibujando.puntos,
@@ -1058,8 +1138,8 @@ export function MapasPage() {
             <Descriptions column={2} bordered size="small" style={{ marginBottom: 20 }}>
               <Descriptions.Item label="Numero">{selectedLote.numero_lote}</Descriptions.Item>
               <Descriptions.Item label="Manzana">
-                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)?.nombre_codigo ??
-                  selectedLote.id_manzana}
+                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)
+                  ?.nombre_codigo ?? selectedLote.id_manzana}
               </Descriptions.Item>
               <Descriptions.Item label="Precio Lista" span={2}>
                 <span style={{ fontWeight: 700, fontSize: 18, color: "#1677ff" }}>

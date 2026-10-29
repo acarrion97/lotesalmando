@@ -6,7 +6,8 @@ import {
   HomeOutlined,
 } from "@ant-design/icons";
 import type { PlanoLote } from "@/domain/mapa/entities";
-import { ESTILO_ESTADO_PLANO, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { ESTILO_ESTADO_PLANO } from "@/presentation/components/maps/estilosEstadoLote";
 import { formatCurrency } from "@/utils";
 
 const { Text } = Typography;

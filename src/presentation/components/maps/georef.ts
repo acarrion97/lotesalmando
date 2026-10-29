@@ -59,16 +59,76 @@ export interface RejillaTiles {
   tiles: { x: number; y: number; left: number; top: number }[];
 }
 
+export interface RecorteTileAncestro {
+  zoom: number;
+  x: number;
+  y: number;
+  /** Factor por el que se amplía el tile ancestro para llenar un tile hijo. */
+  escala: number;
+  /** Desplazamiento en píxeles dentro del tile ancestro. */
+  desplazamientoX: number;
+  desplazamientoY: number;
+}
+
+/**
+ * Coordenadas del tile ancestro que cubre un tile pedido a mayor zoom y
+ * desplazamiento del recorte del ancestro que corresponde al hijo.
+ */
+export function recorteTileAncestro(
+  zoomPedido: number,
+  xPedido: number,
+  yPedido: number,
+  zoomAncestro: number,
+): RecorteTileAncestro {
+  if (
+    !Number.isInteger(zoomPedido) ||
+    !Number.isInteger(zoomAncestro) ||
+    zoomAncestro < 0 ||
+    zoomAncestro > zoomPedido ||
+    !Number.isInteger(xPedido) ||
+    !Number.isInteger(yPedido) ||
+    xPedido < 0 ||
+    yPedido < 0 ||
+    xPedido >= 2 ** zoomPedido ||
+    yPedido >= 2 ** zoomPedido
+  ) {
+    throw new RangeError("Coordenadas de tile o nivel de zoom inválidos.");
+  }
+
+  const escala = 2 ** (zoomPedido - zoomAncestro);
+  const x = Math.floor(xPedido / escala);
+  const y = Math.floor(yPedido / escala);
+  return {
+    zoom: zoomAncestro,
+    x,
+    y,
+    escala,
+    desplazamientoX: (xPedido - x * escala) * TAMANO_TILE,
+    desplazamientoY: (yPedido - y * escala) * TAMANO_TILE,
+  };
+}
+
 /**
  * Tiles que cubren los límites dados, a un zoom que deja la imagen con
- * ~2x la resolución de la caja destino (para que no se vea borrosa al
+ * ~3x la resolución de la caja destino (para que no se vea borrosa al
  * escalar). Se devuelve en píxeles "mundo" para que el caller escale.
+ *
+ * `zoomMaximo` es el techo absoluto, por encima incluso del de resolución:
+ * sirve para pedir el nivel más alto que el proveedor CUBRE de verdad en esa
+ * ventana (ver `tilesEsri.ts`). Pedir un nivel sin datos no falla: devuelve
+ * una imagen de aviso y fuerza al caller a bajar nivel tile a tile, que es
+ * caro y lento.
  */
-export function rejillaTiles(limites: LimitesGeo, anchoCaja: number): RejillaTiles {
+export function rejillaTiles(
+  limites: LimitesGeo,
+  anchoCaja: number,
+  zoomMaximo = 20,
+): RejillaTiles {
   const anchoGrados = Math.max(1e-9, limites.este - limites.oeste);
-  const deseado = Math.max(TAMANO_TILE, anchoCaja * 2);
+  const deseado = Math.max(TAMANO_TILE, anchoCaja * 3);
   const zoomIdeal = Math.log2((deseado * 360) / (anchoGrados * TAMANO_TILE));
-  const zoom = Math.max(0, Math.min(18, Math.round(zoomIdeal)));
+  const techo = Math.max(0, Math.min(20, zoomMaximo));
+  const zoom = Math.max(0, Math.min(techo, Math.ceil(zoomIdeal)));
 
   const origen = pxMundo(limites.oeste, limites.norte, zoom);
   const fin = pxMundo(limites.este, limites.sur, zoom);
@@ -92,7 +152,29 @@ export function rejillaTiles(limites: LimitesGeo, anchoCaja: number): RejillaTil
   return { zoom, anchoPx, altoPx, tiles };
 }
 
-/** URL del tile satelital (Esri World Imagery, sin API key). */
-export function urlTile(zoom: number, x: number, y: number): string {
-  return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${y}/${x}`;
+/**
+ * Plantilla del tile satelital, en el orden `{z}/{y}/{x}` que usa Esri. Es la
+ * misma fuente para `CapaSatelite` (modo Satelte y capa aerea del Visor 3D) y
+ * para la capa de imagenes de la vista 3D real, asi las tres miran exactamente
+ * la misma fotografia del territorio sin necesitar API key.
+ */
+export const PLANTILLA_TILE_ESRI =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+export const PLANTILLAS_ETIQUETAS_ESRI = [
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+] as const;
+
+/** URL de un tile de la plantilla indicada (por defecto, Esri World Imagery). */
+export function urlTile(
+  zoom: number,
+  x: number,
+  y: number,
+  plantilla = PLANTILLA_TILE_ESRI,
+): string {
+  return plantilla
+    .replace("{z}", String(zoom))
+    .replace("{y}", String(y))
+    .replace("{x}", String(x));
 }
