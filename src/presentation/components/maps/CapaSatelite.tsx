@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LimitesGeo } from "./georef";
 import { recorteTileAncestro, rejillaTiles, urlTile } from "./georef";
-import { disponibilidadTilesEsri, tileEsriDisponible } from "./tilesEsri";
+import {
+  disponibilidadTilesEsri,
+  nivelMaximoEsriConCobertura,
+  tileEsriDisponible,
+} from "./tilesEsri";
 
 interface CapaSateliteProps {
   limites: LimitesGeo;
@@ -19,14 +23,7 @@ interface TileSateliteProps {
   disponibilidadInicial: boolean | undefined;
 }
 
-function TileSatelite({
-  zoomPedido,
-  x,
-  y,
-  left,
-  top,
-  disponibilidadInicial,
-}: TileSateliteProps) {
+function TileSatelite({ zoomPedido, x, y, left, top, disponibilidadInicial }: TileSateliteProps) {
   const [zoomActual, setZoomActual] = useState(() =>
     disponibilidadInicial === false ? Math.max(0, zoomPedido - 1) : zoomPedido,
   );
@@ -136,10 +133,43 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
     disponibles: ReadonlyMap<string, boolean> | null;
     error: boolean;
   } | null>(null);
+  /**
+   * Techo de cobertura real del proveedor para esta ventana: Esri no publica
+   * imágenes a todos los niveles en todas partes (en Machala llega a z18 y
+   * z19/z20 devuelven tiles de aviso). Pedir el nivel que no existe obliga a
+   * cada tile a bajar de nivel por su cuenta, que es lento y no gana nitidez.
+   * Se guarda junto a la ventana a la que pertenece para no aplicar el techo
+   * de una ventana a otra; `null` = no hay cobertura en absoluto.
+   */
+  const [cobertura, setCobertura] = useState<{ ventana: string; nivel: number | null } | null>(
+    null,
+  );
 
   // Se desestructura para que el useMemo no dependa de un objeto nuevo
   // creado en cada render del padre.
   const { norte, sur, este, oeste } = limites;
+  const ventanaCobertura = `${norte}/${sur}/${este}/${oeste}`;
+  // `undefined` mientras no se sabe nada de ESTA ventana: hasta entonces no
+  // se pide la rejilla, así no se tiran tiles de un nivel que puede fallar.
+  const techoCobertura = cobertura?.ventana === ventanaCobertura ? cobertura.nivel : undefined;
+
+  useEffect(() => {
+    let vivo = true;
+    void nivelMaximoEsriConCobertura({ norte, sur, este, oeste }, 20)
+      .then((nivel) => {
+        if (vivo) setCobertura({ ventana: ventanaCobertura, nivel });
+      })
+      .catch((error: unknown) => {
+        // Sin el techo la capa sigue funcionando: el descenso por tile que ya
+        // existe evita los huecos. Se recorta a un nivel conservador para no
+        // pedir de más.
+        console.error("No se pudo determinar la cobertura satelital de Esri.", error);
+        if (vivo) setCobertura({ ventana: ventanaCobertura, nivel: 17 });
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [norte, sur, este, oeste, ventanaCobertura]);
 
   useEffect(() => {
     const el = contenedorRef.current;
@@ -152,8 +182,11 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
   }, []);
 
   const rejilla = useMemo(
-    () => (ancho > 0 ? rejillaTiles({ norte, sur, este, oeste }, ancho) : null),
-    [norte, sur, este, oeste, ancho],
+    () =>
+      ancho > 0 && techoCobertura != null
+        ? rejillaTiles({ norte, sur, este, oeste }, ancho, techoCobertura)
+        : null,
+    [norte, sur, este, oeste, ancho, techoCobertura],
   );
   const claveDisponibilidad = rejilla
     ? `${rejilla.zoom}:${rejilla.tiles.map(({ x, y }) => `${x}/${y}`).join(",")}`
@@ -168,12 +201,17 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
       rejilla.tiles.map(({ x, y }) => ({ x, y })),
     )
       .then((disponibles) => {
-        if (vivo) setResultadoDisponibilidad({ clave: claveDisponibilidad, disponibles, error: false });
+        if (vivo)
+          setResultadoDisponibilidad({ clave: claveDisponibilidad, disponibles, error: false });
       })
       .catch((error: unknown) => {
         console.error("No se pudo consultar la cobertura satelital de Esri.", error);
         if (vivo) {
-          setResultadoDisponibilidad({ clave: claveDisponibilidad, disponibles: null, error: true });
+          setResultadoDisponibilidad({
+            clave: claveDisponibilidad,
+            disponibles: null,
+            error: true,
+          });
         }
       });
     return () => {
@@ -220,6 +258,22 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
               disponibilidadInicial={tilesDisponibles.get(`${tile.x}/${tile.y}`)}
             />
           ))}
+        </div>
+      )}
+      {techoCobertura === null && (
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "grid",
+            placeItems: "center",
+            color: "#fff",
+            fontSize: 13,
+            textAlign: "center",
+          }}
+        >
+          No hay imágenes satelitales para esta ubicación.
         </div>
       )}
       {resultadoDisponibilidad?.clave === claveDisponibilidad && resultadoDisponibilidad.error && (

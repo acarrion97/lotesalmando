@@ -104,6 +104,38 @@ el costo y deja el requisito de iluminación sin efecto en la experiencia típic
 contra cobertura fotográfica. Si todos caen dentro, se puede reconsiderar el
 default — pero la estructura de código no cambia.
 
+**Corrección de la etapa 3 (pregunta que D1/D2 no cubrían):**
+
+`World Terrain` **no trae imágenes**: es solo elevación. Deba del terreno y
+de OSM Buildings hace falta una capa de fotos, o se ven edificios negros
+sobre un globo sin textura. Tres decisiones derivadas, todas verificadas
+contra Cesium 1.146:
+
+1. **La capa de imágenes es Esri World Imagery**, la misma que ya alimentan
+   `CapaSatelite` (modo Satélite) y la capa aérea de `Visor3D`. No es una
+   decisión de estética: la plantilla se extrajo a `PLANTILLA_TILE_ESRI` en
+   `georef.ts` y `urlTile()` ahora se construye con ella, así las tres capas
+   leen **una sola constante** y no pueden desincronizarse. Descarta la
+   alternativa implícita (`ImageryLayer.fromWorldImagery()`, el default de
+   Cesium), que va por ion y **consumiría cuota** de un mapa anónimo sin que
+   nadie lo pidiera — el default de D2 está pensado justo para evitar eso.
+2. **En la capa fotográfica se oculta el globo** (`scene.globe.show = false`)
+   en lugar de cambiar el proveedor de terreno. La malla fotogramétrica trae
+   su propio relieve en la geometría; apilar `World Terrain` debajo de ella
+   pone dos superficies en la misma posición y sale z-fighting. Ocultar el
+   globo es lo que recomienda Cesium y evita además una recarga de terreno
+   por cada conmutación. Se restaura al volver a terreno y en el cleanup.
+   *Coste asumido:* donde la malla no llega se ve el cielo, no Esri. Se asume
+   porque D2 ya hace de la cobertura el eje de esta decisión y el respaldo
+   automático (3.6) cubre el caso de error.
+3. **`enableLighting` gobierna el slider de hora** sobre terreno *y* sobre
+   OSM Buildings; la malla fotogramétrica tiene iluminación grabada en la
+   textura y no le afecta. Eso ya estaba en D1 y ahora tiene su reflejo en
+   el texto de ayuda de la escena, que cambia según la capa activa.
+
+`creditContainer` **no se pasa**: la atribución de Esri entra por la opción
+`credit` del proveedor y queda en el contenedor por defecto de Cesium (D9).
+
 ### D3. Aislamiento del paquete: `React.lazy` + `vite-plugin-static-copy`, no `vite-plugin-cesium`
 
 **Decisión:**
@@ -243,6 +275,38 @@ con una imagen de texto ("Map data not yet available"). La capa consulta
 disponibilidad vía `tilemap` y baja al ancestro con datos; Cesium limita el
 nivel máximo de su base a la cobertura completa del proyecto. Si no hay datos
 para ningún nivel, se conserva terreno y lotes sin la capa satelital.
+
+**Corrección de la etapa 7.4 (el fallback solo no bastaba):**
+
+La verificación sobre la ubicación real mostró que el descenso *funciona* pero
+se paga caro. En Machala Esri publica imágenes hasta **z18**; a z19 y z20
+devuelve tiles de aviso con HTTP 200. Con el techo 20, `rejillaTiles` pedía
+**154 tiles sin datos** para una caja de 600 px, y cada uno hacía dos consultas
+`tilemap` extra antes de bajar a z18: la ventana terminaba mostrando
+exactamente la misma imagen que antes de subir el techo, con ~3× más
+peticiones. Es decir, el fallback descubría el problema tarde y por tile, en
+lugar de saberlo una sola vez y de antemano.
+
+Dos cambios:
+
+1. **`rejillaTiles()` gana un parámetro opcional `zoomMaximo = 20`.** El
+   tercer argumento es el techo absoluto, por encima incluso del de
+   resolución, y es `undefined`/20 para los llamantes actuales: nadie cambia
+   de comportamiento sin querer.
+2. **`CapaSatelite` pide el techo de cobertura antes de montar la rejilla**,
+   con `nivelMaximoEsriConCobertura` — la misma función y el mismo patrón que
+   `VisorCesium` ya usaba para su `maximumLevel`. La capa raster y la base
+   3D dejan de decidir por separado hasta qué nivel vale la pena pedir. Mientras
+   no se sabe el techo no se pide nada, así no se tiran tiles de un nivel que
+   puede fallar; si la consulta de cobertura falla se usa 17 como techo
+   conservador y el descenso por tile sigue siendo la red de seguridad.
+
+Resultado medido por `scripts/verificar-cobertura-satelite.ts`: **16 tiles por
+ventana y 0 sin datos** (antes 154 y 154), sin un solo descenso; en el barrido
+de anchos de 320 a 1600 px el coste baja de **546 a 80 tiles**. El techo de
+cobertura manda sobre el de resolución, así que el muestreo efectivo queda en
+5,59× a 600 px y 1,05× a 1600 px: a esa anchura ya se pide la máxima nitidez
+que el proveedor tiene, no una que no exista.
 
 ### D8. Nitidez de Cesium: `maximumScreenSpaceError` como control de usuario
 

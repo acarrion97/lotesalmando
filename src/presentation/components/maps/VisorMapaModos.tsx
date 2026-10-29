@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import {
   AimOutlined,
   AppstoreOutlined,
-  BlockOutlined,
   GlobalOutlined,
   QuestionCircleOutlined,
 } from "@ant-design/icons";
@@ -56,9 +55,7 @@ interface VisorMapaModosProps {
 const OPCIONES: { label: string; value: ModoMapa; icon: ReactNode }[] = [
   { label: "Plano", value: "plano", icon: <AppstoreOutlined /> },
   { label: "Satélite", value: "satelite", icon: <GlobalOutlined /> },
-  { label: "Vista 3D", value: "3d", icon: <BlockOutlined /> },
-  // Etapa 2 (tarea 6.3): el rollback es quitar esta entrada del arreglo.
-  { label: "Vista 3D real", value: "cesium", icon: <AimOutlined /> },
+  { label: "Vista 3D", value: "cesium", icon: <AimOutlined /> },
 ];
 
 const MOTIVO_SIN_UBICACION =

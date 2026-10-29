@@ -112,12 +112,23 @@ export function recorteTileAncestro(
  * Tiles que cubren los límites dados, a un zoom que deja la imagen con
  * ~3x la resolución de la caja destino (para que no se vea borrosa al
  * escalar). Se devuelve en píxeles "mundo" para que el caller escale.
+ *
+ * `zoomMaximo` es el techo absoluto, por encima incluso del de resolución:
+ * sirve para pedir el nivel más alto que el proveedor CUBRE de verdad en esa
+ * ventana (ver `tilesEsri.ts`). Pedir un nivel sin datos no falla: devuelve
+ * una imagen de aviso y fuerza al caller a bajar nivel tile a tile, que es
+ * caro y lento.
  */
-export function rejillaTiles(limites: LimitesGeo, anchoCaja: number): RejillaTiles {
+export function rejillaTiles(
+  limites: LimitesGeo,
+  anchoCaja: number,
+  zoomMaximo = 20,
+): RejillaTiles {
   const anchoGrados = Math.max(1e-9, limites.este - limites.oeste);
   const deseado = Math.max(TAMANO_TILE, anchoCaja * 3);
   const zoomIdeal = Math.log2((deseado * 360) / (anchoGrados * TAMANO_TILE));
-  const zoom = Math.max(0, Math.min(20, Math.ceil(zoomIdeal)));
+  const techo = Math.max(0, Math.min(20, zoomMaximo));
+  const zoom = Math.max(0, Math.min(techo, Math.ceil(zoomIdeal)));
 
   const origen = pxMundo(limites.oeste, limites.norte, zoom);
   const fin = pxMundo(limites.este, limites.sur, zoom);
