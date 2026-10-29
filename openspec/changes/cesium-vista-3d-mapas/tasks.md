@@ -17,21 +17,21 @@
 
 ## 3. Motor 3D y ciclo de vida del Viewer
 
-- [ ] 3.1 Crear `src/presentation/components/maps/cesium/VisorCesium.tsx` como componente diferido que monta el `Viewer` dentro de un `useRef` desde un `useEffect`, importando el CSS de widgets dentro del propio chunk y asignando `globalThis.CESIUM_BASE_URL = "/cesium/"` **antes** de crear el Viewer (obligatorio en dev: ver `design.md` D3, corrección 2).
-- [ ] 3.2 Implementar el cleanup idéntico (`viewer.destroy()` + vaciado del contenedor) con un guard que detecte el doble montaje de `<StrictMode>` de `src/main.tsx`, sin acumular Viewers ni contextos WebGL.
-- [ ] 3.3 Configurar la escena: `enableLighting`, sombras, atmósfera, HDR y FXAA, sin tocar el `creditContainer`.
-- [ ] 3.4 Añadir la capa base por defecto `Terrain.fromWorldTerrain()` + `createOsmBuildingsAsync()` (decisión D2).
-- [ ] 3.5 Añadir `createGooglePhotorealistic3DTileset()` como capa conmutable, cargada solo bajo demanda y con `Ion.defaultAccessToken` desde `VITE_CESIUM_TOKEN`.
-- [ ] 3.6 Implementar el respaldo automático de la capa fotográfica a terreno + edificios ante error de red, cuota agotada o zona sin cobertura, mostrando el motivo.
-- [ ] 3.7 Implementar el vuelo inicial con `BoundingSphere.fromPoints` sobre todas las entidades y pitch −35°.
+- [x] 3.1 Crear `src/presentation/components/maps/cesium/VisorCesium.tsx` como componente diferido que monta el `Viewer` dentro de un `useRef` desde un `useEffect`, importando el CSS de widgets dentro del propio chunk y asignando `globalThis.CESIUM_BASE_URL = "/cesium/"` **antes** de crear el Viewer (obligatorio en dev: ver `design.md` D3, corrección 2).
+- [x] 3.2 Implementar el cleanup idéntico (`viewer.destroy()` + vaciado del contenedor) con un guard que detecte el doble montaje de `<StrictMode>` de `src/main.tsx`, sin acumular Viewers ni contextos WebGL.
+- [x] 3.3 Configurar la escena: `enableLighting`, sombras, atmósfera, HDR y FXAA, sin tocar el `creditContainer`.
+- [x] 3.4 Añadir la capa base por defecto `Terrain.fromWorldTerrain()` + `createOsmBuildingsAsync()` (decisión D2).
+- [x] 3.5 Añadir `createGooglePhotorealistic3DTileset()` como capa conmutable, cargada solo bajo demanda y con `Ion.defaultAccessToken` desde `VITE_CESIUM_TOKEN`; configurar el geocoder Google de Cesium ion requerido por esta capa, sin clave directa de Google Maps.
+- [x] 3.6 Implementar el respaldo automático de la capa fotográfica a terreno + edificios ante error de red, cuota agotada o zona sin cobertura, mostrando el motivo.
+- [x] 3.7 Implementar el vuelo inicial con `BoundingSphere.fromPoints` sobre todas las entidades y pitch −35°.
 
 ## 4. Escena de lotes: polígonos, etiquetas e interacción
 
-- [ ] 4.1 Crear `cesium/lotes.ts` que convierta `Lote.poligono` en una entidad `PolygonGraphics` coloreada por `estado` con `HeightReference.CLAMP_TO_GROUND`.
-- [ ] 4.2 Mantener un `Map<id_lote, Entity>` y el diff por `id_lote` (mutar existente, crear el nuevo, `removeId()` el de baja) sin ningún `removeAll()`.
-- [ ] 4.3 Añadir etiqueta de número de lote con `disableDepthTestDistance = Infinity` para que no la tape ningún edificio.
-- [ ] 4.4 Implementar la selección con `viewer.scene.pick()` llamando al contrato existente `onLoteClick(lote)` de `VisorMapaModos.tsx`, abriendo la misma ficha y dejando operativos **Anterior**/**Siguiente**.
-- [ ] 4.5 Implementar el vuelo a un lote al seleccionarlo desde la lista o la ficha, sin recrear la escena.
+- [x] 4.1 Crear `cesium/lotes.ts` que convierta `Lote.poligono` en una entidad `PolygonGraphics` coloreada por `estado` con `HeightReference.CLAMP_TO_GROUND`.
+- [x] 4.2 Mantener un `Map<id_lote, Entity>` y el diff por `id_lote` (mutar existente, crear el nuevo, `removeId()` el de baja) sin ningún `removeAll()`.
+- [x] 4.3 Añadir etiqueta de número de lote con `disableDepthTestDistance = Infinity` para que no la tape ningún edificio.
+- [x] 4.4 Implementar la selección con `viewer.scene.pick()` llamando al contrato existente `onLoteClick(lote)` de `VisorMapaModos.tsx`, abriendo la misma ficha y dejando operativos **Anterior**/**Siguiente**.
+- [x] 4.5 Implementar el vuelo a un lote al seleccionarlo desde la lista o la ficha, sin recrear la escena.
 
 ## 5. Controles de escena y actualización de datos
 

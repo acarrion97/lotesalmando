@@ -230,7 +230,7 @@ export function MapasPage() {
   const [planosConFallo, setPlanosConFallo] = useState<string[]>([]);
   const hayPlano = !!urlPlano && !planosConFallo.includes(urlPlano);
 
-  // Plano / satélite georreferenciado / vista 3D (mientras se dibuja se fuerza el plano).
+  // Plano / satélite / vista 3D del plano / Cesium (mientras se dibuja se fuerza el plano).
   const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
   const ubicacionMapa = useMemo(() => ubicacionDe(mapaProyecto), [mapaProyecto]);
 
@@ -919,6 +919,7 @@ export function MapasPage() {
             resaltados={resaltados}
             mostrarPrecio
             onLoteClick={abrirLoteDelPlano}
+            loteSeleccionadoId={selectedLote?.id_lote}
             onImagenError={() =>
               setPlanosConFallo((prev) => (prev.includes(urlPlano) ? prev : [...prev, urlPlano]))
             }

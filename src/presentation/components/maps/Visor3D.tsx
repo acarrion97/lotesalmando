@@ -14,7 +14,8 @@ import {
 } from "@ant-design/icons";
 import type { PuntoPlano } from "@/domain/lote/entities";
 import type { PlanoLote, UbicacionPlano } from "@/domain/mapa/entities";
-import { ESTILO_ESTADO_PLANO, etiquetaLote } from "./PlanoInteractivo";
+import { etiquetaLote } from "./PlanoInteractivo";
+import { ESTILO_ESTADO_PLANO } from "./estilosEstadoLote";
 import { CapaSatelite } from "./CapaSatelite";
 import { limitesDelPlano } from "./georef";
 

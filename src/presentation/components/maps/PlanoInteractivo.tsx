@@ -15,23 +15,14 @@ import {
 } from "@ant-design/icons";
 import type { LoteEstado, PuntoPlano } from "@/domain/lote/entities";
 import type { PlanoLote } from "@/domain/mapa/entities";
+import { ESTILO_ESTADO_PLANO } from "./estilosEstadoLote";
 
 /**
  * Color de cada estado sobre el plano. Los disponibles van transparentes
  * (se ve el dibujo del plano) y solo se marcan al pasar el mouse; el resto
  * se tapa con el color del estado.
  */
-export const ESTILO_ESTADO_PLANO: Record<
-  LoteEstado,
-  { color: string; fillOpacity: number; label: string }
-> = {
-  disponible: { color: "#52c41a", fillOpacity: 0, label: "Disponible" },
-  reservado: { color: "#faad14", fillOpacity: 0.6, label: "Reservado" },
-  en_negociacion: { color: "#1677ff", fillOpacity: 0.55, label: "En negociación" },
-  vendido: { color: "#8b1a1a", fillOpacity: 0.72, label: "Vendido" },
-  bloqueado: { color: "#595959", fillOpacity: 0.6, label: "Bloqueado" },
-  no_disponible: { color: "#595959", fillOpacity: 0.6, label: "No disponible" },
-};
+export { ESTILO_ESTADO_PLANO } from "./estilosEstadoLote";
 
 const estiloDe = (estado: LoteEstado) => ESTILO_ESTADO_PLANO[estado] ?? ESTILO_ESTADO_PLANO.disponible;
 

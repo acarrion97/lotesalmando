@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Empty, Segmented, Typography } from "antd";
 import type { ReactNode } from "react";
 import { AppstoreOutlined, BlockOutlined, GlobalOutlined } from "@ant-design/icons";
@@ -10,9 +10,12 @@ import { CapaSatelite } from "./CapaSatelite";
 import { limitesDelPlano } from "./georef";
 
 const { Text } = Typography;
+const VisorCesium = lazy(() =>
+  import("./cesium/VisorCesium").then((m) => ({ default: m.VisorCesium })),
+);
 
 /** Modos de visualización del mapa de un proyecto. */
-export type ModoMapa = "plano" | "satelite" | "3d";
+export type ModoMapa = "plano" | "satelite" | "3d" | "cesium";
 
 interface VisorMapaModosProps {
   imagenUrl: string;
@@ -22,6 +25,7 @@ interface VisorMapaModosProps {
   renderUrl?: string | null;
   lotes: PlanoLote[];
   onLoteClick?: (lote: PlanoLote) => void;
+  loteSeleccionadoId?: number | null;
   resaltados?: ReadonlySet<number> | null;
   mostrarPrecio?: boolean;
   onImagenError?: () => void;
@@ -43,9 +47,8 @@ const OPCIONES: { label: string; value: ModoMapa; icon: ReactNode }[] = [
 
 /**
  * Selector de modo alrededor de los visores: plano interactivo (con edición
- * de polígonos), vista satélite real georreferenciada y vista 3D del plano.
- * Un solo punto de entrada para que la pantalla interna y el mapa público
- * ofrezcan exactamente lo mismo.
+ * de polígonos), vista satélite real georreferenciada, vista 3D del plano y
+ * vista 3D geográfica Cesium. Un solo punto de entrada para ambas pantallas.
  */
 export function VisorMapaModos({
   imagenUrl,
@@ -53,6 +56,7 @@ export function VisorMapaModos({
   renderUrl,
   lotes,
   onLoteClick,
+  loteSeleccionadoId,
   resaltados,
   mostrarPrecio,
   onImagenError,
@@ -70,8 +74,7 @@ export function VisorMapaModos({
   // capa satélite; se mide con una imagen de carga (misma URL: un solo
   // request porque viene de la caché).
   const [aspecto, setAspecto] = useState(0);
-  const limites =
-    ubicacion && aspecto > 0 ? limitesDelPlano(ubicacion, aspecto) : null;
+  const limites = ubicacion && aspecto > 0 ? limitesDelPlano(ubicacion, aspecto) : null;
 
   return (
     <div style={{ position: "relative" }}>
@@ -129,6 +132,47 @@ export function VisorMapaModos({
           onImagenError={onImagenError}
           alturaMaxima={alto}
         />
+      ) : modoActivo === "cesium" && limites ? (
+        <Suspense
+          fallback={
+            <div style={{ height: alto, display: "grid", placeItems: "center" }}>
+              <Text type="secondary">Cargando vista 3D real…</Text>
+            </div>
+          }
+        >
+          <VisorCesium
+            limites={limites}
+            altura={alto}
+            lotes={lotes}
+            onLoteClick={onLoteClick}
+            loteSeleccionadoId={loteSeleccionadoId}
+          />
+        </Suspense>
+      ) : modoActivo === "cesium" ? (
+        <div
+          style={{
+            height: alto,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "#f5f5f5",
+            borderRadius: 8,
+          }}
+        >
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              <span>
+                Este proyecto todavía no tiene ubicación GPS.
+                <br />
+                <Text type="secondary">
+                  Cargá el centro del plano y su ancho en metros (Configuración → Mapa del proyecto)
+                  para visualizarlo en 3D.
+                </Text>
+              </span>
+            }
+          />
+        </div>
       ) : modoActivo === "satelite" && !limites ? (
         <div
           style={{
@@ -147,8 +191,8 @@ export function VisorMapaModos({
                 Este proyecto todavía no tiene ubicación GPS.
                 <br />
                 <Text type="secondary">
-                  Cargá el centro del plano y su ancho en metros (Configuración → Mapa del
-                  proyecto) para ver el terreno real.
+                  Cargá el centro del plano y su ancho en metros (Configuración → Mapa del proyecto)
+                  para ver el terreno real.
                 </Text>
               </span>
             }
@@ -164,7 +208,9 @@ export function VisorMapaModos({
           mostrarPrecio={mostrarPrecio}
           onImagenError={onImagenError}
           alturaMaxima={alto}
-          capaBase={modoActivo === "satelite" && limites ? <CapaSatelite limites={limites} /> : undefined}
+          capaBase={
+            modoActivo === "satelite" && limites ? <CapaSatelite limites={limites} /> : undefined
+          }
           mostrarImagen={modoActivo !== "satelite"}
         />
       )}

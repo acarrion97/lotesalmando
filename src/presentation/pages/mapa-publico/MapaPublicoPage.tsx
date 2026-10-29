@@ -4,14 +4,8 @@ import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
 import { ubicacionDe, type PlanoLote } from "@/domain/mapa/entities";
 import { useMapaPublico, useRegistrarInteresPublico } from "@/presentation/hooks";
-import {
-  LeyendaPlano,
-  etiquetaLote,
-} from "@/presentation/components/maps/PlanoInteractivo";
-import {
-  VisorMapaModos,
-  type ModoMapa,
-} from "@/presentation/components/maps/VisorMapaModos";
+import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
 import {
   CalculadoraFinanciamiento,
@@ -46,7 +40,7 @@ export function MapaPublicoPage() {
   const [loteCalculadora, setLoteCalculadora] = useState<PlanoLote | null>(null);
   /** Lote del que se muestra el modal de financiamiento (abierto desde la ficha). */
   const [loteSimulador, setLoteSimulador] = useState<PlanoLote | null>(null);
-  /** Modo del visor: plano, satélite o vista 3D (si el proyecto definió GPS). */
+  /** Modo del visor: plano, satélite, vista 3D del plano o Cesium geográfico. */
   const [modoMapa, setModoMapa] = useState<ModoMapa>("plano");
   const registrarInteres = useRegistrarInteresPublico();
 
@@ -223,6 +217,7 @@ export function MapaPublicoPage() {
                             renderUrl={mapa.render_3d_url}
                             lotes={mapa.lotes}
                             onLoteClick={abrirFicha}
+                            loteSeleccionadoId={loteFicha?.id_lote}
                             onImagenError={() => setImagenFallida(true)}
                             alturaMaxima={Math.max(360, window.innerHeight - 300)}
                             modo={modoMapa}

@@ -5,6 +5,7 @@ import type { Cesium3DTileset, Viewer } from "cesium";
 import type { PlanoLote } from "@/domain/mapa/entities";
 import type { LimitesGeo } from "../georef";
 import { PLANTILLA_TILE_ESRI } from "../georef";
+import { actualizarEntidadesLote, type EntidadesLoteCesium } from "./lotes";
 import type { CoordenadaWgs84 } from "./proyectar";
 import { poligonoAWgs84 } from "./proyectar";
 
@@ -19,6 +20,7 @@ const { Text } = Typography;
  * tener esta vista disponible (design.md D3).
  */
 type MotorCesium = typeof import("cesium");
+type ClickPosition = import("cesium").ScreenSpaceEventHandler.PositionedEvent;
 
 /** Inclinación de la cámara en el vuelo inicial: negativa = mirando hacia abajo. */
 const PITCH_INICIAL = -35;
@@ -53,6 +55,8 @@ interface VisorCesiumProps {
   /** Alto del visor en píxeles. */
   altura: number;
   lotes: PlanoLote[];
+  onLoteClick?: (lote: PlanoLote) => void;
+  loteSeleccionadoId?: number | null;
 }
 
 /**
@@ -61,15 +65,25 @@ interface VisorCesiumProps {
  */
 function clasificarFallo(error: unknown): MotivoRespaldo {
   if (typeof navigator !== "undefined" && !navigator.onLine) return "sin-conexion";
-  const texto = error instanceof Error ? `${error.name} ${error.message}` : String(error);
-  return /quota|credit|403|401|authoriz|access/i.test(texto) ? "sin-cuota" : "sin-cobertura";
+  const mensaje =
+    typeof error === "object" && error !== null && "message" in error
+      ? String(error.message)
+      : String(error);
+  const texto = error instanceof Error ? `${error.name} ${mensaje}` : mensaje;
+  return /quota|credit|402|403|401|429|authoriz|access|token|payment/i.test(texto)
+    ? "sin-cuota"
+    : "sin-cobertura";
 }
 
 /**
  * Encuadra la escena sobre el conjunto de puntos dado. Con `range = 0` la
  * cámara sola calcula la distancia que hace falta para que entre todo.
  */
-function volarAEscena(viewer: Viewer, motor: MotorCesium, puntos: readonly CoordenadaWgs84[]): void {
+function volarAEscena(
+  viewer: Viewer,
+  motor: MotorCesium,
+  puntos: readonly CoordenadaWgs84[],
+): void {
   if (puntos.length === 0) return;
   const esfera = motor.BoundingSphere.fromPoints(
     puntos.map(([lng, lat]) => motor.Cartesian3.fromDegrees(lng, lat)),
@@ -80,17 +94,47 @@ function volarAEscena(viewer: Viewer, motor: MotorCesium, puntos: readonly Coord
   });
 }
 
-export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
+function volarALote(
+  viewer: Viewer,
+  motor: MotorCesium,
+  lote: PlanoLote,
+  limites: LimitesGeo,
+): void {
+  if (!lote.poligono || lote.poligono.length < 3) return;
+  const posiciones = poligonoAWgs84(lote.poligono, limites).map(([lng, lat]) =>
+    motor.Cartesian3.fromDegrees(lng, lat),
+  );
+  const esfera = motor.BoundingSphere.fromPoints(posiciones);
+  viewer.camera.flyToBoundingSphere(esfera, {
+    duration: DURACION_VUELO,
+    offset: new motor.HeadingPitchRange(0, motor.Math.toRadians(PITCH_INICIAL), 0),
+  });
+}
+
+export function VisorCesium({
+  limites,
+  altura,
+  lotes,
+  onLoteClick,
+  loteSeleccionadoId = null,
+}: VisorCesiumProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer | null>(null);
   const motorRef = useRef<MotorCesium | null>(null);
   const edificiosRef = useRef<Cesium3DTileset | null>(null);
   const mallaRef = useRef<Cesium3DTileset | null>(null);
   const posicionesRef = useRef<CoordenadaWgs84[]>([]);
+  const limitesRef = useRef(limites);
+  const lotesRef = useRef(lotes);
+  const entidadesLoteRef = useRef<EntidadesLoteCesium>(new Map());
+  const onLoteClickRef = useRef(onLoteClick);
+  const loteSeleccionadoIdRef = useRef(loteSeleccionadoId);
 
   const [cargando, setCargando] = useState(true);
   const [capaBase, setCapaBase] = useState<CapaBaseCesium>("terreno");
   const [motivoRespaldo, setMotivoRespaldo] = useState<MotivoRespaldo | null>(null);
+  const [avisoEscena, setAvisoEscena] = useState<string | null>(null);
+  const [errorEscena, setErrorEscena] = useState(false);
 
   const { norte, sur, este, oeste } = limites;
   const posiciones = useMemo<CoordenadaWgs84[]>(() => {
@@ -115,6 +159,30 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
   useEffect(() => {
     posicionesRef.current = posiciones;
   }, [posiciones]);
+
+  useEffect(() => {
+    limitesRef.current = limites;
+    lotesRef.current = lotes;
+    const viewer = viewerRef.current;
+    const cesium = motorRef.current;
+    if (viewer && cesium) {
+      actualizarEntidadesLote(viewer, cesium, lotes, limites, entidadesLoteRef.current);
+    }
+  }, [limites, lotes]);
+
+  useEffect(() => {
+    onLoteClickRef.current = onLoteClick;
+  }, [onLoteClick]);
+
+  useEffect(() => {
+    loteSeleccionadoIdRef.current = loteSeleccionadoId;
+    const viewer = viewerRef.current;
+    const cesium = motorRef.current;
+    const lote = lotesRef.current.find((item) => item.id_lote === loteSeleccionadoId);
+    if (viewer && cesium && lote?.poligono && lote.poligono.length >= 3) {
+      volarALote(viewer, cesium, lote, limitesRef.current);
+    }
+  }, [loteSeleccionadoId]);
 
   // El Viewer se crea una vez por sesión de modo activo y se destruye en el
   // cleanup (design.md D4). En desarrollo `<StrictMode>` monta → desmonta →
@@ -159,7 +227,7 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
           animation: false,
           timeline: false,
           baseLayerPicker: false,
-          geocoder: false,
+          geocoder: cesium.IonGeocodeProviderType.GOOGLE,
           homeButton: false,
           sceneModePicker: false,
           navigationHelpButton: false,
@@ -176,6 +244,29 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
 
         motorRef.current = cesium;
         viewerRef.current = viewer;
+        actualizarEntidadesLote(
+          viewer,
+          cesium,
+          lotesRef.current,
+          limitesRef.current,
+          entidadesLoteRef.current,
+        );
+        viewer.screenSpaceEventHandler.setInputAction((movement: ClickPosition) => {
+          const picked = viewer?.scene.pick(movement.position);
+          const pickedEntity =
+            picked?.id instanceof cesium.Entity
+              ? picked.id
+              : typeof picked?.id === "string"
+                ? { id: picked.id }
+                : null;
+          const idLote = pickedEntity?.id.startsWith("lote:")
+            ? Number(pickedEntity.id.slice("lote:".length))
+            : NaN;
+          const lote = Number.isSafeInteger(idLote)
+            ? lotesRef.current.find((item) => item.id_lote === idLote)
+            : undefined;
+          if (lote) onLoteClickRef.current?.(lote);
+        }, cesium.ScreenSpaceEventType.LEFT_CLICK);
 
         const escena = viewer.scene;
         // Sin luz solar el slider de hora del día no tendría ningún efecto
@@ -193,6 +284,12 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
 
         if (vivo) setCargando(false);
         volarAEscena(viewer, cesium, posicionesRef.current);
+        const loteSeleccionado = lotesRef.current.find(
+          (lote) => lote.id_lote === loteSeleccionadoIdRef.current,
+        );
+        if (loteSeleccionado?.poligono && loteSeleccionado.poligono.length >= 3) {
+          volarALote(viewer, cesium, loteSeleccionado, limitesRef.current);
+        }
 
         // OSM Buildings viene de ion: si falla (sin red, sin cuota, sin
         // token) la escena sigue siendo útil con el terreno solo, así que la
@@ -205,16 +302,21 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
           }
           escena.primitives.add(edificios);
           edificiosRef.current = edificios;
-        } catch {
-          // Silencio a propósito: es una capa menos, no una vista rota.
+        } catch (error) {
+          console.warn("No se pudieron cargar los edificios OSM para la escena Cesium.", error);
+          if (vivo) {
+            setAvisoEscena("No se pudieron cargar los edificios; el terreno sigue disponible.");
+          }
         }
       } catch (error) {
         if (!vivo) return;
-        // Última red de seguridad: un fallo al crear la escena debe decir
-        // algo y no dejar un contenedor vacío.
-        contenedor.textContent = `No se pudo abrir la vista 3D: ${
-          error instanceof Error ? error.message : "error desconocido"
-        }`;
+        console.error("No se pudo iniciar el visor Cesium.", error);
+        if (viewer && !viewer.isDestroyed()) viewer.destroy();
+        viewer = null;
+        viewerRef.current = null;
+        motorRef.current = null;
+        contenedor.innerHTML = "";
+        setErrorEscena(true);
         setCargando(false);
       }
     })();
@@ -232,14 +334,14 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
     };
   }, []);
 
-  // Vuelo a la ventana del plano cuando cambia la georreferenciación. En el
-  // primer montaje no hace nada: el vuelo inicial lo lanza el creador.
+  // La carga o actualización de lotes no debe mover la cámara; solo se vuelve
+  // a encuadrar si cambia la ubicación geográfica del plano.
   useEffect(() => {
     const viewer = viewerRef.current;
     const motor = motorRef.current;
     if (!viewer || !motor) return;
-    volarAEscena(viewer, motor, posiciones);
-  }, [posiciones]);
+    volarAEscena(viewer, motor, posicionesRef.current);
+  }, [norte, sur, este, oeste]);
 
   // La capa fotográfica solo se pide cuando alguien la pide: descargarla en
   // segundo plano agotaría la cuota ion sin que nadie la haya mirado.
@@ -249,13 +351,34 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
     if (!viewer || !motor || capaBase !== "fotografica") return;
 
     let vivo = true;
+    let retirarEventosMalla: (() => void)[] = [];
     void (async () => {
       try {
-        const malla = await motor.createGooglePhotorealistic3DTileset();
+        const malla = await motor.createGooglePhotorealistic3DTileset({
+          onlyUsingWithGoogleGeocoder: true,
+        });
         if (!vivo) {
           malla.destroy();
           return;
         }
+        let cargoAlgunTile = false;
+        retirarEventosMalla = [
+          malla.tileLoad.addEventListener(() => {
+            cargoAlgunTile = true;
+          }),
+          malla.initialTilesLoaded.addEventListener(() => {
+            if (vivo && !cargoAlgunTile) {
+              setMotivoRespaldo("sin-cobertura");
+              setCapaBase("terreno");
+            }
+          }),
+          malla.tileFailed.addEventListener((error: unknown) => {
+            if (vivo) {
+              setMotivoRespaldo(clasificarFallo(error));
+              setCapaBase("terreno");
+            }
+          }),
+        ];
         // La malla trae su propio relieve en la geometría. En vez de apilar
         // dos superficies encima de la misma posición (y ver z-fighting), el
         // globo se oculta mientras ella está activa; donde no llega su
@@ -272,6 +395,8 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
 
     return () => {
       vivo = false;
+      retirarEventosMalla.forEach((retirar) => retirar());
+      retirarEventosMalla = [];
       if (viewer.isDestroyed()) return;
       const malla = mallaRef.current;
       // `remove()` ya destruye la primitiva: la colección destruye lo que
@@ -283,7 +408,15 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
   }, [capaBase]);
 
   return (
-    <div style={{ position: "relative", height: altura, background: "#0b0d12", borderRadius: 8, overflow: "hidden" }}>
+    <div
+      style={{
+        position: "relative",
+        height: altura,
+        background: "#0b0d12",
+        borderRadius: 8,
+        overflow: "hidden",
+      }}
+    >
       <div ref={contenedorRef} style={{ position: "absolute", inset: 0 }} />
 
       <div style={{ position: "absolute", top: 10, left: 10, zIndex: 5 }}>
@@ -318,6 +451,48 @@ export function VisorCesium({ limites, altura, lotes }: VisorCesiumProps) {
         >
           <WarningOutlined style={{ color: "#faad14", marginTop: 2 }} />
           <span>{MENSAJE_RESPALDO[motivoRespaldo]}</span>
+        </div>
+      )}
+
+      {avisoEscena && !motivoRespaldo && (
+        <div
+          role="status"
+          style={{
+            position: "absolute",
+            top: 52,
+            left: 10,
+            right: 10,
+            zIndex: 5,
+            padding: "8px 12px",
+            borderRadius: 8,
+            background: "rgba(255, 255, 255, 0.94)",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+            fontSize: 12,
+            color: "#595959",
+          }}
+        >
+          {avisoEscena}
+        </div>
+      )}
+
+      {errorEscena && (
+        <div
+          role="alert"
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 6,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 24,
+            background: "rgba(11, 13, 18, 0.94)",
+            color: "#fff",
+            textAlign: "center",
+          }}
+        >
+          No se pudo iniciar la vista 3D real. Verificá la conexión y la configuración de Cesium e
+          intentá de nuevo.
         </div>
       )}
 

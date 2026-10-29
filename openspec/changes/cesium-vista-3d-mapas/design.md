@@ -44,7 +44,7 @@ Tres hechos que condicionan el diseño (ver `proposal.md` para el porqué):
   extruido sobre el plano sin dependencias ni red; Cesium resuelve *lugar real*.
 - Un `api.ts` con `fetch` suelto: fuera de estilo. El punto de integración de
   datos entra por la cadena repository → use-case → hook.
-- Geocoder, mediciones sobre la malla, vuelos programados, multi-idioma de la UI.
+- Mediciones sobre la malla, vuelos programados, multi-idioma de la UI.
 - Resolver la licencia comercial de ion (decisión de negocio, ver riesgos).
 - Soportar navegadores sin WebGL2 con un render 3D alternativo.
 
@@ -60,6 +60,12 @@ la base es `Terrain.fromWorldTerrain()` + `createOsmBuildingsAsync()`.
 mismos fototiles bajo su propio acuerdo, y además **los dos assets de fallback
 son de ion** — así que el token era obligatorio igualmente. Una sola variable
 simplifica `.env.example`, el mock y el error message.
+
+La capa fotográfica requiere el geocoder de Google. Se habilita el geocoder
+integrado de Cesium con `IonGeocodeProviderType.GOOGLE`, autenticado por el
+mismo `VITE_CESIUM_TOKEN`; no se configura una clave directa de Google Maps ni
+un proyecto de Google Cloud. `onlyUsingWithGoogleGeocoder: true` documenta esa
+configuración al crear el tileset y evita la advertencia de Cesium.
 
 **Alternativas descartadas:**
 - *Google Maps API key directa*: exige billing, tarjeta y `Map Tiles API`.
@@ -109,6 +115,9 @@ default — pero la estructura de código no cambia.
   `define: { CESIUM_BASE_URL: '"/cesium/"' }`.
 - `optimizeDeps.include: ["cesium"]` (pre-bundle) — inverso del
   `optimizeDeps.exclude` que ya usa el repo para ffmpeg.
+- El geocoder del Viewer usa `IonGeocodeProviderType.GOOGLE`, requisito de
+  Google Photorealistic 3D Tiles; el geocoder y el tileset usan el token ion,
+  sin una clave directa de Google Maps.
 - `workbox.globIgnores: ["cesium/**", "**/VisorCesium*.js"]` para que ni el
   chunk ni los assets entren al precache.
 - CSS de widgets importado **dentro** del componente diferido, desde

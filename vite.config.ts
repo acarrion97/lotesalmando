@@ -37,6 +37,8 @@ const CESIUM_BASE_URL = `/${CESIUM_DIR}/`;
 const CESIUM_STRIP_BASE = 4;
 /** Nombre fijo del chunk diferido de Cesium, para poder excluirlo del precache. */
 const CESIUM_CHUNK = "VisorCesium";
+/** Nombre del chunk de motor Cesium que Rolldown genera para la importación dinámica. */
+const CESIUM_ENGINE_CHUNK = "Cesium";
 
 export default defineConfig({
   plugins: [
@@ -65,7 +67,11 @@ export default defineConfig({
         // el service worker dejaría de generarse y se perdería el arranque
         // offline (spec mapa/visualizacion-3d: "El motor 3D no ensucia el
         // paquete de la aplicación").
-        globIgnores: [`${CESIUM_DIR}/**`, `**/${CESIUM_CHUNK}*.js`],
+        globIgnores: [
+          `${CESIUM_DIR}/**`,
+          `**/${CESIUM_CHUNK}*.js`,
+          `**/${CESIUM_ENGINE_CHUNK}*.js`,
+        ],
       },
       manifest: {
         name: "Lotes al Mando",
@@ -111,7 +117,11 @@ export default defineConfig({
         // Nombre estable para el chunk diferido de Cesium: sin el hash es
         // posible excluirlo del precache sin adivinar el sufijo.
         chunkFileNames: (chunk) =>
-          chunk.name === CESIUM_CHUNK ? `assets/${CESIUM_CHUNK}.js` : "assets/[name]-[hash].js",
+          chunk.name === CESIUM_CHUNK
+            ? `assets/${CESIUM_CHUNK}.js`
+            : chunk.name === CESIUM_ENGINE_CHUNK
+              ? `assets/${CESIUM_ENGINE_CHUNK}.js`
+              : "assets/[name]-[hash].js",
       },
     },
   },
