@@ -2,7 +2,7 @@
 
 ## Context
 
-Ver `proposal.md` para la motivación. La ruta actual usa Esri World Imagery en teselas Web Mercator de 256 px. `CapaSatelite` mide el ancho del contenedor, deriva un nivel objetivo y escala una rejilla de teselas; cuando falta una tesela, puede recortar y ampliar una tesela ancestro. El modo Cesium inicia con Google Photorealistic 3D vía Cesium ion; cuando se elige terreno o la capa fotográfica falla, Esri World Imagery queda como respaldo. Los visores y sus polígonos están compartidos entre las páginas pública y administrativa.
+Ver `proposal.md` para la motivación. La ruta actual usa Esri World Imagery en teselas Web Mercator de 256 px. `CapaSatelite` mide el ancho del contenedor, deriva un nivel objetivo y escala una rejilla de teselas; cuando falta una tesela, puede recortar y ampliar una tesela ancestro. El modo Cesium inicia con Esri World Imagery; Google Photorealistic 3D vía Cesium ion permanece como capa fotográfica opcional. Los visores y sus polígonos están compartidos entre las páginas pública y administrativa.
 
 Esri publica además dos servicios de referencia transparentes compatibles con la imagen: `Reference/World_Transportation`, con nombres de vía, y `Reference/World_Boundaries_and_Places`, con límites y títulos de lugar. `World_Street_Map` es opaco y `World_Reference_Overlay` no tiene contenido en la zona de referencia.
 
@@ -31,7 +31,7 @@ La implementación deberá satisfacer `specs/mapa/capa-satelital/spec.md`. Las c
 
 2. **Resolver el detalle a partir del tamaño físico requerido y la cobertura real.** La selección de nivel considerará el tamaño del contenedor multiplicado por la densidad de pantalla y el máximo de cobertura comprobado para el área, manteniendo el límite del proveedor. El fallback a un tile ancestro seguirá siendo geográficamente exacto; se minimizará la ampliación cuando exista un nivel más detallado disponible. No se cambiará el endpoint ni se asumirá que una API permite solicitar tiles HiDPI si no lo demuestra la fuente.
 
-3. **Usar la malla Google ya integrada en Cesium como vista inicial.** Al abrir la escena, Google Photorealistic 3D vía Cesium ion es la capa activa inicial; no se solicita una nueva clave Google Maps Platform. Esri World Imagery permanece como alternativa de terreno/respaldo de Cesium y como fuente de los otros modos satelitales. Google Photorealistic ofrece geometría e imagen reales, pero no garantiza nombres de calles o lugares.
+3. **Conservar Esri como capa inicial de Cesium y Google como alternativa opcional.** Cesium inicia con Esri World Imagery, igual que los otros modos satelitales. Google Photorealistic 3D vía Cesium ion se conserva seleccionable manualmente, sin solicitar una nueva clave Google Maps Platform; su malla ofrece geometría e imagen reales, pero no garantiza nombres de calles o lugares y puede consumir cuota ion.
 
 4. **No tocar el modelo espacial ni las herramientas.** La optimización se limita al muestreo, selección y presentación de imágenes y al ciclo de actualización del contenedor. Los polígonos deben seguir transformándose desde las mismas coordenadas y geometrías; añadir capas o alterar polígonos para compensar errores de imagen no es una opción.
 
@@ -50,7 +50,7 @@ La implementación deberá satisfacer `specs/mapa/capa-satelital/spec.md`. Las c
 - [Las capturas de la fuente pueden variar entre fechas aunque el renderizado no cambie] → Separar cambios del mosaico de cambios geométricos o de muestreo, y no afirmar mejora cuando las imágenes de origen no sean comparables.
 - [Las etiquetas añaden solicitudes por tesela visible] → Medir el incremento frente a la línea base, aprovechar la caché del navegador y, si el coste es relevante, omitir la capa de títulos de lugar en las escalas en las que el proveedor devuelve teselas vacías.
 - [El proveedor no publica vías nombradas en toda la zona] → Documentar el alcance real de las etiquetas por zona y escala, y no presentar la capa como cobertura completa ni inventar nombres propios.
-- [Google Photorealistic puede consumir cuota de Cesium ion cada vez que se abre Cesium y no garantiza etiquetas] → Cargar la malla solo cuando el modo Cesium está montado, conservar el aviso de respaldo por cuota/red/cobertura y mantener Esri como alternativa seleccionable.
+- [Google Photorealistic puede consumir cuota de Cesium ion y no garantiza etiquetas] → Mantener Esri como capa inicial, cargar la malla solo cuando el usuario selecciona la vista fotográfica y conservar el aviso de respaldo por cuota/red/cobertura.
 
 ## Hallazgos de la auditoría (tarea 1.1)
 
@@ -60,9 +60,9 @@ Medido sobre la ruta pública `/mapa/ciudadela-san-lucas` en desarrollo, con vie
 
 En la ventana del proyecto de referencia la medida real fue: contenedor 566 × 400 CSS px, rejilla de 452,9 × 320,1 px de mundo, factor de escala 1,2497 y 6 teselas, todas a z18. El barrido de cobertura pidió z20 sin datos, luego z19 sin datos y z18 con datos, con lo que **en esta ventana manda el techo del proveedor, no el cálculo**: ya se pide el nivel más alto que Esri publica en Machala. Con `devicePixelRatio` 2 la misma rejilla ocuparía el doble de píxeles físicos con la misma cantidad de mapa de bits, es decir con más ampliación y menos nitidez; conviene corregir el cálculo aunque en esta ventana concreta el techo siga siendo el límite.
 
-**Ruta 3D real (`VisorCesium`).** Renderiza a resolución nativa con `useBrowserRecommendedResolution: false` y acota `resolutionScale` desde el panel de calidad. En la auditoría inicial usaba Esri como capa de imagen y mantenía Google Photorealistic 3D como una capa opcional; la decisión posterior de esta tarea hace que Google Photorealistic sea la capa inicial. Esri se carga de forma diferida al seleccionar terreno o como respaldo. El geocoder continúa siendo Google vía Cesium ion.
+**Ruta 3D real (`VisorCesium`).** Renderiza a resolución nativa con `useBrowserRecommendedResolution: false` y acota `resolutionScale` desde el panel de calidad. Esri World Imagery es la capa inicial; Google Photorealistic 3D sigue disponible como alternativa seleccionable. El geocoder continúa siendo Google vía Cesium ion.
 
-**Matiz sobre Google.** La vista 3D real ya integraba `createGooglePhotorealistic3DTileset` bajo la etiqueta «Vista fotográfica», además del geocoder de Google vía ion. Por decisión del usuario, ahora inicia con esa capa. Google Photorealistic 3D no garantiza nombres de calles y consume cuota del token Cesium ion; no se integra Google Maps Platform 2D.
+**Matiz sobre Google.** La vista 3D real ya integra `createGooglePhotorealistic3DTileset` bajo la etiqueta «Vista fotográfica», además del geocoder de Google vía ion. Google Photorealistic 3D no garantiza nombres de calles y consume cuota del token Cesium ion; se mantiene como alternativa manual, no como capa inicial. No se integra Google Maps Platform 2D.
 
 **Selector de modos y rutas.** `VisorMapaModos` expone tres opciones: Plano, Satélite y Vista 3D (Cesium). `Visor3D` sigue en el código, pero el modo `"3d"` no figura entre las opciones, así que no es alcanzable desde la interfaz. Las páginas pública e interna montan el mismo componente. La ruta interna `/mapas` redirige a `/login` sin sesión, por lo que verificar la capa satélite ahí exige un acceso autenticado de desarrollo.
 
@@ -84,7 +84,7 @@ El acceso interno fue habilitado manualmente durante QA; `/mapas` mostró el pro
 
 ### Resolución y degradación de Cesium (tarea 2.2)
 
-La escena se dibuja a resolución nativa del dispositivo (`useBrowserRecommendedResolution: false`) e inicia con Google Photorealistic 3D vía ion. El Viewer se crea sin capa Esri ni consulta de cobertura Esri; esa consulta y la imagen se hacen solo al elegir «Terreno y edificios» o al degradar por fallo de Google. En terreno, Esri usa el mayor nivel con cobertura total; si falla la consulta, conserva el respaldo z17 y avisa, y si no hay imagen publicada conserva terreno y lotes. La interfaz oculta Cesium sin token y deshabilita el modo sin conexión. Google puede consumir cuota ion y no garantiza etiquetas de calle. Build y prueba de cobertura pasaron antes del cambio de capa inicial; el build actual verifica compilación.
+La escena se dibuja a resolución nativa del dispositivo (`useBrowserRecommendedResolution: false`) e inicia con Esri World Imagery, usando el mayor nivel con cobertura total; si falla la consulta, conserva el respaldo z17 y avisa, y si no hay imagen publicada mantiene terreno y lotes. Google Photorealistic 3D se carga solo al seleccionar «Vista fotográfica» y, si falla por cuota, cobertura o conexión, se vuelve a terreno/edificios con un aviso. La interfaz oculta Cesium sin token y deshabilita el modo sin conexión. Google puede consumir cuota ion y no garantiza etiquetas de calle.
 
 ### Caché e incremento de solicitudes (tareas 2.3–2.4)
 
