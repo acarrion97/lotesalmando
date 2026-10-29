@@ -62,14 +62,8 @@ import { useAuth, useEmpresa } from "@/presentation/providers";
 import { getContainer } from "@/infrastructure/container";
 import { FreshnessBadge } from "@/presentation/components/common/FreshnessBadge";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
-import {
-  LeyendaPlano,
-  etiquetaLote,
-} from "@/presentation/components/maps/PlanoInteractivo";
-import {
-  VisorMapaModos,
-  type ModoMapa,
-} from "@/presentation/components/maps/VisorMapaModos";
+import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
+import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
 import { ubicacionDe } from "@/domain/mapa/entities";
 import { classifyFreshness } from "@/infrastructure/offline/freshness";
 import { compararNumeroLote, formatCurrency } from "@/utils";
@@ -265,6 +259,7 @@ export function MapasPage() {
     data: lotesPlano,
     isLoading: loadingLotesPlano,
     dataUpdatedAt: lotesPlanoUpdatedAt,
+    refetch: refetchLotesPlano,
   } = useLotesPlano(hayPlano ? (selectedProyecto ?? 0) : 0);
   const [dibujando, setDibujando] = useState<{ lote: PlanoLote; puntos: PuntoPlano[] } | null>(
     null,
@@ -506,7 +501,7 @@ export function MapasPage() {
       message.success(
         reservaEntrada > 0
           ? `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres} · Entrada $${reservaEntrada.toLocaleString()}`
-          : `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`
+          : `Lote ${selectedLote.numero_lote} reservado para ${prospecto.nombres}`,
       );
       closeModal();
     } catch (err) {
@@ -516,8 +511,7 @@ export function MapasPage() {
     }
   };
 
-  const prospectoReserva =
-    prospectos?.find((p) => p.id_prospecto === selectedProspecto) ?? null;
+  const prospectoReserva = prospectos?.find((p) => p.id_prospecto === selectedProspecto) ?? null;
 
   const precioVenta = selectedLote?.precio_lista ?? 0;
   const financiamientoValido =
@@ -858,38 +852,41 @@ export function MapasPage() {
                 {lotesUbicados} de {lotesPlano.length} lotes ubicados en el plano
               </Text>
               <Space wrap>
-              <Button icon={<EnvironmentOutlined />} onClick={() => setAsistenteAbierto(true)}>
-                Detectar lotes automáticamente
-              </Button>
-              <Space.Compact>
-                <Select
-                  showSearch
-                  placeholder={
-                    lotesSinUbicar.length
-                      ? `Ubicar lote (${lotesSinUbicar.length} sin ubicar)`
-                      : "Redibujar un lote"
-                  }
-                  style={{ width: 260 }}
-                  value={loteAUbicar}
-                  onChange={setLoteAUbicar}
-                  optionFilterProp="label"
-                  options={[...lotesPlano]
-                    // Primero los que aun no tienen trazado; dentro de cada grupo, por numero de lote.
-                    .sort((a, b) => Number(!!a.poligono) - Number(!!b.poligono) || compararNumeroLote(a, b))
-                    .map((l) => ({
-                      value: l.id_lote,
-                      label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}`,
-                    }))}
-                />
-                <Button
-                  type="primary"
-                  icon={<EditOutlined />}
-                  disabled={!loteAUbicar}
-                  onClick={() => loteAUbicar && empezarDibujo(loteAUbicar)}
-                >
-                  Dibujar
+                <Button icon={<EnvironmentOutlined />} onClick={() => setAsistenteAbierto(true)}>
+                  Detectar lotes automáticamente
                 </Button>
-              </Space.Compact>
+                <Space.Compact>
+                  <Select
+                    showSearch
+                    placeholder={
+                      lotesSinUbicar.length
+                        ? `Ubicar lote (${lotesSinUbicar.length} sin ubicar)`
+                        : "Redibujar un lote"
+                    }
+                    style={{ width: 260 }}
+                    value={loteAUbicar}
+                    onChange={setLoteAUbicar}
+                    optionFilterProp="label"
+                    options={[...lotesPlano]
+                      // Primero los que aun no tienen trazado; dentro de cada grupo, por numero de lote.
+                      .sort(
+                        (a, b) =>
+                          Number(!!a.poligono) - Number(!!b.poligono) || compararNumeroLote(a, b),
+                      )
+                      .map((l) => ({
+                        value: l.id_lote,
+                        label: `${etiquetaLote(l)}${l.poligono ? " (ubicado)" : ""}`,
+                      }))}
+                  />
+                  <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    disabled={!loteAUbicar}
+                    onClick={() => loteAUbicar && empezarDibujo(loteAUbicar)}
+                  >
+                    Dibujar
+                  </Button>
+                </Space.Compact>
               </Space>
             </div>
           ))}
@@ -925,6 +922,7 @@ export function MapasPage() {
             }
             modo={modoMapa}
             onModoChange={setModoMapa}
+            onRefrescarLotes={refetchLotesPlano}
             dibujo={
               dibujando && {
                 puntos: dibujando.puntos,
@@ -1059,8 +1057,8 @@ export function MapasPage() {
             <Descriptions column={2} bordered size="small" style={{ marginBottom: 20 }}>
               <Descriptions.Item label="Numero">{selectedLote.numero_lote}</Descriptions.Item>
               <Descriptions.Item label="Manzana">
-                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)?.nombre_codigo ??
-                  selectedLote.id_manzana}
+                {manzanasData?.find((m) => m.id_manzana === selectedLote.id_manzana)
+                  ?.nombre_codigo ?? selectedLote.id_manzana}
               </Descriptions.Item>
               <Descriptions.Item label="Precio Lista" span={2}>
                 <span style={{ fontWeight: 700, fontSize: 18, color: "#1677ff" }}>

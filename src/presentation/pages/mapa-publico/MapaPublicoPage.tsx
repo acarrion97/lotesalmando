@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 import { Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
 import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
@@ -17,6 +17,13 @@ const { Title, Text } = Typography;
 
 const CLAVES_TAB = ["galeria", "mapa", "financiamiento"] as const;
 type TabClave = (typeof CLAVES_TAB)[number];
+
+/** Ícono de cada pestaña, en un registro (tarea 6.4) para poder componerlo. */
+const MAPA_TAB_ICONS: Record<TabClave, ReactNode> = {
+  galeria: <PictureOutlined />,
+  mapa: <EnvironmentOutlined />,
+  financiamiento: <CalculatorOutlined />,
+};
 
 const RESUMEN_ESTADOS = [
   { clave: "total" as const, etiqueta: "Lotes", color: "#1677ff" },
@@ -70,9 +77,21 @@ export function MapaPublicoPage() {
     setSearchParams({ tab: clave }, { replace: true });
   };
 
-  /** Cambio hecho por el visitante: además se cierra la ficha que quede abierta. */
+  /**
+   * Cambio de pestaña hecho por el visitante: además de cambiar la URL se
+   * pliega la ficha de datos que quede abierta y se vuelve al modo Plano al
+   * dejar la pestaña Mapa, de modo que regresar nunca vuelva a montar la
+   * escena 3D automáticamente ni dispare peticiones de tiles (spec «El mapa
+   * público no inicia la escena 3D automáticamente»; decisión conservadora
+   * por la cuota ion del mapa público anónimo).
+   *
+   * Vive en el handler y no en un `useEffect`: todos los cambios de pestaña
+   * pasan por acá (`?tab=` se escribe con `replace: true`, así que no hay
+   * ruta por el historial) y `react-hooks` v7 prohíbe `setState` en effects.
+   */
   const alCambiarTab = (clave: string) => {
     setLoteFicha(null);
+    if (clave !== "mapa") setModoMapa((modo) => (modo === "cesium" ? "plano" : modo));
     cambiarTab(clave);
   };
 
@@ -185,7 +204,7 @@ export function MapaPublicoPage() {
               {
                 key: "galeria",
                 label: "Galería",
-                icon: <PictureOutlined />,
+                icon: MAPA_TAB_ICONS.galeria,
                 destroyOnHidden: true,
                 children: (
                   <div style={{ padding: "16px 0" }}>
@@ -196,7 +215,7 @@ export function MapaPublicoPage() {
               {
                 key: "mapa",
                 label: "Mapa",
-                icon: <EnvironmentOutlined />,
+                icon: MAPA_TAB_ICONS.mapa,
                 destroyOnHidden: true,
                 children: (
                   <div>
@@ -240,7 +259,7 @@ export function MapaPublicoPage() {
               {
                 key: "financiamiento",
                 label: "Financiamiento",
-                icon: <CalculatorOutlined />,
+                icon: MAPA_TAB_ICONS.financiamiento,
                 destroyOnHidden: true,
                 children: (
                   <div style={{ padding: "24px 16px 40px" }}>
