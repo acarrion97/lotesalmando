@@ -40,8 +40,8 @@ Tres hechos que condicionan el diseño (ver `proposal.md` para el porqué):
 
 **Non-Goals:**
 
-- Sustituir `Visor3D` (modo `"3d"`): convive. Resuelve *estado comercial*
-  extruido sobre el plano sin dependencias ni red; Cesium resuelve *lugar real*.
+- Sustituir `Visor3D` (modo `"3d"`): convive. Resuelve _estado comercial_
+  extruido sobre el plano sin dependencias ni red; Cesium resuelve _lugar real_.
 - Un `api.ts` con `fetch` suelto: fuera de estilo. El punto de integración de
   datos entra por la cadena repository → use-case → hook.
 - Mediciones sobre la malla, vuelos programados, multi-idioma de la UI.
@@ -68,10 +68,11 @@ un proyecto de Google Cloud. `onlyUsingWithGoogleGeocoder: true` documenta esa
 configuración al crear el tileset y evita la advertencia de Cesium.
 
 **Alternativas descartadas:**
-- *Google Maps API key directa*: exige billing, tarjeta y `Map Tiles API`.
+
+- _Google Maps API key directa_: exige billing, tarjeta y `Map Tiles API`.
   Queda como ampliación futura si la cuota ion no alcanza — entonces se añade
   `VITE_GOOGLE_MAPS_KEY` y la capa fotográfica la sirve Google directo.
-- *Tiles abiertos sin token* (OSM raster, MapTiler): no dan terreno 3D ni
+- _Tiles abiertos sin token_ (OSM raster, MapTiler): no dan terreno 3D ni
   edificios; rehacen lo que `CapaSatelite` ya hace en 2D.
 
 **Consecuencia de diseño importante:** terreno + OSM Buildings **sí** responde
@@ -90,13 +91,13 @@ cuota agotada, error de red) es a terreno + edificios, nunca a un estado roto.
 1. **Cobertura.** Photorealistic cubre ~2.500 ciudades en núcleos urbanos. Un
    loteo nuevo típicamente está en el extranjero de la ciudad → malla plana.
    OSM Buildings es global desde OpenStreetMap y el relieve existe en todo el
-   territorio. Para *este* producto, terreno+edificios casi seguro llega más lejos.
+   territorio. Para _este_ producto, terreno+edificios casi seguro llega más lejos.
 2. **El slider de hora del día** (requisito del usuario) solo es visible en
    serio sobre esta base.
 3. **Cuota ion Community = 1.000 root tiles/mes.** Poner la capa cara como
    base la agota con el mapa público anónimo en días.
 
-**Alternativa descartada:** *photográfica por defecto con fallback* — invierte
+**Alternativa descartada:** _photográfica por defecto con fallback_ — invierte
 el costo y deja el requisito de iluminación sin efecto en la experiencia típica.
 
 **Pendiente (spike, no bloquea specs):** verificar los `centro_lat/lng` reales
@@ -133,7 +134,7 @@ default — pero la estructura de código no cambia.
    (2,4 MB de workers, 1,3 MB de thirdparty, 4,2 MB de assets), **no** en la
    carpeta histórica `cesium/Build/Cesium`, cuyo contenido es distinto. Los
    workers reciben la base URL por mensaje (`self.CESIUM_BASE_URL =
-   data.baseUrl`), así que propagan la corrección automáticamente.
+data.baseUrl`), así que propagan la corrección automáticamente.
 2. **`define` alcanza en build pero no en dev.** Verificado sobre el bundle
    generado y sobre `node_modules/.vite/deps/cesium.js`: en `vite build`
    `typeof CESIUM_BASE_URL` queda plegado a `"/cesium/"`, pero el pre-bundle de
@@ -149,7 +150,7 @@ hace y que ya es estable en v4. Prefiero la pieza pequeña y explícita.
 **Riesgo asumido:** si en Vite 8 el pre-bundle de Cesium rompe workers, el
 respaldo es `optimizeDeps.exclude: ["cesium"]` + `worker.format: "es"`.
 
-**Alternativa descartada:** *carga estática en `main.tsx`* — mete ~2 MB al
+**Alternativa descartada:** _carga estática en `main.tsx`_ — mete ~2 MB al
 bundle principal, rompe el precache y arruina el arranque offline ya casi
 terminado (`pwa-offline-support` 43/44).
 
@@ -176,7 +177,7 @@ alta → crear; baja → `entities.removeId()`. Nunca `removeAll()`.
 
 **Por qué:** es lo que exige el requisito "sin recrear la escena". Además
 habilita el refresco por intervalo **y** un canal en vivo futuro sin cambiar
-el contrato — si algún día hay WebSocket, cambia el *productor* de eventos, no
+el contrato — si algún día hay WebSocket, cambia el _productor_ de eventos, no
 el consumidor.
 
 **Sobre el WebSocket:** no hay endpoint hoy y no lo invento. El diseño expone
@@ -232,7 +233,7 @@ cuando hacen falta ~0,10 m/px: **6× de déficit**, el causante directo de que
 "no se vea nítida". Subir el techo es la palanca de mayor efecto; el
 sobremuestreo 2×→3× ataca el muestreo bajo `rotateX(58°)`.
 
-**Alternativa descartada:** *dejar la nitidez solo a Cesium* — deja el modo
+**Alternativa descartada:** _dejar la nitidez solo a Cesium_ — deja el modo
 Satélite y la capa aérea de `Visor3D` igual de blandas, y son los modos que
 funcionan offline sin token. Hay que mejorar los dos.
 
@@ -275,8 +276,8 @@ y Cesium 1.146 exige WebGL2 (o extensión) para billboards y labels. Sin esto,
 usuario ve canvas negro.
 
 **Sobre offline:** Cesium no puede funcionar offline (los tiles son remotos y
-los assets quedan fuera del precache por D3). El contrato es: *la app arranca
-offline y los modos Plano/Satélite funcionan; el modo 3D real avisa*. Esto es
+los assets quedan fuera del precache por D3). El contrato es: _la app arranca
+offline y los modos Plano/Satélite funcionan; el modo 3D real avisa_. Esto es
 consistente con `pwa-offline-support`.
 
 ### D11. Punto de integración de datos en la forma de la casa
@@ -327,55 +328,56 @@ de error. La persistencia existente ya permite datos de mapas interactivos,
 pero su allowlist y sus claves actuales no incluyen esos resultados.
 
 **Alternativas descartadas:**
-- *Guardar todas las respuestas del backend*: mezcla dominios con requisitos
+
+- _Guardar todas las respuestas del backend_: mezcla dominios con requisitos
   de frescura distintos y podría conservar datos financieros.
-- *Persistir todos los permisos del usuario*: ampliaría el acceso offline más
+- _Persistir todos los permisos del usuario_: ampliaría el acceso offline más
   allá de lectura de mapas. La caché offline conserva únicamente `ver_mapas`.
-- *Subir a una hora el límite global de precache de consultas*: afectaría la
+- _Subir a una hora el límite global de precache de consultas_: afectaría la
   política de 24 horas de inventario ya desplegada; por eso los mapas usan una
   clave de persistencia separada.
 
 ## Risks / Trade-offs
 
 - **[Cuota ion agotada por mapa público anónimo]** → 1.000 root tiles/mes ≈ 33
-  sesiones/día contra tráfico compartible. *Mitigación:* la escena no se carga
+  sesiones/día contra tráfico compartible. _Mitigación:_ la escena no se carga
   hasta acción explícita del visitante (spec), base por defecto = terreno+edificios
   (D2), capa fotográfica conmutable, `maximumScreenSpaceError` acotado (D8),
   métrica de uso antes de producción.
 
 - **[Licencia ion no comercial aplicada a un SaaS]** → el plan Community cubre
-  uso personal/no comercial; `/mapa/:slug` es material comercial. *Mitigación:*
+  uso personal/no comercial; `/mapa/:slug` es material comercial. _Mitigación:_
   decisión tomada y registrada con disparador de revisión (cualquier
   monetización del enlace o superación sostenida de cuota). No se esconde en el
   design: está en `proposal.md → Impact`.
 
 - **[Vite 8 vs `vite-plugin-cesium`]** → peer range engañoso, era Vite 2-5.
-  *Mitigación:* D3 usa `static-copy` + `define` (piezas estables). Respaldo:
+  _Mitigación:_ D3 usa `static-copy` + `define` (piezas estables). Respaldo:
   `optimizeDeps.exclude` + `worker.format: "es"`.
 
 - **[Peso rompe el precache de 3 MB]** → `pwa-offline-support` queda a 43/44 y
-  se perdería arranque offline. *Mitigación:* D3 — `globIgnores` explícitos y
+  se perdería arranque offline. _Mitigación:_ D3 — `globIgnores` explícitos y
   QA con "recarga sin conexión" como escenario de aceptación.
 
 - **[Cobertura fotográfica ausente en los loteos]** → la escena se vería plana
-  con la capa cara. *Mitigación:* D2 la hace conmutable y con respaldo
+  con la capa cara. _Mitigación:_ D2 la hace conmutable y con respaldo
   automático; **spike** previo con coordenadas reales para decidir el default.
 
 - **[React StrictMode duplica el Viewer]** → dos contextos WebGL, canvas
-  huérfano. *Mitigación:* D4, cleanup idéntico + guard; verificado en dev.
+  huérfano. _Mitigación:_ D4, cleanup idéntico + guard; verificado en dev.
 
 - **[Proyección de polígonos asume plano alineado al norte]** → si el plano
-  está girado, los polígonos quedan rotados. *Mitigación:* es la misma
+  está girado, los polígonos quedan rotados. _Mitigación:_ es la misma
   hipótesis que ya hace `CapaSatelite` hoy — comportamiento no nuevo. Se
   documenta en `UbicacionMapaForm` como límite conocido de la georreferenciación.
 
 - **[Controles de calidad mal usados amplían el consumo]** → "más nítido" =
-  más tiles = más cuota. *Mitigación:* rango acotado (D8) y aviso junto al
+  más tiles = más cuota. _Mitigación:_ rango acotado (D8) y aviso junto al
   control.
 
 - **[Modo nuevo sobre specs hermanas sin sincronizar]** →
   `mapa-publico/visualizacion` no está en `openspec/specs/` y hay dos cambios
-  tocándola. *Mitigación:* este cambio **no** modifica esa capability; usa
+  tocándola. _Mitigación:_ este cambio **no** modifica esa capability; usa
   capacidades nuevas (`mapa/visualizacion-3d`, `mapa/capa-satelite`) y debe
   archivarse después de `public-map-gallery-financing` e
   `improve-public-lotization-map`.
@@ -386,13 +388,13 @@ Sin migraciones de base de datos. Despliegue en tres etapas, cada una
 reversible:
 
 1. **Etapa 1 — infraestructura sin superficie visible.** Dependencia, copia de
-   assets, `define`, `globIgnores`, env. *Rollback:* revert de `package.json` +
+   assets, `define`, `globIgnores`, env. _Rollback:_ revert de `package.json` +
    `vite.config.ts`; ningún usuario lo nota porque no hay UI.
-2. **Etapa 2 — modo interno.** `"cesium"` visible solo en `/mapas`. *Rollback:*
+2. **Etapa 2 — modo interno.** `"cesium"` visible solo en `/mapas`. _Rollback:_
    la opción se oculta quitando una entrada del arreglo de opciones de
    `VisorMapaModos`; el código diferido queda inerte sin coste.
 3. **Etapa 3 — modo público.** Se habilita en `/mapa/:slug` tras el spike de
-   cobertura y con la métrica de cuota visible. *Rollback:* mismo interruptor,
+   cobertura y con la métrica de cuota visible. _Rollback:_ mismo interruptor,
    por separado para cada página.
 
 Riesgo de producción concentrado en la etapa 1 (build/PWA). Se valida con
@@ -415,9 +417,6 @@ corresponde a un cambio aparte sobre el peso del arranque offline.
 
 Deferrables sin cambiar specs, enfoque ni desglose de tareas:
 
-- **Alcance de cobertura fotográfica en los `centro_lat/lng` reales.** Decide
-  el *default* de D2, no la estructura: los dos caminos usan los mismos
-  módulos y el toggle ya existe. Se resuelve en el spike de la etapa 3.
 - **Productor de refresco en vivo.** `setInterval` basta para la spec; el
   contrato `subscribe/dispose` deja Supabase Realtime o WS abiertos sin
   rediseño.
@@ -425,7 +424,44 @@ Deferrables sin cambiar specs, enfoque ni desglose de tareas:
   la práctica con nuestro patrón de uso; requiere métricas reales.
 - **Ampliación a key de Google directa.** Solo si la cuota ion se queda corta;
   añade `VITE_GOOGLE_MAPS_KEY` sin tocar specs (la capa fotográfica ya es
-  conmutable y su *fuente* es un detalle de implementación).
+  conmutable y su _fuente_ es un detalle de implementación).
 
 Sin otras preguntas: todo lo que hubiera cambiado specs, el enfoque o el
 desglose de tareas está decidido arriba.
+
+### Resolución: alcance de cobertura fotográfica (spike de la etapa 3)
+
+La pregunta de cobertura —que antes estaba diferida— se resolvió con el spike
+`scripts/spike-cobertura-fotogrametrica.ts` (tarea 9.1). Resultado sobre el
+único proyecto con mapa publicado y GPS en producción:
+
+- **`ciudadela-san-lucas`** (Ciudadela San Lucas), `-3.31480187245578,
+-79.9554215423267`, ancho 500 m. Reverse geocode (Nominatim): Los Ceibales 2,
+  Machala, El Oro, Ecuador.
+- El sondeo resuelve el asset ion `2275207` (Google Photorealistic 3D Tiles) y
+  baja el cuadtreo por _containment_ (boundingVolume.box en ECEF) hasta el tile
+  que contiene el punto. **Llega al nivel 20 con malla `.glb` continua** (tiles
+  de ~38 m), veredicto **COMPLETA**. La malla existe de forma continua desde el
+  nivel 5 hasta el 20 en el camino hacia el punto; no hay huecos.
+
+**Decisión que habilita (task 6.5):** la cobertura fotogramétrica existe y es
+de detalle suficiente para los proyectos publicados actuales, así que la capa
+fotográfica puede habilitarse en la etapa 3 pública sin riesgo de mostrar un
+terreno vacío. **Confirmado por el usuario (task 9.2):** se acepta el uso del
+plan _Community_ (no comercial) de Cesium ion para el mapa público, con el
+disparador de revisión ya registrado en `Risks / Trade-offs` (cualquier
+monetización del enlace o superación sostenida de cuota). Se decidió **dejar la
+capa habilitada en ambos mapas** (público e interno) sin interruptor por
+entorno: el selector es compartido y la opción ya estaba expuesta; el
+_rollback_ de la etapa 3 es retirar la entrada `{ label: \"Vista 3D real\",
+value: \"cesium\", … }` del arreglo `OPCIONES` en `VisorMapaModos.tsx` (ver
+6.3), y el reset del modo al salir de la pestaña Mapa (6.4) garantiza que
+regarar nunca dispare tiles sin acción del visitante. Condicionantes que se
+mantienen:
+
+- **Cuota.** El modo público es anónimo y consume tiles; si la cuota ion se
+  acerca al límite, el rollback es el mismo (retirar la entrada) y la vía de
+  ampliación está en la pregunta abierta de key de Google propia.
+- **Muestra pequeña.** n=1 (un solo mapa publicado). Si se publican más
+  proyectos fuera del área urbana de Machala, re-ejecutar el spike antes de
+  ampliar la expectativa de cobertura.
