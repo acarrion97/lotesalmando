@@ -161,9 +161,20 @@ export function rejillaTiles(
 export const PLANTILLA_TILE_ESRI =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
-/** URL del tile satelital (Esri World Imagery, sin API key). */
-export function urlTile(zoom: number, x: number, y: number): string {
-  return PLANTILLA_TILE_ESRI.replace("{z}", String(zoom))
+export const PLANTILLAS_ETIQUETAS_ESRI = [
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
+  "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+] as const;
+
+/** URL de un tile de la plantilla indicada (por defecto, Esri World Imagery). */
+export function urlTile(
+  zoom: number,
+  x: number,
+  y: number,
+  plantilla = PLANTILLA_TILE_ESRI,
+): string {
+  return plantilla
+    .replace("{z}", String(zoom))
     .replace("{y}", String(y))
     .replace("{x}", String(x));
 }

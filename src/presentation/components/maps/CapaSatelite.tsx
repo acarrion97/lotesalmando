@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LimitesGeo } from "./georef";
-import { recorteTileAncestro, rejillaTiles, urlTile } from "./georef";
+import {
+  PLANTILLAS_ETIQUETAS_ESRI,
+  recorteTileAncestro,
+  rejillaTiles,
+  urlTile,
+} from "./georef";
 import {
   disponibilidadTilesEsri,
   nivelMaximoEsriConCobertura,
@@ -9,9 +14,11 @@ import {
 
 interface CapaSateliteProps {
   limites: LimitesGeo;
+  mostrarEtiquetas?: boolean;
 }
 
 const ATRIBUCION = "Esri · Maxar · Earthstar Geographics";
+const ATRIBUCION_ETIQUETAS = "HERE · Garmin · © OpenStreetMap contributors · GIS user community";
 const TAMANO_TILE = 256;
 
 interface TileSateliteProps {
@@ -21,6 +28,14 @@ interface TileSateliteProps {
   left: number;
   top: number;
   disponibilidadInicial: boolean | undefined;
+}
+
+interface TileEtiquetasProps {
+  zoom: number;
+  x: number;
+  y: number;
+  left: number;
+  top: number;
 }
 
 function TileSatelite({ zoomPedido, x, y, left, top, disponibilidadInicial }: TileSateliteProps) {
@@ -117,6 +132,41 @@ function TileSatelite({ zoomPedido, x, y, left, top, disponibilidadInicial }: Ti
   );
 }
 
+function TileEtiquetas({ zoom, x, y, left, top }: TileEtiquetasProps) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        left,
+        top,
+        width: TAMANO_TILE,
+        height: TAMANO_TILE,
+        pointerEvents: "none",
+      }}
+    >
+      {PLANTILLAS_ETIQUETAS_ESRI.map((plantilla) => (
+        <img
+          key={plantilla}
+          src={urlTile(zoom, x, y, plantilla)}
+          alt=""
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: TAMANO_TILE,
+            height: TAMANO_TILE,
+            pointerEvents: "none",
+            userSelect: "none",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
  * Capa satélite de tiles (Esri World Imagery, sin API key) recortada a la
  * ventana geográfica del plano: se dibuja debajo de la imagen del plano y
@@ -125,9 +175,10 @@ function TileSatelite({ zoomPedido, x, y, left, top, disponibilidadInicial }: Ti
  * Se mide sola (ResizeObserver) para poder vivir dentro del visor del plano
  * o bajo la escena 3D sin que el caller tenga que pasarle tamaños.
  */
-export function CapaSatelite({ limites }: CapaSateliteProps) {
+export function CapaSatelite({ limites, mostrarEtiquetas = true }: CapaSateliteProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [ancho, setAncho] = useState(0);
+  const [densidad, setDensidad] = useState(1);
   const [resultadoDisponibilidad, setResultadoDisponibilidad] = useState<{
     clave: string;
     disponibles: ReadonlyMap<string, boolean> | null;
@@ -181,12 +232,34 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    let mediaQuery: MediaQueryList | null = null;
+    const leerDensidad = () => {
+      const actual = window.devicePixelRatio;
+      return Number.isFinite(actual) && actual > 0 ? actual : 1;
+    };
+    const medirDensidad = () => {
+      const actual = leerDensidad();
+      setDensidad(actual);
+      mediaQuery?.removeEventListener("change", medirDensidad);
+      mediaQuery = window.matchMedia(`(resolution: ${actual}dppx)`);
+      mediaQuery.addEventListener("change", medirDensidad);
+    };
+    medirDensidad();
+    window.addEventListener("resize", medirDensidad);
+    return () => {
+      window.removeEventListener("resize", medirDensidad);
+      mediaQuery?.removeEventListener("change", medirDensidad);
+    };
+  }, []);
+
+  const anchoFisico = ancho * densidad;
   const rejilla = useMemo(
     () =>
-      ancho > 0 && techoCobertura != null
-        ? rejillaTiles({ norte, sur, este, oeste }, ancho, techoCobertura)
+      anchoFisico > 0 && techoCobertura != null
+        ? rejillaTiles({ norte, sur, este, oeste }, anchoFisico, techoCobertura)
         : null,
-    [norte, sur, este, oeste, ancho, techoCobertura],
+    [norte, sur, este, oeste, anchoFisico, techoCobertura],
   );
   const claveDisponibilidad = rejilla
     ? `${rejilla.zoom}:${rejilla.tiles.map(({ x, y }) => `${x}/${y}`).join(",")}`
@@ -258,6 +331,17 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
               disponibilidadInicial={tilesDisponibles.get(`${tile.x}/${tile.y}`)}
             />
           ))}
+          {mostrarEtiquetas &&
+            rejilla.tiles.map((tile) => (
+              <TileEtiquetas
+                key={`${rejilla.zoom}-${tile.x}-${tile.y}-etiquetas`}
+                zoom={rejilla.zoom}
+                x={tile.x}
+                y={tile.y}
+                left={tile.left}
+                top={tile.top}
+              />
+            ))}
         </div>
       )}
       {techoCobertura === null && (
@@ -307,7 +391,7 @@ export function CapaSatelite({ limites }: CapaSateliteProps) {
           pointerEvents: "none",
         }}
       >
-        {ATRIBUCION}
+        {mostrarEtiquetas ? `${ATRIBUCION} · ${ATRIBUCION_ETIQUETAS}` : ATRIBUCION}
       </div>
     </div>
   );

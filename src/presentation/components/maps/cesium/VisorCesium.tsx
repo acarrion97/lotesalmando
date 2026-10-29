@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Segmented, Spin, Typography } from "antd";
 import { SlidersOutlined, WarningOutlined } from "@ant-design/icons";
-import type { Cesium3DTileset, Viewer } from "cesium";
+import type { Cesium3DTileset, ImageryLayer, Viewer } from "cesium";
 import type { PlanoLote } from "@/domain/mapa/entities";
 import { useOnlineStatus } from "@/presentation/hooks";
 import type { LimitesGeo } from "../georef";
-import { PLANTILLA_TILE_ESRI } from "../georef";
+import { PLANTILLA_TILE_ESRI, PLANTILLAS_ETIQUETAS_ESRI } from "../georef";
 import { nivelMaximoEsriConCobertura } from "../tilesEsri";
 import { PanelControlesEscena } from "./PanelControlesEscena";
 import type { CalidadEscena } from "./controlesEscena";
@@ -38,6 +38,7 @@ type ClickPosition = import("cesium").ScreenSpaceEventHandler.PositionedEvent;
 /** Inclinación de la cámara en el vuelo inicial: negativa = mirando hacia abajo. */
 const PITCH_INICIAL = -35;
 const DURACION_VUELO = 2;
+const ZOOM_MAXIMO_IMAGEN_ESRI = 20;
 
 /** Capas base conmutables de la escena. */
 export type CapaBaseCesium = "terreno" | "fotografica";
@@ -61,6 +62,8 @@ const OPCIONES_CAPA: { label: string; value: CapaBaseCesium }[] = [
 
 /** Crédito exigido por Esri para su capa satélital. */
 const CREDITO_ESRI = "Esri · Maxar · Earthstar Geographics";
+const CREDITO_ETIQUETAS_ESRI =
+  "Esri · HERE · Garmin · © OpenStreetMap contributors · GIS user community";
 
 interface VisorCesiumProps {
   /** Ventana geográfica del plano, ya calculada por el padre con `limitesDelPlano()`. */
@@ -70,6 +73,7 @@ interface VisorCesiumProps {
   lotes: PlanoLote[];
   onLoteClick?: (lote: PlanoLote) => void;
   loteSeleccionadoId?: number | null;
+  mostrarEtiquetas: boolean;
   /**
    * Refresco de datos (tarea 5.4): el tick del proveedor le pide al padre que
    * reconsulte por sus hooks existentes. Los lotes llegan como props y se
@@ -137,6 +141,7 @@ export function VisorCesium({
   lotes,
   onLoteClick,
   loteSeleccionadoId = null,
+  mostrarEtiquetas,
   onRefrescarDatos,
 }: VisorCesiumProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -153,7 +158,8 @@ export function VisorCesium({
   const onRefrescarDatosRef = useRef(onRefrescarDatos);
 
   const [cargando, setCargando] = useState(true);
-  const [capaBase, setCapaBase] = useState<CapaBaseCesium>("terreno");
+  const [capaBase, setCapaBase] = useState<CapaBaseCesium>("fotografica");
+  const [capaEsriActiva, setCapaEsriActiva] = useState(false);
   const [motivoRespaldo, setMotivoRespaldo] = useState<MotivoRespaldo | null>(null);
   const [avisoEscena, setAvisoEscena] = useState<string | null>(null);
   const [errorEscena, setErrorEscena] = useState(false);
@@ -168,18 +174,21 @@ export function VisorCesium({
 
   const { norte, sur, este, oeste } = limites;
   const posiciones = useMemo<CoordenadaWgs84[]>(() => {
-    // El encuadre cubre la ventana completa del plano, no solo los lotes: la
-    // vista tiene que enseñar el proyecto entero aunque aún no haya ninguno
-    // ubicado. Los vértices se suman por si alguno pica fuera de `[0..1]`.
+    // Encuadrar los lotes ubicados evita que los márgenes vacíos del plano
+    // reduzcan el proyecto. Si todavía no hay polígonos, mostrar la ventana
+    // completa; también incluir vértices fuera de [0..1] para no recortarlos.
     const ventana: LimitesGeo = { norte, sur, este, oeste };
-    const puntos: CoordenadaWgs84[] = [
-      [oeste, norte],
-      [este, norte],
-      [este, sur],
-      [oeste, sur],
-    ];
+    const puntos: CoordenadaWgs84[] = [];
     for (const lote of lotes) {
       if (lote.poligono) puntos.push(...poligonoAWgs84(lote.poligono, ventana));
+    }
+    if (puntos.length === 0) {
+      puntos.push(
+        [oeste, norte],
+        [este, norte],
+        [este, sur],
+        [oeste, sur],
+      );
     }
     return puntos;
   }, [norte, sur, este, oeste, lotes]);
@@ -241,38 +250,12 @@ export function VisorCesium({
         const token = String(import.meta.env.VITE_CESIUM_TOKEN ?? "").trim();
         if (token) cesium.Ion.defaultAccessToken = token;
 
-        let nivelMaximoImagen: number | null;
-        try {
-          nivelMaximoImagen = await nivelMaximoEsriConCobertura(limitesRef.current, 19);
-        } catch (error) {
-          console.warn(
-            "No se pudo determinar la cobertura de imágenes Esri; se limita el zoom satelital.",
-            error,
-          );
-          nivelMaximoImagen = 17;
-          if (vivo) {
-            setAvisoEscena(
-              "No se pudo comprobar la cobertura satelital; se usará una resolución conservadora.",
-            );
-          }
-        }
-        if (!vivo) return;
-
         // No se pasa `creditContainer`: la atribución queda donde Cesium la
         // pone por defecto, visible y sin atajos de CSS (design.md D9).
         viewer = new cesium.Viewer(contenedor, {
-          // La misma fotografía del territorio que ya usan el modo Satélite y
-          // la capa aérea del Visor 3D: sin API key y sin cuota ion.
-          baseLayer:
-            nivelMaximoImagen === null
-              ? false
-              : new cesium.ImageryLayer(
-                  new cesium.UrlTemplateImageryProvider({
-                    url: PLANTILLA_TILE_ESRI,
-                    credit: CREDITO_ESRI,
-                    maximumLevel: nivelMaximoImagen,
-                  }),
-                ),
+          // La vista Google Photorealistic se carga como capa principal al
+          // abrir Cesium; Esri se añade solo si se elige terreno o hay fallback.
+          baseLayer: false,
           terrain: cesium.Terrain.fromWorldTerrain(),
           animation: false,
           timeline: false,
@@ -294,11 +277,6 @@ export function VisorCesium({
 
         motorRef.current = cesium;
         viewerRef.current = viewer;
-        if (nivelMaximoImagen === null) {
-          setAvisoEscena(
-            "Esri no tiene imágenes satelitales disponibles para esta ubicación. El terreno y los lotes siguen visibles.",
-          );
-        }
         actualizarEntidadesLote(
           viewer,
           cesium,
@@ -412,8 +390,68 @@ export function VisorCesium({
     volarAEscena(viewer, motor, posicionesRef.current);
   }, [norte, sur, este, oeste]);
 
-  // La capa fotográfica solo se pide cuando alguien la pide: descargarla en
-  // segundo plano agotaría la cuota ion sin que nadie la haya mirado.
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const motor = motorRef.current;
+    if (
+      cargando ||
+      capaBase !== "terreno" ||
+      !viewer ||
+      !motor ||
+      viewer.isDestroyed()
+    ) {
+      return;
+    }
+
+    let vivo = true;
+    let capa: ImageryLayer | null = null;
+    setCapaEsriActiva(false);
+    void (async () => {
+      let nivelMaximoImagen: number | null;
+      try {
+        nivelMaximoImagen = await nivelMaximoEsriConCobertura(
+          limitesRef.current,
+          ZOOM_MAXIMO_IMAGEN_ESRI,
+        );
+      } catch (error) {
+        console.warn(
+          "No se pudo determinar la cobertura de imágenes Esri; se limita el zoom satelital.",
+          error,
+        );
+        nivelMaximoImagen = 17;
+        if (vivo) {
+          setAvisoEscena(
+            "No se pudo comprobar la cobertura satelital; se usará una resolución conservadora.",
+          );
+        }
+      }
+      if (!vivo || viewer.isDestroyed()) return;
+      if (nivelMaximoImagen === null) {
+        setAvisoEscena(
+          "Esri no tiene imágenes satelitales disponibles para esta ubicación. El terreno y los lotes siguen visibles.",
+        );
+        return;
+      }
+
+      capa = viewer.imageryLayers.addImageryProvider(
+        new motor.UrlTemplateImageryProvider({
+          url: PLANTILLA_TILE_ESRI,
+          credit: CREDITO_ESRI,
+          maximumLevel: nivelMaximoImagen,
+        }),
+      );
+      setCapaEsriActiva(true);
+    })();
+
+    return () => {
+      vivo = false;
+      setCapaEsriActiva(false);
+      if (capa && !viewer.isDestroyed()) viewer.imageryLayers.remove(capa, true);
+    };
+  }, [cargando, capaBase, norte, sur, este, oeste]);
+
+  // La capa fotográfica se carga al abrir Cesium y solo mientras esté activa;
+  // fuera de este modo no se consumen tiles de Google Photorealistic.
   useEffect(() => {
     const viewer = viewerRef.current;
     const motor = motorRef.current;
@@ -476,6 +514,36 @@ export function VisorCesium({
       viewer.scene.globe.show = true;
     };
   }, [capaBase]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const motor = motorRef.current;
+    if (
+      cargando ||
+      !mostrarEtiquetas ||
+      capaBase !== "terreno" ||
+      !viewer ||
+      !motor ||
+      viewer.isDestroyed() ||
+      !capaEsriActiva
+    ) {
+      return;
+    }
+
+    const capas = PLANTILLAS_ETIQUETAS_ESRI.map((url) =>
+      viewer.imageryLayers.addImageryProvider(
+        new motor.UrlTemplateImageryProvider({
+          url,
+          credit: CREDITO_ETIQUETAS_ESRI,
+          maximumLevel: ZOOM_MAXIMO_IMAGEN_ESRI,
+        }),
+      ),
+    );
+    return () => {
+      if (viewer.isDestroyed()) return;
+      capas.forEach((capa) => viewer.imageryLayers.remove(capa, true));
+    };
+  }, [cargando, capaBase, mostrarEtiquetas, capaEsriActiva]);
 
   // Tarea 5.1: la hora del día gobierna el reloj del Viewer. Con
   // `globe.enableLighting` encendido, el instante del reloj es lo que decide

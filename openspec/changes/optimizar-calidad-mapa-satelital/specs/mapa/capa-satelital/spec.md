@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Establece cómo las vistas geográficas muestran imágenes satelitales con la resolución realmente disponible para su ubicación, preservando nitidez, alineación de los lotes y una interacción fluida en distintas densidades de pantalla.
+Establece cómo las vistas geográficas muestran imágenes satelitales con la resolución realmente disponible para su ubicación y con etiquetas de vía y de lugar legibles y superpuestas, preservando nitidez, alineación de los lotes y una interacción fluida en distintas densidades de pantalla.
 
 ## ADDED Requirements
 
@@ -20,6 +20,29 @@ El sistema SHALL solicitar y representar el nivel de imagen satelital más detal
 #### Scenario: Sin cobertura satelital publicada
 - **WHEN** la fuente no publica imagen para la zona
 - **THEN** la vista conserva los polígonos y controles utilizables y no muestra una imagen inventada o presentada como satélite de mayor resolución
+
+### Requirement: Mostrar nombres de vía y títulos de lugar
+El sistema SHALL superponer sobre la imagen satelital una capa de etiquetas con los nombres de vía y los títulos de lugar publicados por el proveedor para la zona visible, sin sustituir la imagen base, sin desplazar la georreferenciación y con la atribución del proveedor de etiquetas visible. Cuando el proveedor no publique etiquetas para una zona, el sistema SHALL mostrar la imagen sin ellas y no inventar nombres.
+
+#### Scenario: Nombres de vía sobre imagen satelital
+- **WHEN** la zona visible tiene vías nombradas publicadas por el proveedor y la capa de etiquetas está activada
+- **THEN** los nombres de calle se muestran sobre la imagen, legibles y alineados con sus vías
+
+#### Scenario: Títulos de lugar en escalas medias
+- **WHEN** la vista muestra una escala a la que el proveedor publica títulos de lugar
+- **THEN** esos títulos aparecen sobre la imagen sin tapar los polígonos ni los controles
+
+#### Scenario: Zona sin etiquetas publicadas
+- **WHEN** la fuente no publica vías ni títulos para la zona visible, como el interior de un desarrollo nuevo
+- **THEN** la vista conserva la imagen y los polígonos y no muestra nombres inventados
+
+#### Scenario: Capa de etiquetas desactivada
+- **WHEN** el usuario desactiva la capa de etiquetas
+- **THEN** la imagen satelital y la interacción de los lotes permanecen intactas y no se solicitan teselas de etiquetas
+
+#### Scenario: La interacción no queda bloqueada
+- **WHEN** el usuario hace clic o arrastra sobre una zona con etiquetas visibles
+- **THEN** los eventos llegan al visor y a los polígonos como lo harían sin la capa de etiquetas
 
 ### Requirement: Adaptar el renderizado a la pantalla sin distorsión
 El sistema SHALL adaptar el tamaño y nivel de detalle de las teselas al tamaño medido del contenedor y a la densidad de píxeles del dispositivo, evitando escalados innecesarios que reduzcan la nitidez, sin modificar la extensión geográfica ni la relación espacial de los polígonos.
@@ -61,6 +84,10 @@ El sistema SHALL mantener la interacción fluida del visor y limitar las solicit
 #### Scenario: Rejilla de tiles del viewport
 - **WHEN** se solicita imagen para un viewport y nivel de detalle determinados
 - **THEN** las solicitudes se limitan a las teselas que cubren la zona visible y no se repiten innecesariamente para la misma tesela
+
+#### Scenario: Solicitudes de la capa de etiquetas
+- **WHEN** la capa de etiquetas está activada para una zona y escala visibles
+- **THEN** sus solicitudes se limitan a las teselas visibles, se reutilizan al cambiar el tamaño del visor y no duplican las de imagen
 
 ### Requirement: Validar cambios visuales de forma comparable
 El sistema SHALL permitir verificar la nitidez, alineación y rendimiento comparando el comportamiento previo y posterior bajo condiciones equivalentes, y los resultados SHALL distinguir la calidad de origen del proveedor de cualquier efecto del renderizado local.

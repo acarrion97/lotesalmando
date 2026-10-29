@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from "react";
-import { Empty, Segmented, Tooltip, Typography } from "antd";
+import { Empty, Segmented, Switch, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import {
   AimOutlined,
@@ -92,6 +92,7 @@ export function VisorMapaModos({
   // Dibujando un contorno solo tiene sentido sobre el plano a sangre.
   const modoActivo: ModoMapa = dibujo ? "plano" : modo;
   const alto = alturaMaxima ?? Math.max(360, window.innerHeight - 260);
+  const [mostrarEtiquetas, setMostrarEtiquetas] = useState(true);
 
   // La proporción de la imagen gobierna la ventana geográfica que cubre la
   // capa satélite; se mide con una imagen de carga (misma URL: un solo
@@ -176,6 +177,20 @@ export function VisorMapaModos({
             };
           })}
         />
+        {ubicacion && ["satelite", "3d", "cesium"].includes(modoActivo) && (
+          <label
+            title="Esri solo muestra los nombres publicados para esta zona y escala; algunas teselas no contienen etiquetas."
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            <Switch
+              size="small"
+              checked={mostrarEtiquetas}
+              onChange={setMostrarEtiquetas}
+              aria-label="Mostrar etiquetas del mapa"
+            />
+            <Text>Etiquetas</Text>
+          </label>
+        )}
         {acciones}
       </div>
 
@@ -188,6 +203,7 @@ export function VisorMapaModos({
           onLoteClick={onLoteClick}
           resaltados={resaltados}
           mostrarPrecio={mostrarPrecio}
+          mostrarEtiquetas={mostrarEtiquetas}
           onImagenError={onImagenError}
           alturaMaxima={alto}
         />
@@ -206,6 +222,7 @@ export function VisorMapaModos({
             onLoteClick={onLoteClick}
             loteSeleccionadoId={loteSeleccionadoId}
             onRefrescarDatos={onRefrescarLotes}
+            mostrarEtiquetas={mostrarEtiquetas}
           />
         </Suspense>
       ) : modoActivo === "cesium" ? (
@@ -269,7 +286,9 @@ export function VisorMapaModos({
           onImagenError={onImagenError}
           alturaMaxima={alto}
           capaBase={
-            modoActivo === "satelite" && limites ? <CapaSatelite limites={limites} /> : undefined
+            modoActivo === "satelite" && limites ? (
+              <CapaSatelite limites={limites} mostrarEtiquetas={mostrarEtiquetas} />
+            ) : undefined
           }
           mostrarImagen={modoActivo !== "satelite"}
         />

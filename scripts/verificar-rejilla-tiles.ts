@@ -53,6 +53,30 @@ console.log(
     `(techo de zoom ${ventanaReferencia.zoom})`,
 );
 
+console.log("Resolución física del viewport");
+const limitesHiDpi = limitesDelPlano({ ...ubicacion, ancho_m: 2000 }, 4 / 3);
+const rejillasDpr = [1, 1.5, 2, 3].map((dpr) => ({
+  dpr,
+  rejilla: rejillaTiles(limitesHiDpi, 600 * dpr, 20),
+}));
+verificar(
+  "el nivel no disminuye al aumentar la densidad de pantalla",
+  rejillasDpr.every(
+    ({ rejilla }, i) => i === 0 || rejilla.zoom >= rejillasDpr[i - 1].rejilla.zoom,
+  ),
+  rejillasDpr.map(({ dpr, rejilla }) => [dpr, rejilla.zoom]),
+);
+verificar(
+  "DPR 3 selecciona más detalle que DPR 1 cuando hay cobertura",
+  rejillasDpr[3].rejilla.zoom > rejillasDpr[0].rejilla.zoom,
+  rejillasDpr.map(({ dpr, rejilla }) => [dpr, rejilla.zoom]),
+);
+verificar(
+  "la rejilla no supera el techo de cobertura",
+  rejillasDpr.every(({ rejilla }) => rejilla.zoom <= 20),
+  rejillasDpr.map(({ dpr, rejilla }) => [dpr, rejilla.zoom]),
+);
+
 console.log("Recorte del tile ancestro");
 let hijosVerificados = 0;
 for (let zoomPedido = 1; zoomPedido <= 12; zoomPedido++) {
