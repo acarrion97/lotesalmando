@@ -1,43 +1,49 @@
 ## Purpose
 
-Define la experiencia del modo de vista 3D geográfico ("Vista 3D real") sobre el
+Define la experiencia del modo de vista 3D geográfico ("Vista 3D") sobre el
 terreno real en los dos mapas del producto: el mapa interno `/mapas` y el enlace
 público `/mapa/:slug`. Cubre la disponibilidad del modo, el dibujo de los lotes
 apoyados sobre el terreno, la navegación, la iluminación, la actualización de
 datos en vivo, la atribución obligatoria y la degradación cuando faltan
 requisitos técnicos o de configuración.
 
+**Sobre el nombre:** el selector ofrece tres modos —**Plano**, **Satélite** y
+**Vista 3D**— y **Vista 3D** es este visor geográfico. El visor anterior
+`Visor3D.tsx` (la imagen del plano inclinada, que antes también se llamaba
+«Vista 3D») se retiró del selector durante la implementación: el componente y
+su entrada en `ModoMapa` siguen intactos, pero ya no hay opción que lo
+seleccione. Ver `design.md` → D13.
+
 ## ADDED Requirements
 
-### Requirement: El modo "Vista 3D real" está disponible en ambos mapas
+### Requirement: El modo "Vista 3D" está disponible en ambos mapas
 
-El selector de modos de mapa SHALL ofrecer, junto a **Plano**, **Satélite** y
-**Vista 3D**, un cuarto modo **Vista 3D real** tanto en el mapa interno como en
-el enlace público, mostrando exactamente las mismas opciones en las dos pantallas.
+El selector de modos de mapa SHALL ofrecer, junto a **Plano** y **Satélite**,
+un modo **Vista 3D** —el visor geográfico Cesium— tanto en el mapa interno como
+en el enlace público, mostrando exactamente las mismas opciones en las dos pantallas.
 
 #### Scenario: Mapa interno
 
 - **WHEN** un usuario abre `/mapas`, elige un proyecto con plano y ubicación GPS
   y observa el selector de modos
-- **THEN** el selector muestra **Plano**, **Satélite**, **Vista 3D** y
-  **Vista 3D real**
+- **THEN** el selector muestra **Plano**, **Satélite** y **Vista 3D**
 
 #### Scenario: Mapa público
 
 - **WHEN** un visitante abre `/mapa/<slug>` de un mapa publicado que tiene
   ubicación GPS
-- **THEN** el selector de la pestaña Mapa muestra las mismas cuatro opciones
+- **THEN** el selector de la pestaña Mapa muestra las mismas tres opciones
 
 #### Scenario: Proyecto sin ubicación GPS
 
 - **WHEN** el proyecto no tiene coordenadas GPS registradas
-- **THEN** **Vista 3D real** aparece deshabilitado con una explicación de cómo
-  cargarla, y los otros tres modos siguen funcionando
+- **THEN** **Vista 3D** aparece deshabilitado con una explicación de cómo
+  cargarla, y los otros dos modos siguen funcionando
 
 ### Requirement: El mapa público no inicia la escena 3D automáticamente
 
 El enlace público SHALL cargar el motor 3D y solicitar tiles SOLO cuando el
-visitante elige activamente **Vista 3D real**; abrir el enlace, cambiar de
+visitante elige activamente **Vista 3D**; abrir el enlace, cambiar de
 pestaña o recargar la página SHALL no generar ninguna petición de tiles.
 
 #### Scenario: Abrir el enlace público
@@ -48,7 +54,7 @@ pestaña o recargar la página SHALL no generar ninguna petición de tiles.
 
 #### Scenario: El visitante elige el modo
 
-- **WHEN** el visitante pulsa **Vista 3D real**
+- **WHEN** el visitante pulsa **Vista 3D**
 - **THEN** el motor 3D se carga en ese momento y la escena empieza a recibir tiles
 
 #### Scenario: Cambiar de pestaña y volver
@@ -59,14 +65,14 @@ pestaña o recargar la página SHALL no generar ninguna petición de tiles.
 
 ### Requirement: Los lotes se dibujan como polígonos apoyados sobre el terreno
 
-Al entrar en **Vista 3D real**, el sistema SHALL proyectar a coordenadas
+Al entrar en **Vista 3D**, el sistema SHALL proyectar a coordenadas
 geográficas el contorno de cada lote ubicado en el plano y dibujarlo sobre el
 terreno real, con el color de su estado comercial, de modo que el polígono
 abrace la superficie sin hundirse ni flotar.
 
 #### Scenario: Proyecto con lotes ubicados
 
-- **WHEN** el visitante entra en **Vista 3D real** en un proyecto con 40 lotes
+- **WHEN** el visitante entra en **Vista 3D** en un proyecto con 40 lotes
   con contorno trazado
 - **THEN** los 40 polígonos aparecen sobre el terreno en su posición real,
   coloreados según su estado
@@ -84,7 +90,7 @@ abrace la superficie sin hundirse ni flotar.
 
 ### Requirement: Hacer clic en un lote abre su ficha
 
-Hacer clic sobre el polígono de un lote en **Vista 3D real** SHALL abrir la
+Hacer clic sobre el polígono de un lote en **Vista 3D** SHALL abrir la
 misma ficha de lote que los demás modos, con los mismos datos y con los botones
 **Anterior**/**Siguiente** operativos.
 
@@ -231,13 +237,13 @@ en todas las vistas del modo, y la interfaz SHALL no permitir ocultarlos.
 
 Si falta el token de configuración, el navegador no soporta el WebGL
 necesario, o no hay conexión, el sistema SHALL ocultar o deshabilitar el modo
-**Vista 3D real** con un mensaje claro, SHALL mantener operativos los demás
+**Vista 3D** con un mensaje claro, SHALL mantener operativos los demás
 modos del mapa, y SHALL preservar el arranque offline de la aplicación.
 
 #### Scenario: Sin token configurado
 
 - **WHEN** la aplicación no tiene configurado el token de datos 3D
-- **THEN** **Vista 3D real** no está disponible con una nota de configuración y
+- **THEN** **Vista 3D** no está disponible con una nota de configuración y
   los otros modos funcionan con normalidad
 
 #### Scenario: Navegador sin soporte gráfico necesario

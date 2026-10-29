@@ -19,7 +19,10 @@ en 3D de verdad.
   mapas** desde el primer día: interno `/mapas` y público `/mapa/:slug`. El
   tipo `ModoMapa` pasa de `"plano" | "satelite" | "3d"` a incluir `"cesium"`.
   Ambas páginas ya comparten `VisorMapaModos`, así que la integración es en un
-  solo punto y `Visor3D` (modo `"3d"`) **se mantiene conviviendo**.
+  solo punto. `Visor3D` (modo `"3d"`) **dejó de ofrecerse en el selector**
+  durante la implementación (design.md D13): el tipo `ModoMapa` conserva
+  `"3d"`, el componente sigue importado y montándose en su rama, pero ya no
+  hay entrada en `OPCIONES` que lo seleccione.
 - **Lotes como polígonos reales sobre terreno**: cada `lote.poligono` se
   proyecta a WGS84 con la ventana geográfica ya calculada y se dibuja con
   `HeightReference.CLAMP_TO_GROUND`, coloreado por estado, con etiqueta y clic

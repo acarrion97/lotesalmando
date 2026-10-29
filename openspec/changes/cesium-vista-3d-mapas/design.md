@@ -40,8 +40,11 @@ Tres hechos que condicionan el diseño (ver `proposal.md` para el porqué):
 
 **Non-Goals:**
 
-- Sustituir `Visor3D` (modo `"3d"`): convive. Resuelve _estado comercial_
-  extruido sobre el plano sin dependencias ni red; Cesium resuelve _lugar real_.
+- ~~Sustituir `Visor3D` (modo `"3d"`): convive.~~ **Revocado en
+  implementación: ver D13.** El selector queda en `Plano` / `Satélite` / un
+  único `Vista 3D` apuntando a `cesium`, y `Visor3D` deja de ser alcanzable
+  desde la UI. Se conservan el componente y la rama `"3d"` por si toca
+  restaurarlo.
 - Un `api.ts` con `fetch` suelto: fuera de estilo. El punto de integración de
   datos entra por la cadena repository → use-case → hook.
 - Mediciones sobre la malla, vuelos programados, multi-idioma de la UI.
@@ -401,6 +404,35 @@ pero su allowlist y sus claves actuales no incluyen esos resultados.
   política de 24 horas de inventario ya desplegada; por eso los mapas usan una
   clave de persistencia separada.
 
+### D13. `Visor3D` sale del selector (revocación del Non-Goal)
+
+**Decisión:** se revoca el Non-Goal «Sustituir `Visor3D` (modo `"3d"`):
+convive». El arreglo `OPCIONES` de `VisorMapaModos.tsx` pasa de cuatro
+entradas —`Plano`, `Satélite`, `Vista 3D` (`"3d"`) y `Vista 3D real`
+(`"cesium"`) — a tres, con un único `Vista 3D` apuntando a `cesium`:
+`Visor3D` deja de ser alcanzable desde la UI de `/mapas` y `/mapa/:slug`.
+
+**Por qué:** con Cesium ofreciendo el lugar real, «Vista 3D» y «Vista 3D
+real» eran dos etiquetas indistinguibles en el mismo selector, y la segunda
+solo se entendía junto a la primera. Mantener las dos obligaba a explicar la
+diferencia en la propia etiqueta.
+
+**Qué se conserva — el rollback sigue costando una línea:**
+
+- `ModoMapa` sigue siendo `"plano" | "satelite" | "3d" | "cesium"` y
+  `Visor3D.tsx` sigue importado, montándose en la rama
+  `modoActivo === "3d"` y con su contrato de props intacto (tarea 6.6). No se
+  borra nada: restaurar el modo es volver a añadir la entrada a `OPCIONES`.
+- `Visor3D` sigue siendo una de las dos rasters que se benefician de la mejora
+  de nitidez de D7 (tarea 7.3); sacarlo del selector no toca su código.
+
+**Consecuencia asumida y explícita:** la degradación D10 deshabilita `cesium`
+con `sin-webgl` y `sin-conexion`, así que **sin conexión ya no queda ninguna
+vista 3D** — solo Plano, porque Satélite también pide tiles a Esri. Es el
+coste de la revocación. Si llega a pesar, la vía no es restaurar la entrada
+sino diferenciar las etiquetas de los dos visores, que es lo que en su momento
+motivó el cambio.
+
 ## Risks / Trade-offs
 
 - **[Cuota ion agotada por mapa público anónimo]** → 1.000 root tiles/mes ≈ 33
@@ -517,8 +549,8 @@ disparador de revisión ya registrado en `Risks / Trade-offs` (cualquier
 monetización del enlace o superación sostenida de cuota). Se decidió **dejar la
 capa habilitada en ambos mapas** (público e interno) sin interruptor por
 entorno: el selector es compartido y la opción ya estaba expuesta; el
-_rollback_ de la etapa 3 es retirar la entrada `{ label: \"Vista 3D real\",
-value: \"cesium\", … }` del arreglo `OPCIONES` en `VisorMapaModos.tsx` (ver
+_rollback_ de la etapa 3 es retirar la entrada `{ label: "Vista 3D",
+value: "cesium", … }` del arreglo `OPCIONES` en `VisorMapaModos.tsx` (ver
 6.3), y el reset del modo al salir de la pestaña Mapa (6.4) garantiza que
 regarar nunca dispare tiles sin acción del visitante. Condicionantes que se
 mantienen:
