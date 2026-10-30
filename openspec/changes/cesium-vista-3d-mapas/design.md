@@ -33,7 +33,9 @@ Tres hechos que condicionan el diseño (ver `proposal.md` para el porqué):
   `/mapa/:slug` desde el primer día, sin tocar los tres modos existentes.
 - Polígonos de lotes proyectados a WGS84 y clamped al terreno, reutilizando
   `lote.poligono` y `georef.ts` — **cero migraciones**.
-- Un único secreto: `VITE_CESIUM_TOKEN` (Cesium ion). Sin Google Cloud.
+- Un único token de acceso: `CESIUM_TOKEN` (Cesium ion). Se compila en el cliente
+  porque el visor Cesium corre en el navegador; restringirlo por dominio y
+  permisos en Cesium ion. Sin Google Cloud.
 - Carga diferida total: ni el chunk de Cesium ni sus assets entran al bundle
   inicial ni al precache.
 - Degradación explícita y probada ante falta de token, WebGL o conexión.
@@ -53,7 +55,7 @@ Tres hechos que condicionan el diseño (ver `proposal.md` para el porqué):
 
 ## Decisions
 
-### D1. Motor: Cesium ion vía `VITE_CESIUM_TOKEN`, sin key de Google
+### D1. Motor: Cesium ion vía `CESIUM_TOKEN`, sin key de Google
 
 **Decisión:** un solo token ion. `Ion.defaultAccessToken` desde env. La capa
 fotográfica se pide con `createGooglePhotorealistic3DTileset()` (va por ion), y
@@ -66,7 +68,7 @@ simplifica `.env.example`, el mock y el error message.
 
 La capa fotográfica requiere el geocoder de Google. Se habilita el geocoder
 integrado de Cesium con `IonGeocodeProviderType.GOOGLE`, autenticado por el
-mismo `VITE_CESIUM_TOKEN`; no se configura una clave directa de Google Maps ni
+mismo `CESIUM_TOKEN`; no se configura una clave directa de Google Maps ni
 un proyecto de Google Cloud. `onlyUsingWithGoogleGeocoder: true` documenta esa
 configuración al crear el tileset y evita la advertencia de Cesium.
 
@@ -128,10 +130,10 @@ contra Cesium 1.146:
    pone dos superficies en la misma posición y sale z-fighting. Ocultar el
    globo es lo que recomienda Cesium y evita además una recarga de terreno
    por cada conmutación. Se restaura al volver a terreno y en el cleanup.
-   *Coste asumido:* donde la malla no llega se ve el cielo, no Esri. Se asume
+   _Coste asumido:_ donde la malla no llega se ve el cielo, no Esri. Se asume
    porque D2 ya hace de la cobertura el eje de esta decisión y el respaldo
    automático (3.6) cubre el caso de error.
-3. **`enableLighting` gobierna el slider de hora** sobre terreno *y* sobre
+3. **`enableLighting` gobierna el slider de hora** sobre terreno _y_ sobre
    OSM Buildings; la malla fotogramétrica tiene iluminación grabada en la
    textura y no le afecta. Eso ya estaba en D1 y ahora tiene su reflejo en
    el texto de ayuda de la escena, que cambia según la capa activa.
@@ -281,7 +283,7 @@ para ningún nivel, se conserva terreno y lotes sin la capa satelital.
 
 **Corrección de la etapa 7.4 (el fallback solo no bastaba):**
 
-La verificación sobre la ubicación real mostró que el descenso *funciona* pero
+La verificación sobre la ubicación real mostró que el descenso _funciona_ pero
 se paga caro. En Machala Esri publica imágenes hasta **z18**; a z19 y z20
 devuelve tiles de aviso con HTTP 200. Con el techo 20, `rejillaTiles` pedía
 **154 tiles sin datos** para una caja de 600 px, y cada uno hacía dos consultas
@@ -333,7 +335,7 @@ para OSM/terrain. Regla de aceptación, no cosmética.
 
 ### D10. Degradación: capability detectada una vez, cacheada
 
-**Decisión:** comprobación en el punto de carga del modo — `VITE_CESIUM_TOKEN`
+**Decisión:** comprobación en el punto de carga del modo — `CESIUM_TOKEN`
 presente, WebGL2 o WebGL1+`ANGLE_instanced_arrays`, y `useOnlineStatus()` (ya
 existente). Si falla, el modo no se ofrece (falta de token) o se ofrece
 deshabilitado con motivo (WebGL/conexión). Nunca pantalla en blanco.

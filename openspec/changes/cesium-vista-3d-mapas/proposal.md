@@ -27,8 +27,8 @@ en 3D de verdad.
   proyecta a WGS84 con la ventana geográfica ya calculada y se dibuja con
   `HeightReference.CLAMP_TO_GROUND`, coloreado por estado, con etiqueta y clic
   que abre la misma ficha de lote que hoy (`onLoteClick` sin cambiar contrato).
-- **Escena geográfica con `VITE_CESIUM_TOKEN` (Cesium ion) como único
-  secreto**: Photorealistic 3D Tiles vía ion como capa conmutable, con
+- **Escena geográfica con `CESIUM_TOKEN` (Cesium ion) como único token de
+  acceso**: Photorealistic 3D Tiles vía ion como capa conmutable, con
   `Terrain.fromWorldTerrain()` + `createOsmBuildingsAsync()` como base
   **sin Google** y como fallback. **Sin API key de Google y sin Google Cloud.**
 - **Iluminación y hora del día**: `enableLighting`, sombras, atmósfera y un
@@ -44,9 +44,9 @@ en 3D de verdad.
   `maximumScreenSpaceError` configurables desde UI.
 - **Mejora de nitidez de la capa satélite existente** (`Visor3D` +
   `CapaSatelite`): el techo `Math.min(18, …)` de `rejillaTiles()` pasa a
-  permitir zoom 19/20 con *fallback* automático si el proveedor no tiene esa
+  permitir zoom 19/20 con _fallback_ automático si el proveedor no tiene esa
   resolución, y el sobremuestreo sube de 2× a 3×.
-- **Degradación obligatoria**: sin `VITE_CESIUM_TOKEN`, sin WebGL2 (o sin
+- **Degradación obligatoria**: sin `CESIUM_TOKEN`, sin WebGL2 (o sin
   `ANGLE_instanced_arrays`), o sin conexión → el modo Cesium se oculta o avisa
   y el usuario queda en los modos actuales. La PWA sigue funcionando offline.
 - **Atribución visible**: el contenedor de créditos (Google + data providers)
@@ -105,17 +105,17 @@ archivarse después que esas, según el orden ya anotado en
   (repositorio `supabase` + `mock` vía `VITE_DATA_PROVIDER`, use-case, hook con
   React Query y validación zod), **no** un `api.ts` con `fetch` suelto.
 - **Costo y licencia — decisiones registradas**:
-  - *Tomada*: photorealistic vía ion, **sin Google Cloud**. Atribución Google
+  - _Tomada_: photorealistic vía ion, **sin Google Cloud**. Atribución Google
     siempre visible.
-  - *Tomada*: licencia **no comercial** (ion Community) por el momento. El
+  - _Tomada_: licencia **no comercial** (ion Community) por el momento. El
     plan gratis cubre uso personal/no comercial y `mapa/` es material comercial
     de un SaaS. **Disparador de revisión**: cualquier monetización del enlace
     público o superación sostenida de cuota.
-  - *Riesgo abierto*: cuota ion Community = **1.000 root tiles/mes** (~33
+  - _Riesgo abierto_: cuota ion Community = **1.000 root tiles/mes** (~33
     sesiones/día) y **15 GB/mes** de streaming, contra `/mapa/:slug` **anónimo
     y compartible**. Cada refresh puede iniciar sesión nueva. El modo Cesium
     público arranca **detrás de una acción explícita del visitante**, no
     automáticamente.
-  - *Pendiente (spike)*: verificar los `centro_lat/lng` reales contra la
+  - _Pendiente (spike)_: verificar los `centro_lat/lng` reales contra la
     cobertura de Photorealistic 3D Tiles. Si los loteos caen fuera, photorealistic
     queda como capa conmutable y **terrain+OSM Buildings pasa a ser la base**.

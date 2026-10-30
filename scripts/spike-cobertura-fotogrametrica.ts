@@ -283,12 +283,12 @@ async function main(): Promise<void> {
   const env = leerEnv();
   const supabaseUrl = env.VITE_SUPABASE_URL;
   const anonKey = env.VITE_SUPABASE_ANON_KEY;
-  const ionToken = env.VITE_CESIUM_TOKEN;
+  const ionToken = env.CESIUM_TOKEN;
 
   console.log("Credenciales");
   verificar("VITE_SUPABASE_URL presente", !!supabaseUrl);
   verificar("VITE_SUPABASE_ANON_KEY presente", !!anonKey);
-  verificar("VITE_CESIUM_TOKEN presente", !!ionToken);
+  verificar("CESIUM_TOKEN presente", !!ionToken);
   if (!supabaseUrl || !anonKey || !ionToken) process.exit(1);
 
   console.log("\nMapas publicados con ubicación GPS (Supabase, anon key)");

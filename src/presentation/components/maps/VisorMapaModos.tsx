@@ -112,7 +112,7 @@ export function VisorMapaModos({
   const disponibilidad = useMemo(
     () =>
       disponibilidadDeLaEscena({
-        token: import.meta.env.VITE_CESIUM_TOKEN,
+        token: import.meta.env.CESIUM_TOKEN,
         graficas: capacidadesGraficas(),
         enLinea,
       }),

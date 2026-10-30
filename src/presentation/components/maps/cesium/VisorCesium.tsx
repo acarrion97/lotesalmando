@@ -182,12 +182,7 @@ export function VisorCesium({
       if (lote.poligono) puntos.push(...poligonoAWgs84(lote.poligono, ventana));
     }
     if (puntos.length === 0) {
-      puntos.push(
-        [oeste, norte],
-        [este, norte],
-        [este, sur],
-        [oeste, sur],
-      );
+      puntos.push([oeste, norte], [este, norte], [este, sur], [oeste, sur]);
     }
     return puntos;
   }, [norte, sur, este, oeste, lotes]);
@@ -246,7 +241,7 @@ export function VisorCesium({
         const globalCesium = globalThis as typeof globalThis & { CESIUM_BASE_URL?: string };
         globalCesium.CESIUM_BASE_URL = "/cesium/";
 
-        const token = String(import.meta.env.VITE_CESIUM_TOKEN ?? "").trim();
+        const token = String(import.meta.env.CESIUM_TOKEN ?? "").trim();
         if (token) cesium.Ion.defaultAccessToken = token;
 
         let nivelMaximoImagen: number | null;
