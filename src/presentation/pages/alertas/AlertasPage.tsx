@@ -10,7 +10,6 @@ import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 const { Text } = Typography;
 
 const tipoConfig: Record<AlertaTipo, { color: string; icon: React.ReactNode; label: string }> = {
-  inventario: { color: "blue", icon: <AlertOutlined />, label: "Inventario" },
   seguimiento: { color: "orange", icon: <ClockCircleOutlined />, label: "Seguimiento" },
   cartera: { color: "gold", icon: <ExclamationCircleOutlined />, label: "Cartera" },
   mora: { color: "red", icon: <WarningOutlined />, label: "Mora" },
@@ -70,7 +69,7 @@ export function AlertasPage() {
       filters: Object.entries(tipoConfig).map(([k, v]) => ({ text: v.label, value: k })),
       onFilter: (value, record) => record.tipo === value,
       render: (tipo: AlertaTipo) => {
-        const config = tipoConfig[tipo] ?? tipoConfig.inventario;
+        const config = tipoConfig[tipo] ;
         return <Tag color={config.color} icon={config.icon}>{config.label}</Tag>;
       },
     },

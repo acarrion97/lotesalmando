@@ -1,4 +1,4 @@
-export type AlertaTipo = "inventario" | "seguimiento" | "cartera" | "mora" | "comprobante";
+export type AlertaTipo =  "seguimiento" | "cartera" | "mora" | "comprobante";
 export type AlertaPrioridad = "alta" | "media" | "baja";
 
 export interface Alerta {

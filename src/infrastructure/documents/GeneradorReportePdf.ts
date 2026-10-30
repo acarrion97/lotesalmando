@@ -1,6 +1,30 @@
 import { jsPDF } from "jspdf";
 import type { HojaReporte, TipoColumnaReporte } from "@/infrastructure/export/exportarReporte";
 
+/**
+ * Descarga el logo desde su URL pública y lo devuelve como data URL (base64),
+ * que es lo único que jsPDF acepta para imágenes de otro origen. Devuelve
+ * `null` si no hay logo o si la descarga falla: el PDF se genera igual.
+ */
+async function logoBase64(url: string | null | undefined): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const respuesta = await fetch(url);
+    if (!respuesta.ok) return null;
+    const blob = await respuesta.blob();
+    if (!blob.type.startsWith("image/")) return null;
+    return await new Promise<string | null>((resolver) => {
+      const lector = new FileReader();
+      lector.onload = () =>
+        resolver(typeof lector.result === "string" ? lector.result : null);
+      lector.onerror = () => resolver(null);
+      lector.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** A4 apaisado en puntos: los reportes son tablas anchas. */
 const ANCHO_PAGINA = 841.89;
 const ALTO_PAGINA = 595.28;
@@ -11,7 +35,9 @@ const FIN_UTIL = ALTO_PAGINA - MARGEN;
 const TINTA: [number, number, number] = [40, 40, 40];
 const GRIS: [number, number, number] = [107, 114, 128];
 const FILA_RAYA: [number, number, number] = [210, 210, 210];
-const FONDO_CABECERA: [number, number, number] = [245, 245, 245];
+/** Color de marca de la plataforma (`--lam-primary` de index.css). */
+const PRIMARIA: [number, number, number] = [8, 43, 51];
+const TEXTO_SOBRE_PRIMARIA: [number, number, number] = [255, 255, 255];
 
 const FUENTE = "helvetica";
 const ALTO_FILA = 18;
@@ -19,6 +45,8 @@ const ALTO_FILA = 18;
 export interface DatosReportePdf {
   /** Razón social o nombre de la empresa. */
   empresa: string;
+  /** URL pública del logo de la empresa (bucket `logos-empresa`); opcional. */
+  logoUrl?: string | null;
   titulo: string;
   /** Líneas de contexto bajo el título: período, filtros, fecha de emisión. */
   detalle: string[];
@@ -42,9 +70,9 @@ function celda(valor: string | number | null, tipo: TipoColumnaReporte | undefin
 }
 
 /**
- * Reporte en PDF con el aspecto de los demás documentos: encabezado centrado
- * con la empresa, cuadro de título, tablas con cabecera gris y filas rayadas,
- * y pie con la numeración de páginas. Se genera en el navegador.
+ * Reporte en PDF con el aspecto de la plataforma: encabezado con el logo y la
+ * empresa, cuadro de título y cabeceras de tabla en el color de marca, filas
+ * rayadas y pie con la numeración de páginas. Se genera en el navegador.
  */
 export class GeneradorReportePdf {
   async generar(datos: DatosReportePdf): Promise<Blob> {
@@ -61,19 +89,33 @@ export class GeneradorReportePdf {
     };
 
     // --- Encabezado -------------------------------------------------------
+    const logo = await logoBase64(datos.logoUrl);
     doc.setTextColor(...TINTA);
     doc.setFont(FUENTE, "bold");
     doc.setFontSize(15);
+    if (logo) {
+      // El logo va a la izquierda y el nombre de la empresa lo equilibra al centro.
+      try {
+        const ALTO_LOGO = 30;
+        const medidas = doc.getImageProperties(logo);
+        const anchoLogo = (medidas.width / medidas.height) * ALTO_LOGO;
+        doc.addImage(logo, MARGEN, y - 22, anchoLogo, ALTO_LOGO);
+      } catch {
+        // Imagen ilegible: se omite y el encabezado sigue con el nombre solo.
+      }
+    }
     doc.text(datos.empresa, ANCHO_PAGINA / 2, y, { align: "center" });
     y += 22;
-    doc.setDrawColor(...FILA_RAYA);
+    doc.setDrawColor(...PRIMARIA);
     doc.setLineWidth(0.8);
     doc.rect(MARGEN, y - 12, ANCHO_UTIL, 28);
     doc.setFontSize(13);
+    doc.setTextColor(...PRIMARIA);
     doc.text(datos.titulo.toUpperCase(), ANCHO_PAGINA / 2, y + 6, { align: "center" });
     y += 38;
     doc.setFont(FUENTE, "normal");
     doc.setFontSize(9);
+    doc.setTextColor(...TINTA);
     for (const linea of datos.detalle) {
       doc.text(linea, MARGEN, y);
       y += 13;
@@ -98,11 +140,11 @@ export class GeneradorReportePdf {
       );
 
       const dibujarCabecera = () => {
-        doc.setFillColor(...FONDO_CABECERA);
+        doc.setFillColor(...PRIMARIA);
         doc.rect(MARGEN, y - 12, ANCHO_UTIL, ALTO_FILA + 2, "F");
         doc.setFont(FUENTE, "bold");
         doc.setFontSize(8.5);
-        doc.setTextColor(...TINTA);
+        doc.setTextColor(...TEXTO_SOBRE_PRIMARIA);
         let x = MARGEN;
         hoja.columnas.forEach((titulo, i) => {
           const texto = doc.splitTextToSize(titulo, anchos[i] - 8)[0] as string;
@@ -116,7 +158,7 @@ export class GeneradorReportePdf {
       salto(60);
       doc.setFont(FUENTE, "bold");
       doc.setFontSize(11);
-      doc.setTextColor(...TINTA);
+      doc.setTextColor(...PRIMARIA);
       doc.text(hoja.nombre, MARGEN, y);
       y += 18;
       dibujarCabecera();

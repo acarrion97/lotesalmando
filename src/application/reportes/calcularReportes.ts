@@ -84,6 +84,26 @@ export function ventasPorMes(ventas: Venta[]): VentasPorMes[] {
     }));
 }
 
+/**
+ * Forma de pago que más monto cubrió entre los pagos dados: la principal de
+ * una venta, ya que el precio puede repartirse en varias formas de pago. Con
+ * empate gana la alfabéticamente primera para que el resultado sea estable.
+ * Devuelve `sinPagos` si la venta todavía no tiene pagos registrados.
+ */
+export function formaPagoPrincipal(
+  pagos: Pago[],
+  etiqueta: (p: Pago) => string,
+  sinPagos = "Sin pagos",
+): string {
+  if (pagos.length === 0) return sinPagos;
+  const centavos = new Map<string, number>();
+  for (const p of pagos) {
+    const clave = etiqueta(p);
+    centavos.set(clave, (centavos.get(clave) ?? 0) + aCentavos(p.monto_pagado));
+  }
+  return [...centavos.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+}
+
 // ---------------------------------------------------------------- Cartera
 
 export type TramoMora = "por_vencer" | "1_30" | "31_60" | "61_90" | "mas_90";

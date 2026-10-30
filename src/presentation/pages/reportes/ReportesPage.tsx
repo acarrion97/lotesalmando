@@ -8,6 +8,7 @@ import {
   Select,
   Space,
   Statistic,
+  Table,
   Tabs,
   Tag,
   Typography,
@@ -30,8 +31,10 @@ import {
   usePuede,
   useVentas,
   useContratos,
+  useLogoByEmpresa,
 } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
+import type { Pago } from "@/domain/pago/entities";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import {
@@ -46,12 +49,15 @@ import {
   type TipoColumnaReporte,
 } from "@/infrastructure/export/exportarReporte";
 import {
+  aCentavos,
   agruparPagos,
   antiguedadDeSaldos,
   cuotasEnCartera,
+  deCentavos,
   desempenoPorAsesor,
   embudoProspectos,
   ESTADOS_LOTE,
+  formaPagoPrincipal,
   mesDe,
   mesesDelRango,
   resumenInventario,
@@ -81,6 +87,11 @@ const TIPOS_VENTA_COLOR: Record<string, string> = {
   pendiente: "orange",
   cancelada: "red",
 };
+const TIPOS_COBRANZA_COLOR: Record<string, string> = {
+  pagada: "green",
+  pendiente: "orange",
+  vencida: "red",
+};
 const FORMA_PAGO_LABEL: Record<string, string> = {
   efectivo: "Efectivo",
   transferencia: "Transferencia",
@@ -90,6 +101,10 @@ const FORMA_PAGO_LABEL: Record<string, string> = {
   otro: "Otro",
   no_especificada: "No especificada",
 };
+
+/** Etiqueta legible de la forma de pago de un pago; sin dato => "No especificada". */
+const etiquetaFormaPago = (p: { forma_pago?: string }): string =>
+  FORMA_PAGO_LABEL[p.forma_pago ?? "no_especificada"] ?? "Otro";
 
 interface ReporteListo {
   base: string;
@@ -104,8 +119,8 @@ function BotonesExportar({
   disabled,
 }: {
   generar: () => ReporteListo;
-  /** Empresa y líneas de contexto (período, filtros) que encabezan el PDF. */
-  contextoPdf: () => { empresa: string; detalle: string[] };
+  /** Empresa, logo y líneas de contexto (período, filtros) que encabezan el PDF. */
+  contextoPdf: () => { empresa: string; logoUrl?: string | null; detalle: string[] };
   disabled?: boolean;
 }) {
   const puedeExportar = usePuede("exportar_reportes");
@@ -177,6 +192,7 @@ function tipoDeColumna(titulo: string): TipoColumnaReporte | undefined {
 
 export function ReportesPage() {
   const { empresaActual } = useEmpresa();
+  const { data: logoEmpresa } = useLogoByEmpresa(empresaActual?.id_empresa ?? 0);
   const { data: ventas = [], isLoading: cargandoVentas } = useVentas();
   const { data: cobranzas = [], isLoading: cargandoCobranzas } = useCobranzas();
   const { data: pagos = [] } = usePagos();
@@ -291,11 +307,7 @@ export function ReportesPage() {
     [pagos, filtroFechas, idProyecto, idAsesor, mapas, infoDeCobranza],
   );
   const pagosPorForma = useMemo(
-    () =>
-      agruparPagos(
-        pagosFiltrados,
-        (p) => FORMA_PAGO_LABEL[p.forma_pago ?? "no_especificada"] ?? "Otro",
-      ),
+    () => agruparPagos(pagosFiltrados, etiquetaFormaPago),
     [pagosFiltrados],
   );
   const pagosPorMes = useMemo(
@@ -305,6 +317,95 @@ export function ReportesPage() {
       ),
     [pagosFiltrados],
   );
+
+  // ---- Ventas por forma de pago (cruce venta -> cobranza -> pago) ----
+  // Indexa cada pago por su venta, saltando de la cobranza al contrato. Se
+  // pagina sobre `pagos` completo (no el rango de recaudación) para que la
+  // forma de pago describa al conjunto de la venta filtrada.
+  const pagosPorVenta = useMemo(() => {
+    const ventaDeCobranza = new Map<number, number>();
+    for (const c of cobranzas) {
+      const idVenta = mapas.contrato.get(c.id_contrato)?.id_venta;
+      if (idVenta !== undefined) ventaDeCobranza.set(c.id_cobranza, idVenta);
+    }
+    const indice = new Map<number, Pago[]>();
+    for (const p of pagos) {
+      const idVenta = ventaDeCobranza.get(p.id_cobranza);
+      if (idVenta === undefined) continue;
+      indice.set(idVenta, [...(indice.get(idVenta) ?? []), p]);
+    }
+    return indice;
+  }, [pagos, cobranzas, mapas.contrato]);
+
+  /** Pagos de una venta (vacío si todavía no tiene cuotas cobradas). */
+  const pagosDeVenta = (idVenta: number): Pago[] => pagosPorVenta.get(idVenta) ?? [];
+
+  /** Pagos de una cuota (cobranza), para el detalle expandido. */
+  const pagosDeCobranza = (idCobranza: number): Pago[] =>
+    pagos.filter((p) => p.id_cobranza === idCobranza);
+
+  const ventasPorFormaPago = useMemo(() => {
+    const grupos = new Map<string, { cantidad: number; centavos: number }>();
+    for (const v of ventasFiltradas) {
+      if (v.estado === "cancelada") continue;
+      const forma = formaPagoPrincipal(pagosDeVenta(v.id_venta), etiquetaFormaPago);
+      const g = grupos.get(forma) ?? { cantidad: 0, centavos: 0 };
+      grupos.set(forma, {
+        cantidad: g.cantidad + 1,
+        centavos: g.centavos + aCentavos(v.precio_final),
+      });
+    }
+    return [...grupos.entries()]
+      .map(([clave, g]) => ({ clave, cantidad: g.cantidad, monto: deCentavos(g.centavos) }))
+      .sort((a, b) => b.monto - a.monto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ventasFiltradas, pagosPorVenta]);
+
+  /** Cuotas que ya recibieron al menos un pago, de las ventas filtradas. */
+  const cuotasRealizadas = useMemo(() => {
+    const pagosDeCobranza = new Map<number, Pago[]>();
+    for (const p of pagos) {
+      pagosDeCobranza.set(p.id_cobranza, [...(pagosDeCobranza.get(p.id_cobranza) ?? []), p]);
+    }
+    return cobranzas
+      .filter((c) => {
+        const pagosCuota = pagosDeCobranza.get(c.id_cobranza);
+        if (!pagosCuota?.length) return false;
+        const venta = mapas.venta.get(mapas.contrato.get(c.id_contrato)?.id_venta ?? -1);
+        if (!venta) return false;
+        if (idProyecto !== undefined && mapas.idProyectoDeLote(venta.id_lote) !== idProyecto)
+          return false;
+        if (idAsesor !== undefined && venta.id_asesor !== idAsesor) return false;
+        return true;
+      })
+      .map((c) => {
+        const pagosCuota = pagosDeCobranza.get(c.id_cobranza) ?? [];
+        const idVenta = mapas.contrato.get(c.id_contrato)?.id_venta;
+        const venta = idVenta === undefined ? undefined : mapas.venta.get(idVenta);
+        const pagado = deCentavos(
+          pagosCuota.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
+        );
+        const ultimo = pagosCuota.reduce<string | undefined>(
+          (acc, p) => (!acc || p.fecha_pago > acc ? p.fecha_pago : acc),
+          undefined,
+        );
+        return {
+          idCobranza: c.id_cobranza,
+          cliente: infoDeCobranza(c.id_cobranza)?.cliente ?? "",
+          lote: infoDeCobranza(c.id_cobranza)?.lote ?? "",
+          numeroCuota: c.numero_cuota,
+          fechaVencimiento: c.fecha_vencimiento,
+          montoCuota: c.monto_cuota,
+          pagado,
+          saldo: deCentavos(aCentavos(c.monto_cuota) - aCentavos(pagado)),
+          formaPago: formaPagoPrincipal(pagosCuota, etiquetaFormaPago),
+          ultimoPago: ultimo ? diaEnEmpresa(ultimo) : "",
+          estado: c.estado,
+          idVenta: idVenta ?? -1,
+          venta: venta?.id_venta,
+        };
+      });
+  }, [cobranzas, pagos, idProyecto, idAsesor, mapas, infoDeCobranza]);
 
   // ---- Inventario (foto actual; sólo filtra por proyecto) ----
   const inventario = useMemo(
@@ -368,6 +469,26 @@ export function ReportesPage() {
       align: "right",
       render: (v: number) => formatCurrency(v),
       sorter: (a, b) => a.precio_final - b.precio_final,
+    },
+    {
+      title: "Forma de pago",
+      render: (_, v) => {
+        const pagosVenta = pagosDeVenta(v.id_venta);
+        if (pagosVenta.length === 0) return "-";
+        const total = deCentavos(
+          pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
+        );
+        return (
+          <span>
+            {formaPagoPrincipal(pagosVenta, etiquetaFormaPago)}
+            <Text type="secondary"> · {formatCurrency(total)}</Text>
+          </span>
+        );
+      },
+      sorter: (a, b) =>
+        formaPagoPrincipal(pagosDeVenta(a.id_venta), etiquetaFormaPago).localeCompare(
+          formaPagoPrincipal(pagosDeVenta(b.id_venta), etiquetaFormaPago),
+        ),
     },
     {
       title: "Estado",
@@ -434,6 +555,68 @@ export function ReportesPage() {
       render: (v: number) => formatCurrency(v),
     },
   ];
+  const colsCuotasRealizadas: TableColumnType<(typeof cuotasRealizadas)[number]>[] = [
+    { title: "Cliente", dataIndex: "cliente" },
+    { title: "Lote", dataIndex: "lote" },
+    { title: "Cuota", dataIndex: "numeroCuota", align: "right" },
+    {
+      title: "Vencimiento",
+      dataIndex: "fechaVencimiento",
+      render: (v?: string) => (v ? formatDateOnly(v) : "-"),
+    },
+    {
+      title: "Monto cuota",
+      dataIndex: "montoCuota",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    {
+      title: "Monto pagado",
+      dataIndex: "pagado",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    {
+      title: "Saldo",
+      dataIndex: "saldo",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    { title: "Forma de pago", dataIndex: "formaPago" },
+    {
+      title: "Último pago",
+      dataIndex: "ultimoPago",
+      render: (v?: string) => (v ? formatDateOnly(v) : "-"),
+    },
+    {
+      title: "Estado",
+      dataIndex: "estado",
+      render: (e: string) => <Tag color={TIPOS_COBRANZA_COLOR[e]}>{e}</Tag>,
+    },
+  ];
+  /** Detalle expandido: pagos que componen el total cobrado de la cuota. */
+  const detalleCuotaRealizada = (c: (typeof cuotasRealizadas)[number]) => (
+    <Table
+      size="small"
+      rowKey="id_pago"
+      pagination={false}
+      dataSource={pagosDeCobranza(c.idCobranza)}
+      columns={[
+        {
+          title: "Fecha",
+          dataIndex: "fecha_pago",
+          render: (v?: string) => (v ? formatDateOnly(diaEnEmpresa(v)) : "-"),
+        },
+        {
+          title: "Monto",
+          dataIndex: "monto_pagado",
+          align: "right",
+          render: (v: number) => formatCurrency(v),
+        },
+        { title: "Forma de pago", render: (_, p: Pago) => etiquetaFormaPago(p) },
+      ]}
+    />
+  );
   const colsInventario: TableColumnType<FilaInventario>[] = [
     { title: "Proyecto", dataIndex: "proyecto" },
     { title: "Total", dataIndex: "total", align: "right" },
@@ -492,6 +675,7 @@ export function ReportesPage() {
     const { desde, hasta } = filtroFechas.rango;
     return {
       empresa: empresaActual?.razon_social ?? "Lotes al Mando",
+      logoUrl: logoEmpresa,
       detalle: [
         `Período: ${desde && hasta ? `${formatDateOnly(desde)} al ${formatDateOnly(hasta)}` : "Todo"}`,
         `Proyecto: ${idProyecto === undefined ? "Todos" : (mapas.proyecto.get(idProyecto)?.nombre ?? "-")}  ·  Asesor: ${idAsesor === undefined ? "Todos" : (mapas.asesor.get(idAsesor)?.nombre_comercial ?? "-")}`,
@@ -512,17 +696,63 @@ export function ReportesPage() {
           "Proyecto",
           "Asesor",
           "Precio final",
+          "Forma de pago",
+          "Monto pagado",
+          "Saldo",
           "Estado",
         ],
-        filas: ventasFiltradas.map((v) => [
-          v.id_venta,
-          v.created_at ? diaEnEmpresa(v.created_at) : "",
-          mapas.cliente.get(v.id_cliente)?.nombres ?? `Cliente #${v.id_cliente}`,
-          etiquetaLote(v.id_lote),
-          nombreProyectoDeLote(v.id_lote) ?? "",
-          v.id_asesor == null ? "" : (mapas.asesor.get(v.id_asesor)?.nombre_comercial ?? ""),
-          v.precio_final,
-          v.estado,
+        filas: ventasFiltradas.map((v) => {
+          const pagosVenta = pagosDeVenta(v.id_venta);
+          const pagado = deCentavos(
+            pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
+          );
+          return [
+            v.id_venta,
+            v.created_at ? diaEnEmpresa(v.created_at) : "",
+            mapas.cliente.get(v.id_cliente)?.nombres ?? `Cliente #${v.id_cliente}`,
+            etiquetaLote(v.id_lote),
+            nombreProyectoDeLote(v.id_lote) ?? "",
+            v.id_asesor == null ? "" : (mapas.asesor.get(v.id_asesor)?.nombre_comercial ?? ""),
+            v.precio_final,
+            pagosVenta.length === 0
+              ? ""
+              : `${formaPagoPrincipal(pagosVenta, etiquetaFormaPago)} (${formatCurrency(pagado)})`,
+            pagado,
+            v.precio_final - pagado,
+            v.estado,
+          ];
+        }),
+      },
+      {
+        nombre: "Por forma de pago",
+        columnas: ["Forma de pago", "Ventas", "Monto"],
+        filas: ventasPorFormaPago.map((f) => [f.clave, f.cantidad, f.monto]),
+      },
+      {
+        nombre: "Cuotas realizadas",
+        columnas: [
+          "Cliente",
+          "Lote",
+          "Cuota",
+          "Vencimiento",
+          "Monto cuota",
+          "Monto pagado",
+          "Saldo",
+          "Forma de pago",
+          "Último pago",
+          "Estado",
+        ],
+        filas: cuotasRealizadas.map((c) => [
+          c.cliente,
+          c.lote,
+          c.numeroCuota,
+          c.fechaVencimiento,
+          c.montoCuota,
+          c.pagado,
+          c.saldo,
+          c.formaPago,
+          c.ultimoPago,
+          c.estado,
         ]),
       },
       {
@@ -719,6 +949,78 @@ export function ReportesPage() {
                   dataSource={mensual}
                   rowKey="mes"
                   pagination={false}
+                />
+                <DataTable
+                  title={() => "Ventas por forma de pago"}
+                  columns={colsAgrupado("Forma de pago")}
+                  dataSource={ventasPorFormaPago}
+                  rowKey="clave"
+                  pagination={false}
+                  summary={() => (
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0}>
+                        <Text strong>Total</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right">
+                        <Text strong>
+                          {ventasPorFormaPago.reduce((s, f) => s + f.cantidad, 0)}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={2} align="right">
+                        <Text strong>
+                          {formatCurrency(
+                            deCentavos(
+                              ventasPorFormaPago.reduce(
+                                (s, f) => s + aCentavos(f.monto),
+                                0,
+                              ),
+                            ),
+                          )}
+                        </Text>
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  )}
+                />
+                <DataTable
+                  title={() => `Cuotas realizadas (${cuotasRealizadas.length})`}
+                  columns={colsCuotasRealizadas}
+                  dataSource={cuotasRealizadas}
+                  rowKey="idCobranza"
+                  expandable={{ expandedRowRender: (c) => detalleCuotaRealizada(c) }}
+                  summary={(paginas) => {
+                    const totales = (paginas.length ? paginas : cuotasRealizadas).reduce(
+                      (acc, c) => ({
+                        montoCuota: acc.montoCuota + aCentavos(c.montoCuota),
+                        pagado: acc.pagado + aCentavos(c.pagado),
+                        saldo: acc.saldo + aCentavos(c.saldo),
+                      }),
+                      { montoCuota: 0, pagado: 0, saldo: 0 },
+                    );
+                    return (
+                      <Table.Summary fixed>
+                        <Table.Summary.Row>
+                          <Table.Summary.Cell index={0}>
+                            <Text strong>Total</Text>
+                          </Table.Summary.Cell>
+                          <Table.Summary.Cell index={1} />
+                          <Table.Summary.Cell index={2} />
+                          <Table.Summary.Cell index={3} />
+                          <Table.Summary.Cell index={4} align="right">
+                            <Text strong>{formatCurrency(deCentavos(totales.montoCuota))}</Text>
+                          </Table.Summary.Cell>
+                          <Table.Summary.Cell index={5} align="right">
+                            <Text strong>{formatCurrency(deCentavos(totales.pagado))}</Text>
+                          </Table.Summary.Cell>
+                          <Table.Summary.Cell index={6} align="right">
+                            <Text strong>{formatCurrency(deCentavos(totales.saldo))}</Text>
+                          </Table.Summary.Cell>
+                          <Table.Summary.Cell index={7} />
+                          <Table.Summary.Cell index={8} />
+                          <Table.Summary.Cell index={9} />
+                        </Table.Summary.Row>
+                      </Table.Summary>
+                    );
+                  }}
                 />
                 <DataTable
                   title={() => "Detalle de ventas"}
