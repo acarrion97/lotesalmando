@@ -100,7 +100,10 @@ export function ModalRevisionProspecto({
                 type="primary"
                 icon={<CheckOutlined />}
                 loading={aprobar.isPending}
-                onClick={() => documento && aprobar.mutate({ id: documento.id_documento })}
+                onClick={() =>
+                  documento &&
+                  aprobar.mutate({ id: documento.id_documento }, { onSuccess: onClose })
+                }
               >
                 Aprobar
               </Button>

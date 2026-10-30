@@ -71,16 +71,15 @@ correo. No hace falta cuenta ni contraseña: la identificación es el email.
 
 ## 5. Revisión en el backoffice
 
-Ruta: **Prospectos → Documentación** (`/prospectos/documentacion`), requiere
-el permiso `revisar_documentos_prospectos` (lo tienen Administrador, Gerente
-y Superusuario; se otorga también desde Roles y permisos).
+En **Prospectos**, abrí la checklist desde la columna **Documentación** del
+prospecto. La columna aparece para usuarios con el permiso
+`revisar_documentos_prospectos` (lo tienen Administrador, Gerente y
+Superusuario; se otorga también desde Roles y permisos). La checklist muestra
+los documentos enviados con su estado y los que aún no se enviaron; desde cada
+archivo enviado se abre la vista previa para revisarlo, aprobarlo o rechazarlo.
 
-- El listado muestra el prospecto, el documento, la fecha y el estado, con
-  filtro y contador de pendientes.
 - *Aprobar* marca el documento `aprobado` con revisor y fecha.
 - *Rechazar* **exige una observación**; el prospecto la verá en el portal.
-- Desde la ficha de Prospectos hay un indicador con el estado de su
-  documentación.
 
 ## 6. Checklist legal (cómo cambiarla)
 

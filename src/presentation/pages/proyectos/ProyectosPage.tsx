@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
+import { Alert, Button, Space, Input, Modal, Form, Descriptions, message, Steps } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
@@ -31,6 +31,9 @@ export function ProyectosPage() {
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createStep, setCreateStep] = useState(0);
+  const [createdProject, setCreatedProject] = useState<Proyecto | null>(null);
+  const [creatingProject, setCreatingProject] = useState(false);
   // Configuración (plano, galería y enlace público) del proyecto de la fila.
   const [configProyecto, setConfigProyecto] = useState<Proyecto | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
@@ -91,14 +94,27 @@ export function ProyectosPage() {
 
     try {
       const values = await createForm.validateFields();
-      await container.createProyecto.execute({ ...values, id_empresa: empresaActual.id_empresa });
+      setCreatingProject(true);
+      const proyecto = await container.createProyecto.execute({
+        ...values,
+        id_empresa: empresaActual.id_empresa,
+      });
       await refreshProyectos();
       messageApi.success("Proyecto creado correctamente");
-      setCreateModalOpen(false);
-      createForm.resetFields();
+      setCreatedProject(proyecto);
+      setCreateStep(1);
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : "No se pudo crear el proyecto");
+    } finally {
+      setCreatingProject(false);
     }
+  };
+
+  const cerrarWizard = () => {
+    setCreateModalOpen(false);
+    setCreateStep(0);
+    setCreatedProject(null);
+    createForm.resetFields();
   };
 
   const columns: TableColumnType<Proyecto>[] = [
@@ -168,6 +184,8 @@ export function ProyectosPage() {
                 );
                 return;
               }
+              setCreateStep(0);
+              setCreatedProject(null);
               setCreateModalOpen(true);
             }}
           >
@@ -221,22 +239,59 @@ export function ProyectosPage() {
 
       {/* Create Modal */}
       <Modal
-        title="Nuevo Proyecto"
+        title={createStep === 0 ? "Nuevo Proyecto" : "Configurar proyecto"}
         open={createModalOpen}
-        onCancel={() => { setCreateModalOpen(false); createForm.resetFields(); }}
-        onOk={handleCreate}
-        okText="Crear"
-        cancelText="Cancelar"
+        onCancel={cerrarWizard}
+        footer={
+          createStep === 0 ? (
+            <Space>
+              <Button onClick={cerrarWizard}>Cancelar</Button>
+              <Button type="primary" loading={creatingProject} onClick={handleCreate}>
+                Crear y continuar
+              </Button>
+            </Space>
+          ) : (
+            <Button type="primary" onClick={cerrarWizard}>
+              Terminar
+            </Button>
+          )
+        }
+        width={900}
+        destroyOnHidden
       >
-        <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item
-            name="nombre"
-            label="Nombre"
-            rules={[{ required: true, message: "Ingrese el nombre del proyecto" }]}
-          >
-            <Input />
-          </Form.Item>
-        </Form>
+        <Steps
+          current={createStep}
+          items={[{ title: "Datos del proyecto" }, { title: "Configuración" }]}
+          style={{ margin: "16px 0 24px" }}
+          responsive
+        />
+        {createStep === 0 ? (
+          <Form form={createForm} layout="vertical">
+            <Form.Item
+              name="nombre"
+              label="Nombre"
+              rules={[{ required: true, message: "Ingrese el nombre del proyecto" }]}
+            >
+              <Input />
+            </Form.Item>
+          </Form>
+        ) : (
+          <>
+            <Alert
+              type="success"
+              showIcon
+              message={`${createdProject?.nombre ?? "Proyecto"} creado`}
+              description="Ahora podés cargar el plano y agregar fotos o videos para configurar cómo se verá el proyecto en el mapa público."
+              style={{ marginBottom: 16 }}
+            />
+            {createdProject && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <MapaProyectoCard proyectoId={createdProject.id_proyecto} />
+                <GaleriaProyectoCard proyectoId={createdProject.id_proyecto} />
+              </div>
+            )}
+          </>
+        )}
       </Modal>
 
       {/* Delete Modal */}

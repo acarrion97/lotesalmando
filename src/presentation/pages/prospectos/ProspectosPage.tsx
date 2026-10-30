@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, Select, Descriptions, message, Row, Col, Statistic, Tooltip, Alert } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined, FileProtectOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva, useDocumentosProspecto, usePuede } from "@/presentation/hooks";
+import { DOCUMENTOS_REQUERIDOS } from "@/domain/portalProspecto/entities";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { ModalDocumentacionProspecto } from "@/presentation/components/prospectos/ModalDocumentacionProspecto";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useAuth } from "@/presentation/providers";
 import { compararNumeroLote, detectarLoteEnNotas, formatCurrency } from "@/utils";
@@ -35,7 +36,6 @@ interface ModalState {
 
 export function ProspectosPage() {
   const { data: prospectos, isLoading } = useProspectos();
-  const navigate = useNavigate();
   const puedeRevisarDocumentos = usePuede("revisar_documentos_prospectos");
   const { data: documentosProspecto } = useDocumentosProspecto();
   const { empresaActual } = useEmpresa();
@@ -47,6 +47,7 @@ export function ProspectosPage() {
   const { data: entradasReserva } = useEntradasReserva();
   const [searchText, setSearchText] = useState("");
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
+  const [prospectoDocumentacion, setProspectoDocumentacion] = useState<Prospecto | null>(null);
   // Modal de reserva: se abre al pasar (o volver) a estado "reserva" y solo
   // persiste el cambio cuando se confirma (design D2).
   const [reservaAbierta, setReservaAbierta] = useState(false);
@@ -80,7 +81,7 @@ export function ProspectosPage() {
   }, [prospectos]);
 
   // Documentación enviada desde el portal público, agrupada por prospecto:
-  // alimenta el indicador de la tabla y el enlace a la revisión.
+  // alimenta el indicador y la checklist de revisión.
   const docsPorProspecto = useMemo(() => {
     const mapa = new Map<number, { pendientes: number; total: number }>();
     for (const doc of documentosProspecto ?? []) {
@@ -389,18 +390,18 @@ export function ProspectosPage() {
             key: "documentacion",
             width: 170,
             render: (_: unknown, record: Prospecto) => {
+              if (record.estado !== "reserva") return null;
               const info = docsPorProspecto.get(record.id_prospecto);
-              if (!info) return <Text type="secondary">Sin envíos</Text>;
               return (
                 <Button
                   size="small"
                   type="text"
                   icon={<FileProtectOutlined style={{ color: "#1677ff" }} />}
-                  onClick={() => navigate("/prospectos/documentacion")}
+                  onClick={() => setProspectoDocumentacion(record)}
                 >
-                  {info.pendientes > 0
-                    ? `${info.pendientes} pendiente${info.pendientes > 1 ? "s" : ""}`
-                    : `${info.total} enviado${info.total > 1 ? "s" : ""}`}
+                  {info
+                    ? `${info.total}/${DOCUMENTOS_REQUERIDOS.length} enviado${info.total > 1 ? "s" : ""}${info.pendientes > 0 ? ` · ${info.pendientes} por revisar` : ""}`
+                    : "Ver checklist"}
                 </Button>
               );
             },
@@ -473,6 +474,15 @@ export function ProspectosPage() {
         rowKey="id_prospecto"
         loading={isLoading}
       />
+
+      {puedeRevisarDocumentos && (
+        <ModalDocumentacionProspecto
+          open={!!prospectoDocumentacion}
+          prospecto={prospectoDocumentacion}
+          documentos={documentosProspecto ?? []}
+          onClose={() => setProspectoDocumentacion(null)}
+        />
+      )}
 
       {/* View Modal */}
       <Modal

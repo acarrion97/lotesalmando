@@ -28,7 +28,7 @@ import { PagosPage } from "@/presentation/pages/pagos";
 import { UsuariosPage } from "@/presentation/pages/usuarios";
 import { ConfiguracionPage } from "@/presentation/pages/configuracion";
 import { SuscripcionPage } from "@/presentation/pages/suscripcion";
-import { ProspectosPage, DocumentosProspectoPage } from "@/presentation/pages/prospectos";
+import { ProspectosPage } from "@/presentation/pages/prospectos";
 import { AsesoresPage } from "@/presentation/pages/asesores";
 import { RolesPermisosPage } from "@/presentation/pages/roles-permisos";
 import { EmpresasPage } from "@/presentation/pages/empresas";
@@ -93,7 +93,7 @@ export function AppRouter() {
           <Route path="/pagos" element={<R ruta="/pagos"><PagosPage /></R>} />
           <Route path="/usuarios" element={<R ruta="/usuarios"><UsuariosPage /></R>} />
           <Route path="/prospectos" element={<R ruta="/prospectos"><ProspectosPage /></R>} />
-          <Route path="/prospectos/documentacion" element={<R ruta="/prospectos/documentacion"><DocumentosProspectoPage /></R>} />
+          <Route path="/prospectos/documentacion" element={<Navigate to="/prospectos" replace />} />
           <Route path="/asesores" element={<R ruta="/asesores"><AsesoresPage /></R>} />
           <Route path="/configuracion" element={<R ruta="/configuracion"><ConfiguracionPage /></R>} />
           <Route path="/suscripcion" element={<R ruta="/suscripcion"><SuscripcionPage /></R>} />
