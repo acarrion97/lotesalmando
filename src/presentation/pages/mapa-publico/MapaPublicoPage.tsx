@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSearchParams, useParams } from "react-router-dom";
 import { Alert, Empty, Modal, Result, Spin, Tabs, Typography } from "antd";
-import { CalculatorOutlined, EnvironmentOutlined, PictureOutlined } from "@ant-design/icons";
+import {
+  BlockOutlined,
+  CalculatorOutlined,
+  EnvironmentOutlined,
+  PictureOutlined,
+} from "@ant-design/icons";
 import { ubicacionDe, type PlanoLote } from "@/domain/mapa/entities";
 import { useMapaPublico, useOnlineStatus, useRegistrarInteresPublico } from "@/presentation/hooks";
 import { LeyendaPlano, etiquetaLote } from "@/presentation/components/maps/PlanoInteractivo";
 import { VisorMapaModos, type ModoMapa } from "@/presentation/components/maps/VisorMapaModos";
+import { Visor3D } from "@/presentation/components/maps/Visor3D";
+import { esModelo3D } from "@/presentation/components/maps/modelo3d";
 import { CarruselMedios } from "@/presentation/components/publicos/CarruselMedios";
 import {
   CalculadoraFinanciamiento,
@@ -14,14 +21,20 @@ import {
 import { FichaLotePublico } from "@/presentation/components/publicos/FichaLotePublico";
 
 const { Title, Text } = Typography;
+const VisorModelo3D = lazy(() =>
+  import("@/presentation/components/maps/VisorModelo3D").then((m) => ({
+    default: m.VisorModelo3D,
+  })),
+);
 
-const CLAVES_TAB = ["galeria", "mapa", "financiamiento"] as const;
+const CLAVES_TAB = ["galeria", "mapa", "render3d", "financiamiento"] as const;
 type TabClave = (typeof CLAVES_TAB)[number];
 
 /** Ícono de cada pestaña, en un registro (tarea 6.4) para poder componerlo. */
 const MAPA_TAB_ICONS: Record<TabClave, ReactNode> = {
   galeria: <PictureOutlined />,
   mapa: <EnvironmentOutlined />,
+  render3d: <BlockOutlined />,
   financiamiento: <CalculatorOutlined />,
 };
 
@@ -64,6 +77,9 @@ export function MapaPublicoPage() {
 
   /** Estadísticas del RPC; si la migración 011 no corre, se calculan en cliente. */
   const estadisticas = mapa?.estadisticas ?? (mapa ? contarEstados(mapa.lotes) : null);
+
+  /** ¿El proyecto cargó un render 3D? */
+  const hayRender = !!mapa?.render_3d_url;
 
   /** Pestaña activa: `?tab=` si es válida, si no Galería (con medios) o Mapa. */
   const tabParametro = searchParams.get("tab");
@@ -252,6 +268,68 @@ export function MapaPublicoPage() {
                             onModoChange={setModoMapa}
                           />
                         </div>
+                        <FichaLotePublico
+                          lote={loteFicha}
+                          moneda={moneda}
+                          onCerrar={() => setLoteFicha(null)}
+                          onAnterior={() => navegarFicha(-1)}
+                          onSiguiente={() => navegarFicha(1)}
+                          onSimular={simularFinanciamiento}
+                        />
+                      </>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: "render3d",
+                label: "Render 3D",
+                icon: MAPA_TAB_ICONS.render3d,
+                destroyOnHidden: true,
+                children: (
+                  <div style={{ maxWidth: 1280, margin: "0 auto", padding: "16px 16px 24px" }}>
+                    {!hayRender ? (
+                      <Empty
+                        style={{ padding: "80px 0" }}
+                        description="Este proyecto todavía no tiene un render 3D"
+                      />
+                    ) : !mapa.url_publica || imagenFallida ? (
+                      <Empty
+                        style={{ padding: "80px 0" }}
+                        description="Este proyecto todavía no tiene plano"
+                      />
+                    ) : (
+                      <>
+                        {esModelo3D(mapa.render_3d_url) ? (
+                          <Suspense
+                            fallback={
+                              <div
+                                style={{
+                                  height: Math.max(360, window.innerHeight - 300),
+                                  display: "grid",
+                                  placeItems: "center",
+                                }}
+                              >
+                                <Text type="secondary">Cargando visor 3D…</Text>
+                              </div>
+                            }
+                          >
+                            <VisorModelo3D
+                              modeloUrl={mapa.render_3d_url}
+                              alturaMaxima={Math.max(360, window.innerHeight - 300)}
+                            />
+                          </Suspense>
+                        ) : (
+                          <Visor3D
+                            imagenUrl={mapa.url_publica}
+                            ubicacion={ubicacion}
+                            renderUrl={mapa.render_3d_url}
+                            capaInicial="render"
+                            lotes={mapa.lotes}
+                            onLoteClick={abrirFicha}
+                            alturaMaxima={Math.max(360, window.innerHeight - 300)}
+                          />
+                        )}
                         <FichaLotePublico
                           lote={loteFicha}
                           moneda={moneda}

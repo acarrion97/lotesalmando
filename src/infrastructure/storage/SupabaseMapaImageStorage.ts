@@ -8,7 +8,51 @@ import type {
 const BUCKET = "mapas";
 /** Fragmento que separa el host del path dentro de la URL pública. */
 const PUBLIC_PREFIX = "/storage/v1/object/public/mapas/";
-const TAMANO_MAXIMO = 10 * 1024 * 1024; // 10 MB (límite del bucket)
+const TAMANO_MAXIMO_IMAGEN = 10 * 1024 * 1024;
+const TAMANO_MAXIMO_MODELO = 50 * 1024 * 1024;
+const EXTENSIONES_IMAGEN = [".png", ".jpg", ".jpeg", ".webp"];
+const EXTENSIONES_MODELO = [".obj", ".glb", ".gltf", ".stl", ".fbx", ".dae"];
+
+function esModelo(file: File, carpeta?: string): boolean {
+  return (
+    carpeta === "render-3d" &&
+    EXTENSIONES_MODELO.some((ext) => file.name.toLowerCase().endsWith(ext))
+  );
+}
+
+function extensionAdmitida(file: File, modelo: boolean): boolean {
+  const extensiones = modelo ? EXTENSIONES_MODELO : EXTENSIONES_IMAGEN;
+  return extensiones.some((ext) => file.name.toLowerCase().endsWith(ext));
+}
+
+function tipoContenido(file: File, modelo: boolean): string {
+  const extension = file.name.toLowerCase().slice(file.name.lastIndexOf("."));
+  if (modelo) {
+    switch (extension) {
+      case ".obj":
+        return "model/obj";
+      case ".glb":
+        return "model/gltf-binary";
+      case ".gltf":
+        return "model/gltf+json";
+      case ".stl":
+        return "model/stl";
+      case ".fbx":
+        return "application/octet-stream";
+      case ".dae":
+        return "model/vnd.collada+xml";
+    }
+  }
+  if (file.type) return file.type;
+  switch (extension) {
+    case ".png":
+      return "image/png";
+    case ".webp":
+      return "image/webp";
+    default:
+      return "image/jpeg";
+  }
+}
 
 function nombreSeguro(file: File): string {
   const base = file.name
@@ -34,8 +78,17 @@ function extensionPorTipo(tipo: string): string {
 
 export class SupabaseMapaImageStorage implements MapaImageStorage {
   async upload({ proyectoId, file, carpeta }: SubirImagenInput): Promise<SubirImagenResult> {
-    if (!file.type.startsWith("image/")) throw new Error("El archivo debe ser una imagen");
-    if (file.size > TAMANO_MAXIMO) throw new Error("La imagen supera los 10 MB");
+    const modelo = esModelo(file, carpeta);
+    if (!extensionAdmitida(file, modelo)) {
+      throw new Error("La extensión del archivo no es válida");
+    }
+    if (!modelo && file.type && !file.type.startsWith("image/")) {
+      throw new Error("El archivo debe ser una imagen");
+    }
+    const limite = modelo ? TAMANO_MAXIMO_MODELO : TAMANO_MAXIMO_IMAGEN;
+    if (file.size > limite) {
+      throw new Error(`El archivo supera los ${Math.round(limite / (1024 * 1024))} MB`);
+    }
 
     // Path único por subida: evita que el CDN sirva la versión anterior.
     const subcarpeta = carpeta ? `${carpeta.replace(/[^a-zA-Z0-9_-]/g, "")}/` : "";
@@ -44,7 +97,7 @@ export class SupabaseMapaImageStorage implements MapaImageStorage {
     const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
       cacheControl: "3600",
       upsert: false,
-      contentType: file.type,
+      contentType: tipoContenido(file, modelo),
     });
     if (error) throw error;
 

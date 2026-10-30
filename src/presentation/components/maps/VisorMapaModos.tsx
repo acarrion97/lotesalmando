@@ -2,8 +2,8 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Empty, Segmented, Switch, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import {
-  AimOutlined,
   AppstoreOutlined,
+  BlockOutlined,
   GlobalOutlined,
   QuestionCircleOutlined,
 } from "@ant-design/icons";
@@ -12,6 +12,7 @@ import { useOnlineStatus } from "@/presentation/hooks";
 import type { DibujoPlano } from "./PlanoInteractivo";
 import { PlanoInteractivo } from "./PlanoInteractivo";
 import { Visor3D } from "./Visor3D";
+import { esModelo3D } from "./modelo3d";
 import { CapaSatelite } from "./CapaSatelite";
 import { limitesDelPlano } from "./georef";
 import { capacidadesGraficas, disponibilidadDeLaEscena } from "./cesium/disponibilidad";
@@ -20,9 +21,12 @@ const { Text } = Typography;
 const VisorCesium = lazy(() =>
   import("./cesium/VisorCesium").then((m) => ({ default: m.VisorCesium })),
 );
+const VisorModelo3D = lazy(() =>
+  import("./VisorModelo3D").then((m) => ({ default: m.VisorModelo3D })),
+);
 
 /** Modos de visualización del mapa de un proyecto. */
-export type ModoMapa = "plano" | "satelite" | "3d" | "cesium";
+export type ModoMapa = "plano" | "satelite" | "3d" | "cesium" | "render";
 
 interface VisorMapaModosProps {
   imagenUrl: string;
@@ -54,8 +58,9 @@ interface VisorMapaModosProps {
 
 const OPCIONES: { label: string; value: ModoMapa; icon: ReactNode }[] = [
   { label: "Plano", value: "plano", icon: <AppstoreOutlined /> },
-  { label: "Satélite", value: "satelite", icon: <GlobalOutlined /> },
-  { label: "Vista 3D", value: "cesium", icon: <AimOutlined /> },
+  { label: "Satélite", value: "cesium", icon: <GlobalOutlined /> },
+  // Se ofrece solo si el proyecto cargó un render (se filtra más abajo).
+  { label: "Render 3D", value: "render", icon: <BlockOutlined /> },
 ];
 
 const MOTIVO_SIN_UBICACION =
@@ -152,10 +157,13 @@ export function VisorMapaModos({
           value={modoActivo}
           onChange={(v) => !dibujo && onModoChange(v as ModoMapa)}
           disabled={!!dibujo}
-          options={OPCIONES.filter(
+          options={OPCIONES.filter((o) => {
             // Sin token la vista 3D real no se ofrece en absoluto (D10).
-            (o) => o.value !== "cesium" || disponibilidad.motivo !== "sin-token",
-          ).map((o) => {
+            if (o.value === "cesium") return disponibilidad.motivo !== "sin-token";
+            // Sin render subido en Configuración, el modo Render 3D no se ofrece.
+            if (o.value === "render") return !!renderUrl;
+            return true;
+          }).map((o) => {
             const motivo = motivoDesactivado(o.value);
             return {
               value: o.value,
@@ -177,7 +185,7 @@ export function VisorMapaModos({
             };
           })}
         />
-        {ubicacion && ["satelite", "3d", "cesium"].includes(modoActivo) && (
+        {ubicacion && ["satelite", "3d", "cesium", "render"].includes(modoActivo) && (
           <label
             title="Esri solo muestra los nombres publicados para esta zona y escala; algunas teselas no contienen etiquetas."
             style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
@@ -207,6 +215,33 @@ export function VisorMapaModos({
           onImagenError={onImagenError}
           alturaMaxima={alto}
         />
+      ) : modoActivo === "render" && renderUrl ? (
+        esModelo3D(renderUrl) ? (
+          <Suspense
+            fallback={
+              <div style={{ height: alto, display: "grid", placeItems: "center" }}>
+                <Text type="secondary">Cargando visor 3D…</Text>
+              </div>
+            }
+          >
+            <VisorModelo3D modeloUrl={renderUrl} alturaMaxima={alto} />
+          </Suspense>
+        ) : (
+          // Los renders de imagen conservan la vista sobre el plano inclinado.
+          <Visor3D
+            imagenUrl={imagenUrl}
+            ubicacion={ubicacion}
+            renderUrl={renderUrl}
+            capaInicial="render"
+            lotes={lotes}
+            onLoteClick={onLoteClick}
+            resaltados={resaltados}
+            mostrarPrecio={mostrarPrecio}
+            mostrarEtiquetas={mostrarEtiquetas}
+            onImagenError={onImagenError}
+            alturaMaxima={alto}
+          />
+        )
       ) : modoActivo === "cesium" && limites ? (
         <Suspense
           fallback={
