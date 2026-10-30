@@ -12,6 +12,7 @@ import { useOnlineStatus } from "@/presentation/hooks";
 import type { DibujoPlano } from "./PlanoInteractivo";
 import { PlanoInteractivo } from "./PlanoInteractivo";
 import { Visor3D } from "./Visor3D";
+import { esModelo3D } from "./modelo3d";
 import { CapaSatelite } from "./CapaSatelite";
 import { limitesDelPlano } from "./georef";
 import { capacidadesGraficas, disponibilidadDeLaEscena } from "./cesium/disponibilidad";
@@ -19,6 +20,9 @@ import { capacidadesGraficas, disponibilidadDeLaEscena } from "./cesium/disponib
 const { Text } = Typography;
 const VisorCesium = lazy(() =>
   import("./cesium/VisorCesium").then((m) => ({ default: m.VisorCesium })),
+);
+const VisorModelo3D = lazy(() =>
+  import("./VisorModelo3D").then((m) => ({ default: m.VisorModelo3D })),
 );
 
 /** Modos de visualización del mapa de un proyecto. */
@@ -212,21 +216,32 @@ export function VisorMapaModos({
           alturaMaxima={alto}
         />
       ) : modoActivo === "render" && renderUrl ? (
-        // Modo "Render 3D": el mismo visor interactivo abierto sobre la capa
-        // Render (girar, acercar y alternar capas como en la Vista 3D).
-        <Visor3D
-          imagenUrl={imagenUrl}
-          ubicacion={ubicacion}
-          renderUrl={renderUrl}
-          capaInicial="render"
-          lotes={lotes}
-          onLoteClick={onLoteClick}
-          resaltados={resaltados}
-          mostrarPrecio={mostrarPrecio}
-          mostrarEtiquetas={mostrarEtiquetas}
-          onImagenError={onImagenError}
-          alturaMaxima={alto}
-        />
+        esModelo3D(renderUrl) ? (
+          <Suspense
+            fallback={
+              <div style={{ height: alto, display: "grid", placeItems: "center" }}>
+                <Text type="secondary">Cargando visor 3D…</Text>
+              </div>
+            }
+          >
+            <VisorModelo3D modeloUrl={renderUrl} alturaMaxima={alto} />
+          </Suspense>
+        ) : (
+          // Los renders de imagen conservan la vista sobre el plano inclinado.
+          <Visor3D
+            imagenUrl={imagenUrl}
+            ubicacion={ubicacion}
+            renderUrl={renderUrl}
+            capaInicial="render"
+            lotes={lotes}
+            onLoteClick={onLoteClick}
+            resaltados={resaltados}
+            mostrarPrecio={mostrarPrecio}
+            mostrarEtiquetas={mostrarEtiquetas}
+            onImagenError={onImagenError}
+            alturaMaxima={alto}
+          />
+        )
       ) : modoActivo === "cesium" && limites ? (
         <Suspense
           fallback={
