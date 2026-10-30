@@ -24,6 +24,7 @@ import {
   SafetyCertificateOutlined,
   GlobalOutlined,
   BankOutlined,
+  BarChartOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 
@@ -54,6 +55,7 @@ const iconosPorRuta: Record<string, React.ReactNode> = {
   "/pagos": <PayCircleOutlined />,
   "/proyeccion": <FundOutlined />,
   "/alertas": <BellOutlined />,
+  "/reportes": <BarChartOutlined />,
   "/usuarios": <TeamOutlined />,
   "/configuracion": <SettingOutlined />,
   "/suscripcion": <CreditCardOutlined />,

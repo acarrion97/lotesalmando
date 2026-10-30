@@ -172,7 +172,7 @@ export function DashboardPage() {
     { label: "Mapa", icon: <BarChartOutlined />, path: "/mapas", color: "#13c2c2" },
     { label: "Prospectos", icon: <UserOutlined />, path: "/prospectos", color: "#722ed1" },
     { label: "Cobranzas", icon: <WalletOutlined />, path: "/cobranzas", color: "#faad14" },
-    { label: "Reportes", icon: <FileTextOutlined />, path: "/ventas", color: "#ff4d4f" },
+    { label: "Reportes", icon: <FileTextOutlined />, path: "/reportes", color: "#ff4d4f" },
   ];
 
   if (isLoading) {
