@@ -35,10 +35,14 @@ import {
   useLookup,
   useContratos,
   useDescargarDocumentoContrato,
+  useEtapas,
+  useProyectos,
 } from "@/presentation/hooks";
 import type { Venta, VentaEstado } from "@/domain/venta/entities/Venta";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
+import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
 import {
   FiltroRangoFechas,
   FILTRO_FECHAS_INICIAL,
@@ -96,10 +100,12 @@ export function VentasPage() {
   const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: ventas, isLoading } = useVentas();
   const { data: clientes } = useClientes(empresaId);
-  const { data: lotes } = useLotes();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
   const { data: usuarios } = useUsuarios();
   const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
-  const { data: manzanas } = useManzanas();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   // Etiqueta del lote: si el numero ya trae letras (H3, L1.7) basta con el; si es
   // solo numerico (3) se antepone el nombre de la manzana para ubicarlo.
   const loteEtiqueta = useMemo(() => {
@@ -131,12 +137,18 @@ export function VentasPage() {
   const nombreAsesor = (idAsesor?: number | null) =>
     (idAsesor ? asesorMap[idAsesor] : undefined) ?? "Sin asesor";
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const [modalState, setModalState] = useState<ModalState>({
     type: null,
     visible: false,
     record: null,
   });
+
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
 
   // Búsqueda + filtro de fechas: todo en cliente, sobre la lista (o su caché),
   // por lo que sigue funcionando sin conexión.
@@ -145,12 +157,13 @@ export function VentasPage() {
     const texto = searchText.trim().toLowerCase();
     return ventas.filter(
       (v) =>
+        (proyectoFilter === null || proyectoPorLote.get(v.id_lote) === proyectoFilter) &&
         dentroDelRango(v.created_at, filtroFechas.rango) &&
         (texto === "" ||
           claveEstado(v.estado).includes(texto) ||
           String(v.precio_final).includes(texto)),
     );
-  }, [ventas, searchText, filtroFechas]);
+  }, [ventas, searchText, filtroFechas, proyectoFilter, proyectoPorLote]);
 
   // Los indicadores derivan de la lista ya filtrada, así que reflejan el rango.
   const stats = useMemo(() => {
@@ -321,7 +334,17 @@ export function VentasPage() {
         title="Ventas"
         subtitle="Registro de ventas realizadas"
         search={{ value: searchText, onChange: setSearchText }}
-        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
+        extra={
+          <>
+            <FiltroProyecto
+              value={proyectoFilter}
+              onChange={setProyectoFilter}
+              options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+              loading={loadingProyectos}
+            />
+            <FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />
+          </>
+        }
         actions={
           <Button
             type="primary"
@@ -388,7 +411,10 @@ export function VentasPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_venta"
-        loading={isLoading}
+        loading={
+          isLoading ||
+          (proyectoFilter !== null && (loadingLotes || loadingManzanas || loadingEtapas || loadingProyectos))
+        }
       />
 
       <Modal

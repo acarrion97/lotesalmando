@@ -16,9 +16,10 @@ import { EyeOutlined, FileTextOutlined, FilePdfOutlined, FileWordOutlined, Setti
 import type { TableColumnType } from "antd";
 
 const { Text } = Typography;
-import { useContratos, useCotizaciones, useVentas, useInfoContratos } from "@/presentation/hooks";
+import { useContratos, useCotizaciones, useVentas, useInfoContratos, useProyectos } from "@/presentation/hooks";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { DocumentoContratoModal } from "@/presentation/components/contratos/DocumentoContratoModal";
 import { ConfiguracionContratoModal } from "@/presentation/components/contratos/ConfiguracionContratoModal";
 import { FiltroRangoFechas, FILTRO_FECHAS_INICIAL, type FiltroFechas } from "@/presentation/components/ventas/FiltroRangoFechas";
@@ -39,8 +40,10 @@ export function ContratosPage() {
   const { data: contratos, isLoading } = useContratos();
   const { data: ventas } = useVentas();
   const { data: cotizaciones } = useCotizaciones();
-  const { infoDeContrato } = useInfoContratos();
+  const { infoDeContrato, isLoading: loadingRelaciones } = useInfoContratos();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: ContratoRow | null }>({
     visible: false,
@@ -73,8 +76,14 @@ export function ContratosPage() {
 
   // El contrato no guarda una fecha propia confiable: se usa la de su venta.
   const contratosEnRango = useMemo(
-    () => (contratos ?? []).filter((c) => dentroDelRango(infoDeContrato(c.id_contrato)?.fechaVenta, filtroFechas.rango)),
-    [contratos, infoDeContrato, filtroFechas],
+    () =>
+      (contratos ?? []).filter(
+        (c) =>
+          (proyectoFilter === null ||
+            infoDeContrato(c.id_contrato)?.idProyecto === proyectoFilter) &&
+          dentroDelRango(infoDeContrato(c.id_contrato)?.fechaVenta, filtroFechas.rango),
+      ),
+    [contratos, infoDeContrato, filtroFechas, proyectoFilter],
   );
 
   const stats = useMemo(
@@ -209,6 +218,12 @@ export function ContratosPage() {
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar contrato..." }}
         extra={
           <Space size={8}>
+            <FiltroProyecto
+              value={proyectoFilter}
+              onChange={setProyectoFilter}
+              options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+              loading={loadingProyectos}
+            />
             <Button icon={<SettingOutlined />} onClick={() => setConfigAbierta(true)}>
               Configuración
             </Button>
@@ -246,7 +261,7 @@ export function ContratosPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_contrato"
-        loading={isLoading}
+        loading={isLoading || (proyectoFilter !== null && (loadingRelaciones || loadingProyectos))}
       />
 
       <Modal

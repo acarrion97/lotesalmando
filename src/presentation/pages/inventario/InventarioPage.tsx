@@ -5,7 +5,9 @@ import type { TableColumnType } from "antd";
 import type { Inventario } from "@/domain/inventario/entities/Inventario";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
-import { useInventario, useLotes, useUsuarios, useLookup } from "@/presentation/hooks";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
+import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
+import { useInventario, useLotes, useUsuarios, useLookup, useManzanas, useEtapas, useProyectos } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
@@ -29,7 +31,10 @@ interface ModalState {
 
 export function InventarioPage() {
   const { data: inventario, isLoading, error } = useInventario();
-  const { data: lotes } = useLotes();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: usuarios } = useUsuarios();
   const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
   const usuarioMap = useLookup(usuarios, "id_usuario", "nombres", "Usuario");
@@ -38,19 +43,28 @@ export function InventarioPage() {
   const [messageApi, contextHolder] = message.useMessage();
 
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
+
   const filteredData = useMemo(() => {
     if (!inventario) return [];
-    return inventario.filter(
-      (i) =>
+    return inventario.filter((i) => {
+      const perteneceAlProyecto =
+        proyectoFilter === null || proyectoPorLote.get(i.id_lote) === proyectoFilter;
+      const coincideBusqueda =
         String(i.id_lote).includes(searchText) ||
         i.estado_anterior.toLowerCase().includes(searchText.toLowerCase()) ||
-        i.estado_nuevo.toLowerCase().includes(searchText.toLowerCase())
-    );
-  }, [inventario, searchText]);
+        i.estado_nuevo.toLowerCase().includes(searchText.toLowerCase());
+      return perteneceAlProyecto && coincideBusqueda;
+    });
+  }, [inventario, searchText, proyectoFilter, proyectoPorLote]);
 
   const loteOptions = useMemo(
     () => (lotes ?? []).map((l) => ({ value: l.id_lote, label: `Lote ${l.numero_lote}` })),
@@ -219,6 +233,14 @@ export function InventarioPage() {
       <PageToolbar
         title="Inventario"
         search={{ value: searchText, onChange: setSearchText }}
+        extra={
+          <FiltroProyecto
+            value={proyectoFilter}
+            onChange={setProyectoFilter}
+            options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+            loading={loadingProyectos}
+          />
+        }
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("create")}>
             Nuevo
@@ -230,6 +252,11 @@ export function InventarioPage() {
           columns={columns}
           dataSource={filteredData}
           rowKey="id_inventario"
+          loading={
+            isLoading ||
+            (proyectoFilter !== null &&
+              (loadingLotes || loadingManzanas || loadingEtapas || loadingProyectos))
+          }
         />
       </Spin>
 

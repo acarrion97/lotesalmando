@@ -24,7 +24,7 @@ import {
 } from "@ant-design/icons";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { DataTable } from "@/presentation/components/common/DataTable";
-import { useProyeccionFinanciera } from "@/presentation/hooks";
+import { useProyeccionFinanciera, useEtapas, useProyectos } from "@/presentation/hooks";
 import { formatCurrency } from "@/utils";
 import type { TableColumnType, TableProps } from "antd";
 import type {
@@ -84,6 +84,9 @@ export function ProyeccionFinancieraPage() {
   const [costoVarPct, setCostoVarPct] = useState(0);
   /** Mes de arranque de la proyección (solo presentación: no afecta los cálculos). */
   const [fechaInicio, setFechaInicio] = useState(() => dayjs().startOf("month"));
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
+  const { data: etapas } = useEtapas();
+  const { data: proyectos } = useProyectos();
 
   const opciones: ProyeccionOpciones = {
     etapaId,
@@ -247,6 +250,21 @@ export function ProyeccionFinancieraPage() {
   }
 
   const { resumen, filas, metricas, etapasDisponibles, esquemaReal } = proy;
+  const proyectoPorEtapa = new Map((etapas ?? []).map((etapa) => [etapa.id_etapa, etapa.id_proyecto]));
+  const etapasDelProyecto = etapasDisponibles.filter(
+    (etapa) =>
+      proyectoFilter === null || proyectoPorEtapa.get(etapa.id_etapa) === proyectoFilter,
+  );
+  const proyectosDisponibles = new Set(
+    etapasDisponibles.flatMap((etapa) => {
+      const idProyecto = proyectoPorEtapa.get(etapa.id_etapa);
+      return idProyecto === undefined ? [] : [idProyecto];
+    }),
+  );
+  const etapaSeleccionada =
+    etapaId !== undefined && etapasDelProyecto.some((etapa) => etapa.id_etapa === etapaId)
+      ? etapaId
+      : etapasDelProyecto[0]?.id_etapa;
   const maxVend = Math.max(...filas.map((f) => f.vendidos), 1);
 
   const tarjetas = [
@@ -345,16 +363,34 @@ export function ProyeccionFinancieraPage() {
       <Card style={{ borderRadius: 10, marginBottom: 16 }}>
         <Row gutter={[12, 12]}>
           <Col xs={24} sm={12} md={8} lg={5}>
+            <Campo label="Proyecto">
+              <Select
+                allowClear
+                value={proyectoFilter ?? undefined}
+                onChange={(idProyecto: number | undefined) => {
+                  setProyectoFilter(idProyecto ?? null);
+                  const primeraEtapa = etapasDisponibles.find(
+                    (etapa) =>
+                      idProyecto === undefined ||
+                      proyectoPorEtapa.get(etapa.id_etapa) === idProyecto,
+                  );
+                  setEtapaId(primeraEtapa?.id_etapa);
+                }}
+                style={{ width: "100%" }}
+                placeholder="Todos los proyectos"
+                options={(proyectos ?? [])
+                  .filter((proyecto) => proyectosDisponibles.has(proyecto.id_proyecto))
+                  .map((proyecto) => ({ value: proyecto.id_proyecto, label: proyecto.nombre }))}
+              />
+            </Campo>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={5}>
             <Campo label="Etapa">
               <Select
-                value={
-                  etapaId !== undefined && etapasDisponibles.some((e) => e.id_etapa === etapaId)
-                    ? etapaId
-                    : resumen.idEtapa
-                }
+                value={etapaSeleccionada ?? resumen.idEtapa}
                 onChange={(v) => setEtapaId(v)}
                 style={{ width: "100%" }}
-                options={etapasDisponibles.map((e) => ({
+                options={etapasDelProyecto.map((e) => ({
                   value: e.id_etapa,
                   label: `${e.nombre} (${e.lotes})`,
                 }))}

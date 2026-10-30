@@ -39,6 +39,8 @@ import type { Lote, LoteEstado } from "@/domain/lote/entities/Lote";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
+import { crearMapaProyectoPorLote, filtrarPorProyecto } from "@/presentation/utils/proyectos";
 import { loteSchema } from "@/presentation/validations";
 import { compararNumeroLote } from "@/utils";
 import { ZodError } from "zod";
@@ -121,15 +123,8 @@ function filtroProyectos(
   proyectoId: number | null,
 ): Lote[] {
   if (!lotes) return [];
-  if (proyectoId === null) return lotes;
-
-  const etapasPorId = new Map((etapas ?? []).map((etapa) => [etapa.id_etapa, etapa.id_proyecto]));
-  const manzanasPorId = new Map((manzanas ?? []).map((manzana) => [manzana.id_manzana, manzana.id_etapa]));
-
-  return lotes.filter((lote) => {
-    const idEtapa = manzanasPorId.get(lote.id_manzana);
-    return idEtapa !== undefined && etapasPorId.get(idEtapa) === proyectoId;
-  });
+  const proyectoPorLote = crearMapaProyectoPorLote(lotes, manzanas, etapas);
+  return filtrarPorProyecto(lotes, proyectoId, (lote) => proyectoPorLote.get(lote.id_lote));
 }
 
 /** Convierte el error capturado en un mensaje que el usuario pueda entender. */
@@ -593,14 +588,11 @@ export function LotesPage() {
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar lote..." }}
         extra={
           <>
-            <Select
-              allowClear
-              placeholder="Todos los proyectos"
+            <FiltroProyecto
               value={proyectoFilter}
-              onChange={(value) => setProyectoFilter(value ?? null)}
+              onChange={setProyectoFilter}
               options={proyectoOptions}
               loading={loadingProyectos}
-              style={{ minWidth: 220 }}
             />
             {lotes && <FreshnessBadge dataUpdatedAt={dataUpdatedAt} />}
             <div

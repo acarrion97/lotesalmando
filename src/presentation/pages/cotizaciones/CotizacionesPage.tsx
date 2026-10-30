@@ -35,11 +35,16 @@ import {
   useLookup,
   useAsesores,
   useAceptarCotizacion,
+  useManzanas,
+  useEtapas,
+  useProyectos,
 } from "@/presentation/hooks";
 import { useAuth, useEmpresa } from "@/presentation/providers";
 import type { Cotizacion, CotizacionEstado } from "@/domain/cotizacion/entities/Cotizacion";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
+import { crearMapaProyectoPorLote, filtrarPorProyecto } from "@/presentation/utils/proyectos";
 import { TablaPlanCuotas } from "@/presentation/components/cotizaciones/TablaPlanCuotas";
 import { formatCurrency } from "@/utils";
 import { getContainer } from "@/infrastructure/container";
@@ -64,13 +69,17 @@ export function CotizacionesPage() {
   const { empresaActual } = useEmpresa();
   // Selector de cliente acotado a la empresa seleccionada (019).
   const { data: clientes } = useClientes(empresaActual?.id_empresa ?? 0);
-  const { data: lotes } = useLotes();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: asesores } = useAsesores();
   const { user } = useAuth();
   const aceptarMutation = useAceptarCotizacion();
   const clienteMap = useLookup(clientes, "id_cliente", "nombres", "Cliente");
   const loteMap = useLookup(lotes, "id_lote", "numero_lote", "Lote");
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modalState, setModalState] = useState<ModalState>({
     type: null,
     visible: false,
@@ -80,25 +89,39 @@ export function CotizacionesPage() {
   const [form] = Form.useForm();
   const queryClient = useQueryClient();
 
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
+  const cotizacionesDelProyecto = useMemo(
+    () =>
+      filtrarPorProyecto(
+        cotizaciones,
+        proyectoFilter,
+        (cotizacion) => proyectoPorLote.get(cotizacion.id_lote),
+      ),
+    [cotizaciones, proyectoFilter, proyectoPorLote],
+  );
+
   const stats = useMemo(() => {
     if (!cotizaciones) return { total: 0, borrador: 0, enviada: 0, aceptada: 0, rechazada: 0 };
     return {
-      total: cotizaciones.length,
-      borrador: cotizaciones.filter((c) => c.estado === "borrador").length,
-      enviada: cotizaciones.filter((c) => c.estado === "enviada").length,
-      aceptada: cotizaciones.filter((c) => c.estado === "aceptada").length,
-      rechazada: cotizaciones.filter((c) => c.estado === "rechazada").length,
+      total: cotizacionesDelProyecto.length,
+      borrador: cotizacionesDelProyecto.filter((c) => c.estado === "borrador").length,
+      enviada: cotizacionesDelProyecto.filter((c) => c.estado === "enviada").length,
+      aceptada: cotizacionesDelProyecto.filter((c) => c.estado === "aceptada").length,
+      rechazada: cotizacionesDelProyecto.filter((c) => c.estado === "rechazada").length,
     };
-  }, [cotizaciones]);
+  }, [cotizaciones, cotizacionesDelProyecto]);
 
   const filteredData = useMemo(() => {
     if (!cotizaciones) return [];
-    return cotizaciones.filter(
+    return cotizacionesDelProyecto.filter(
       (c) =>
         c.estado.toLowerCase().includes(searchText.toLowerCase()) ||
         String(c.precio_ofertado).includes(searchText),
     );
-  }, [cotizaciones, searchText]);
+  }, [cotizaciones, cotizacionesDelProyecto, searchText]);
 
   const openModal = (
     type: "view" | "edit" | "create" | "accept",
@@ -317,6 +340,14 @@ export function CotizacionesPage() {
         title="Cotizaciones"
         subtitle="Gestion de cotizaciones y presupuestos"
         search={{ value: searchText, onChange: setSearchText }}
+        extra={
+          <FiltroProyecto
+            value={proyectoFilter}
+            onChange={setProyectoFilter}
+            options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+            loading={loadingProyectos}
+          />
+        }
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal("create")}>
             Nueva Cotizacion
@@ -368,7 +399,10 @@ export function CotizacionesPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_cotizacion"
-        loading={isLoading}
+        loading={
+          isLoading ||
+          (proyectoFilter !== null && (loadingLotes || loadingManzanas || loadingEtapas || loadingProyectos))
+        }
       />
 
       <Modal

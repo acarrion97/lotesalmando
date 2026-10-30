@@ -29,13 +29,24 @@ import {
   UserSwitchOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useAsesores, useLotes, useVentas, useUsuarios } from "@/presentation/hooks";
+import {
+  useAsesores,
+  useLotes,
+  useVentas,
+  useUsuarios,
+  useCotizaciones,
+  useManzanas,
+  useEtapas,
+  useProyectos,
+} from "@/presentation/hooks";
 import type { Asesor, AsesorEstado } from "@/domain/asesor/entities/Asesor";
 import { getContainer } from "@/infrastructure/container";
 import { asesorSchema } from "@/presentation/validations";
 import { dentroDelRango, formatDate, rangoDelPreset } from "@/utils";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
+import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { ZodError } from "zod";
 
@@ -66,11 +77,16 @@ function mensajeErrorAsesor(error: unknown, fallback: string): string {
 
 export function AsesoresPage() {
   const { data: asesores, isLoading } = useAsesores();
-  const { data: lotes } = useLotes();
-  const { data: ventas } = useVentas();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
+  const { data: ventas, isLoading: loadingVentas } = useVentas();
+  const { data: cotizaciones, isLoading: loadingCotizaciones } = useCotizaciones();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: usuarios } = useUsuarios();
   const { empresaActual } = useEmpresa();
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   // Vincular/desvincular un usuario (rol Vendedor) a un asesor.
   const [vinculacion, setVinculacion] = useState<Asesor | null>(null);
@@ -85,24 +101,43 @@ export function AsesoresPage() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["asesores"] });
 
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
+  const asesoresDelProyecto = useMemo(() => {
+    if (proyectoFilter === null) return asesores ?? [];
+    const idsAsesores = new Set([
+      ...(ventas ?? [])
+        .filter((venta) => proyectoPorLote.get(venta.id_lote) === proyectoFilter)
+        .flatMap((venta) => (venta.id_asesor == null ? [] : [venta.id_asesor])),
+      ...(cotizaciones ?? [])
+        .filter((cotizacion) => proyectoPorLote.get(cotizacion.id_lote) === proyectoFilter)
+        .flatMap((cotizacion) =>
+          cotizacion.id_asesor == null ? [] : [cotizacion.id_asesor],
+        ),
+    ]);
+    return (asesores ?? []).filter((asesor) => idsAsesores.has(asesor.id_asesor));
+  }, [asesores, ventas, cotizaciones, proyectoFilter, proyectoPorLote]);
+
   const filteredData = useMemo(() => {
     if (!asesores) return [];
-    return asesores.filter(
+    return asesoresDelProyecto.filter(
       (a) =>
         a.nombre_comercial.toLowerCase().includes(searchText.toLowerCase()) ||
         a.codigo.toLowerCase().includes(searchText.toLowerCase()),
     );
-  }, [asesores, searchText]);
+  }, [asesores, asesoresDelProyecto, searchText]);
 
   const stats = useMemo(() => {
     if (!asesores) return { total: 0, activos: 0, inactivos: 0, metaTotal: 0 };
     return {
-      total: asesores.length,
-      activos: asesores.filter((a) => a.estado === "activo").length,
-      inactivos: asesores.filter((a) => a.estado === "inactivo").length,
-      metaTotal: asesores.reduce((sum, a) => sum + (a.meta_ventas_mensual ?? 0), 0),
+      total: asesoresDelProyecto.length,
+      activos: asesoresDelProyecto.filter((a) => a.estado === "activo").length,
+      inactivos: asesoresDelProyecto.filter((a) => a.estado === "inactivo").length,
+      metaTotal: asesoresDelProyecto.reduce((sum, a) => sum + (a.meta_ventas_mensual ?? 0), 0),
     };
-  }, [asesores]);
+  }, [asesores, asesoresDelProyecto]);
 
   const getVentasMes = (asesorId: number) => {
     if (!ventas) return 0;
@@ -110,12 +145,21 @@ export function AsesoresPage() {
     // registradas por este asesor, no por el usuario que abrió la venta.
     const mesActual = rangoDelPreset("mes-actual");
     return ventas
-      .filter((v) => v.id_asesor === asesorId && dentroDelRango(v.created_at, mesActual))
+      .filter(
+        (v) =>
+          v.id_asesor === asesorId &&
+          (proyectoFilter === null || proyectoPorLote.get(v.id_lote) === proyectoFilter) &&
+          dentroDelRango(v.created_at, mesActual),
+      )
       .reduce((sum, v) => sum + v.precio_final, 0);
   };
   const getVentasAsesor = (asesorId: number) => {
     if (!ventas) return [];
-    return ventas.filter((v) => v.id_asesor === asesorId);
+    return ventas.filter(
+      (v) =>
+        v.id_asesor === asesorId &&
+        (proyectoFilter === null || proyectoPorLote.get(v.id_lote) === proyectoFilter),
+    );
   };
   const loteDe = (loteId: number) => lotes?.find((lote) => lote.id_lote === loteId);
 
@@ -376,6 +420,14 @@ export function AsesoresPage() {
         title="Asesores"
         subtitle="Gestion de asesores comerciales"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar asesor..." }}
+        extra={
+          <FiltroProyecto
+            value={proyectoFilter}
+            onChange={setProyectoFilter}
+            options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+            loading={loadingProyectos}
+          />
+        }
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             Nuevo Asesor
@@ -429,7 +481,16 @@ export function AsesoresPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_asesor"
-        loading={isLoading}
+        loading={
+          isLoading ||
+          (proyectoFilter !== null &&
+            (loadingVentas ||
+              loadingCotizaciones ||
+              loadingLotes ||
+              loadingManzanas ||
+              loadingEtapas ||
+              loadingProyectos))
+        }
       />
 
       {/* View Modal */}

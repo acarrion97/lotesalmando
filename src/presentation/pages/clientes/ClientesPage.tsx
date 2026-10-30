@@ -3,7 +3,7 @@ import { Alert, Button, Space, Input, Modal, Form, Descriptions, message } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined, MailOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useClientes } from "@/presentation/hooks";
+import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
@@ -11,7 +11,9 @@ import { getContainer } from "@/infrastructure/container";
 import { clienteSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { ClienteDeudasModal } from "./ClienteDeudasModal";
+import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | "deudas" | null;
@@ -23,7 +25,14 @@ export function ClientesPage() {
   const { empresaActual } = useEmpresa();
   const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: clientes, isLoading } = useClientes(empresaId);
+  const { data: cotizaciones, isLoading: loadingCotizaciones } = useCotizaciones();
+  const { data: ventas, isLoading: loadingVentas } = useVentas();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
@@ -39,18 +48,37 @@ export function ClientesPage() {
 
   // Sin correo no llega el aviso del cron de cuotas (api/cron/cuotas-vencimiento
   // saltea a los clientes sin email), así que se marcan acá para que se completen.
-  const sinEmail = useMemo(() => (clientes ?? []).filter((c) => !c.email?.trim()), [clientes]);
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
+  const clientesDelProyecto = useMemo(() => {
+    if (proyectoFilter === null) return clientes ?? [];
+    const idsClientes = new Set([
+      ...(cotizaciones ?? [])
+        .filter((c) => proyectoPorLote.get(c.id_lote) === proyectoFilter)
+        .map((c) => c.id_cliente),
+      ...(ventas ?? [])
+        .filter((v) => proyectoPorLote.get(v.id_lote) === proyectoFilter)
+        .map((v) => v.id_cliente),
+    ]);
+    return (clientes ?? []).filter((cliente) => idsClientes.has(cliente.id_cliente));
+  }, [clientes, cotizaciones, ventas, proyectoFilter, proyectoPorLote]);
+  const sinEmail = useMemo(
+    () => clientesDelProyecto.filter((c) => !c.email?.trim()),
+    [clientesDelProyecto],
+  );
   const [soloSinEmail, setSoloSinEmail] = useState(false);
 
   const filteredData = useMemo(() => {
-    const base = soloSinEmail ? sinEmail : clientes ?? [];
+    const base = soloSinEmail ? sinEmail : clientesDelProyecto;
     return base.filter(
       (c) =>
         c.nombres.toLowerCase().includes(searchText.toLowerCase()) ||
         c.cedula_ruc.includes(searchText) ||
         c.email.toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [clientes, sinEmail, soloSinEmail, searchText]);
+  }, [clientesDelProyecto, sinEmail, soloSinEmail, searchText]);
 
   const openModal = (type: "view" | "edit" | "delete" | "deudas", record: Cliente) => {
     setModal({ type, visible: true, record });
@@ -227,6 +255,14 @@ export function ClientesPage() {
       <PageToolbar
         title="Clientes"
         search={{ value: searchText, onChange: setSearchText }}
+        extra={
+          <FiltroProyecto
+            value={proyectoFilter}
+            onChange={setProyectoFilter}
+            options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+            loading={loadingProyectos}
+          />
+        }
         actions={
           <Space>
             <Button
@@ -275,7 +311,16 @@ export function ClientesPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_cliente"
-        loading={isLoading}
+        loading={
+          isLoading ||
+          (proyectoFilter !== null &&
+            (loadingCotizaciones ||
+              loadingVentas ||
+              loadingLotes ||
+              loadingManzanas ||
+              loadingEtapas ||
+              loadingProyectos))
+        }
       />
 
       {/* View Modal */}
@@ -307,6 +352,7 @@ export function ClientesPage() {
       <ClienteDeudasModal
         cliente={modal.record}
         open={modal.visible && modal.type === "deudas"}
+        proyectoId={proyectoFilter}
         onClose={closeModal}
       />
 

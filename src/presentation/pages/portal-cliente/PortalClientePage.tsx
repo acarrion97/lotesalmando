@@ -6,6 +6,7 @@ import {
   Empty,
   Input,
   Result,
+  Select,
   Space,
   Spin,
   Table,
@@ -53,11 +54,15 @@ export function PortalClientePage() {
   const { cedula, setCedula, consulta, enviarComprobante } = usePortalCliente();
   const [datos, setDatos] = useState<Awaited<ReturnType<typeof consulta.mutateAsync>> | null>(null);
   const [cuota, setCuota] = useState<EnvioComprobante | null>(null);
+  const [proyectoFilter, setProyectoFilter] = useState<string | null>(null);
 
   const buscar = () => {
     if (!cedula.trim()) return;
     consulta.mutate(cedula.trim(), {
-      onSuccess: (resultado) => setDatos(resultado),
+      onSuccess: (resultado) => {
+        setDatos(resultado);
+        setProyectoFilter(null);
+      },
     });
   };
 
@@ -143,6 +148,17 @@ export function PortalClientePage() {
   ];
 
   const cliente = datos?.clientes[0];
+  const proyectosCliente = Array.from(
+    new Set(
+      (cliente?.contratos ?? []).flatMap((contrato) =>
+        contrato.proyecto ? [contrato.proyecto] : [],
+      ),
+    ),
+  );
+  const contratosFiltrados =
+    cliente?.contratos.filter(
+      (contrato) => proyectoFilter === null || contrato.proyecto === proyectoFilter,
+    ) ?? [];
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f7f9", padding: "32px 16px" }}>
@@ -203,14 +219,29 @@ export function PortalClientePage() {
                   Hola, {cliente.nombres}
                 </Title>
                 <Text type="secondary">
-                  {cliente.contratos.length === 0
-                    ? "Todavía no tenés contratos registrados."
-                    : `${cliente.contratos.length} contrato(s) con cuotas registradas.`}
+                  {contratosFiltrados.length === 0
+                    ? proyectoFilter
+                      ? "No tenés contratos asociados a este proyecto."
+                      : "Todavía no tenés contratos registrados."
+                    : `${contratosFiltrados.length} contrato(s) con cuotas registradas.`}
                 </Text>
+                {proyectosCliente.length > 1 && (
+                  <Select
+                    allowClear
+                    placeholder="Todos los proyectos"
+                    value={proyectoFilter ?? undefined}
+                    onChange={(value) => setProyectoFilter(value ?? null)}
+                    options={proyectosCliente.map((proyecto) => ({
+                      value: proyecto,
+                      label: proyecto,
+                    }))}
+                    style={{ width: 240 }}
+                  />
+                )}
               </Space>
             </Card>
 
-            {cliente.contratos.map((contrato) => (
+            {contratosFiltrados.map((contrato) => (
               <Card
                 key={contrato.id_contrato}
                 style={{ borderRadius: 12, marginBottom: 16 }}

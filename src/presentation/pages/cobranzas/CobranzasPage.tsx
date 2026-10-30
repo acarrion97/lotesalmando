@@ -2,12 +2,13 @@ import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
 import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined, SettingOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio, useProyectos } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { ConfiguracionPagosModal } from "@/presentation/components/pagos";
 import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
 import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
@@ -56,8 +57,10 @@ export function CobranzasPage() {
   // Cuotas pagadas antes del cambio de recibos: permiten emitirlo acá.
   const emitirRecibo = useEmitirReciboPagoPrevio();
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
-  const { infoDeContrato } = useInfoContratos();
+  const { infoDeContrato, isLoading: loadingRelaciones } = useInfoContratos();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
@@ -94,8 +97,18 @@ export function CobranzasPage() {
 
   // Indicadores sobre las cuotas dentro del rango (mismas formulas que
   // GetCarteraMetricasUseCase); sin filtro equivalen a la cartera completa.
+  const cobranzasDelProyecto = useMemo(
+    () =>
+      (cobranzas ?? []).filter(
+        (c) =>
+          proyectoFilter === null ||
+          infoDeContrato(c.id_contrato)?.idProyecto === proyectoFilter,
+      ),
+    [cobranzas, infoDeContrato, proyectoFilter],
+  );
+
   const m = useMemo(() => {
-    const enRango = (cobranzas ?? []).filter((c) => dentroDelRango(c.fecha_vencimiento, filtroFechas.rango));
+    const enRango = cobranzasDelProyecto.filter((c) => dentroDelRango(c.fecha_vencimiento, filtroFechas.rango));
     const suma = (lista: typeof enRango) => lista.reduce((s, c) => s + Math.round(c.monto_cuota * 100), 0) / 100;
     const pendientes = enRango.filter((c) => c.estado === "pendiente");
     const vencidas = enRango.filter((c) => c.estado === "vencida");
@@ -109,11 +122,11 @@ export function CobranzasPage() {
       montoPendiente: suma(pendientes),
       montoVencido: suma(vencidas),
     };
-  }, [cobranzas, filtroFechas]);
+  }, [cobranzasDelProyecto, filtroFechas]);
 
   const filteredData = useMemo(() => {
     if (!cobranzas) return [];
-    return cobranzas.filter(
+    return cobranzasDelProyecto.filter(
       (c) =>
         dentroDelRango(c.fecha_vencimiento, filtroFechas.rango) &&
         (String(c.id_contrato).includes(searchText) ||
@@ -122,7 +135,7 @@ export function CobranzasPage() {
         String(c.numero_cuota).includes(searchText) ||
         c.estado.toLowerCase().includes(searchText.toLowerCase()))
     );
-  }, [cobranzas, searchText, infoDeContrato, filtroFechas]);
+  }, [cobranzas, cobranzasDelProyecto, searchText, infoDeContrato, filtroFechas]);
 
   const columns: TableColumnType<CobranzaRow>[] = [
     {
@@ -269,7 +282,17 @@ export function CobranzasPage() {
         title="Cobranzas"
         subtitle="Control de cuotas y morosidad"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar cobranza..." }}
-        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
+        extra={
+          <>
+            <FiltroProyecto
+              value={proyectoFilter}
+              onChange={setProyectoFilter}
+              options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+              loading={loadingProyectos}
+            />
+            <FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />
+          </>
+        }
         actions={
           <>
             <Button icon={<SettingOutlined />} onClick={() => setConfigPagosAbierta(true)}>
@@ -327,7 +350,7 @@ export function CobranzasPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_cobranza"
-        loading={isLoading}
+        loading={isLoading || (proyectoFilter !== null && (loadingRelaciones || loadingProyectos))}
       />
 
       <Modal title="Detalle de Cobranza" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>

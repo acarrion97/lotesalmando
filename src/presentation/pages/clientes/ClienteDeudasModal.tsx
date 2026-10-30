@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Modal, Button, Table, Tag, Tooltip, Typography, Spin, Empty, Space } from "antd";
 import { EyeOutlined, PayCircleOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas, useContratos, useCobranzas, useOnlineStatus, useComprobantes } from "@/presentation/hooks";
+import { useVentas, useContratos, useCobranzas, useOnlineStatus, useComprobantes, useInfoContratos } from "@/presentation/hooks";
 import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
 import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
@@ -63,15 +63,18 @@ export function ClienteDeudasModal({
   cliente,
   open,
   onClose,
+  proyectoId,
 }: {
   cliente: Cliente | null;
   open: boolean;
   onClose: () => void;
+  proyectoId?: number | null;
 }) {
   const { data: ventas, isLoading: loadingVentas } = useVentas();
   const { data: contratos } = useContratos();
   const { data: cobranzas } = useCobranzas();
   const { data: comprobantes } = useComprobantes();
+  const { infoDeContrato, isLoading: loadingRelaciones } = useInfoContratos();
   const isOnline = useOnlineStatus();
   const [cobranzaAPagar, setCobranzaAPagar] = useState<CobranzaAPagar | null>(null);
   const [comprobanteSel, setComprobanteSel] = useState<{
@@ -100,7 +103,12 @@ export function ClienteDeudasModal({
     // Contratos de esas ventas → mapa id_contrato → número de contrato.
     const numeroPorContrato = new Map<number, string>();
     for (const c of contratos ?? []) {
-      if (idsVenta.has(c.id_venta)) numeroPorContrato.set(c.id_contrato, c.numero_contrato);
+      if (
+        idsVenta.has(c.id_venta) &&
+        (proyectoId == null || infoDeContrato(c.id_contrato)?.idProyecto === proyectoId)
+      ) {
+        numeroPorContrato.set(c.id_contrato, c.numero_contrato);
+      }
     }
     if (numeroPorContrato.size === 0) return { filas: [] as DeudaFila[], saldo: 0 };
 
@@ -130,9 +138,9 @@ export function ClienteDeudasModal({
     // que CuotasPendientesVenta y CobranzasPage).
     const total = deudas.reduce((s, d) => s + Math.round(d.monto_cuota * 100), 0) / 100;
     return { filas: deudas, saldo: total };
-  }, [cliente, ventas, contratos, cobranzas]);
+  }, [cliente, ventas, contratos, cobranzas, proyectoId, infoDeContrato]);
 
-  const cargando = loadingVentas && open;
+  const cargando = open && (loadingVentas || (proyectoId != null && loadingRelaciones));
 
   // El botón de pago solo aparece en las cuotas que siguen en deuda (la lista
   // ya excluye las pagadas); se repite aquí para que una fila marcada como

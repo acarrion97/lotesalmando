@@ -8,6 +8,7 @@ import type { Manzana } from "@/domain/manzana/entities/Manzana";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -17,12 +18,13 @@ interface ModalState {
 
 export function ManzanasPage() {
   const { data: manzanas, isLoading } = useManzanas();
-  const { data: etapas } = useEtapas();
-  const { data: proyectos } = useProyectos();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const etapaMap = useLookup(etapas, "id_etapa", "nombre", "Etapa");
   const proyectoMap = useLookup(proyectos, "id_proyecto", "nombre", "Proyecto");
   const [searchText, setSearchText] = useState("");
   const [etapaFilter, setEtapaFilter] = useState<number | null>(null);
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
@@ -48,9 +50,11 @@ export function ManzanasPage() {
     return manzanas.filter(
       (m) =>
         (etapaFilter === null || m.id_etapa === etapaFilter) &&
+        (proyectoFilter === null ||
+          etapas?.find((etapa) => etapa.id_etapa === m.id_etapa)?.id_proyecto === proyectoFilter) &&
         (m.nombre_codigo ?? "").toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [manzanas, searchText, etapaFilter]);
+  }, [manzanas, etapas, searchText, etapaFilter, proyectoFilter]);
 
   const openModal = (type: "view" | "edit" | "delete", record: Manzana) => {
     setModal({ type, visible: true, record });
@@ -152,14 +156,22 @@ export function ManzanasPage() {
         title="Manzanas"
         search={{ value: searchText, onChange: setSearchText }}
         extra={
-          <Select
-            allowClear
-            placeholder="Todas las etapas"
-            value={etapaFilter}
-            onChange={(value) => setEtapaFilter(value ?? null)}
-            options={etapaOptions}
-            style={{ minWidth: 240 }}
-          />
+          <>
+            <FiltroProyecto
+              value={proyectoFilter}
+              onChange={setProyectoFilter}
+              options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+              loading={loadingProyectos}
+            />
+            <Select
+              allowClear
+              placeholder="Todas las etapas"
+              value={etapaFilter}
+              onChange={(value) => setEtapaFilter(value ?? null)}
+              options={etapaOptions}
+              style={{ minWidth: 240 }}
+            />
+          </>
         }
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.setFieldsValue({ id_etapa: etapaFilter ?? undefined }); setCreateModalOpen(true); }}>
@@ -171,7 +183,7 @@ export function ManzanasPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_manzana"
-        loading={isLoading}
+        loading={isLoading || (proyectoFilter !== null && (loadingEtapas || loadingProyectos))}
       />
 
       {/* View Modal */}

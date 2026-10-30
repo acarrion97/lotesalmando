@@ -12,11 +12,13 @@ import {
   useRecibosPorPagos,
   useDescargarRecibo,
   useEmitirReciboPagoPrevio,
+  useProyectos,
 } from "@/presentation/hooks";
 import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import {
   FiltroRangoFechas,
   FILTRO_FECHAS_INICIAL,
@@ -49,8 +51,10 @@ export function PagosPage() {
   const emitirRecibo = useEmitirReciboPagoPrevio();
   const cobranzaMap = useLookup(cobranzas, "id_cobranza", "numero_cuota", "Cobranza");
   const contratoMap = useLookup(contratos, "id_contrato", "numero_contrato", "Contrato");
-  const { infoDeCobranza } = useInfoContratos();
+  const { infoDeCobranza, isLoading: loadingRelaciones } = useInfoContratos();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: PagoRow | null }>({
@@ -60,8 +64,14 @@ export function PagosPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
 
   const pagosEnRango = useMemo(
-    () => (pagos ?? []).filter((p) => dentroDelRango(p.fecha_pago, filtroFechas.rango)),
-    [pagos, filtroFechas],
+    () =>
+      (pagos ?? []).filter(
+        (p) =>
+          (proyectoFilter === null ||
+            infoDeCobranza(p.id_cobranza)?.idProyecto === proyectoFilter) &&
+          dentroDelRango(p.fecha_pago, filtroFechas.rango),
+      ),
+    [pagos, filtroFechas, infoDeCobranza, proyectoFilter],
   );
 
   const stats = useMemo(
@@ -219,7 +229,17 @@ export function PagosPage() {
         title="Pagos"
         subtitle="Registro de pagos recibidos"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar pago..." }}
-        extra={<FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />}
+        extra={
+          <>
+            <FiltroProyecto
+              value={proyectoFilter}
+              onChange={setProyectoFilter}
+              options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+              loading={loadingProyectos}
+            />
+            <FiltroRangoFechas value={filtroFechas} onChange={setFiltroFechas} />
+          </>
+        }
         actions={
           <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
             <Button
@@ -268,7 +288,7 @@ export function PagosPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_pago"
-        loading={isLoading}
+        loading={isLoading || (proyectoFilter !== null && (loadingRelaciones || loadingProyectos))}
       />
 
       {/* View Modal */}

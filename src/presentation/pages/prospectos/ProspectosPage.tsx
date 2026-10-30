@@ -3,17 +3,19 @@ import { Card, Button, Space, Input, InputNumber, Tag, Typography, Modal, Form, 
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined, UserOutlined, WarningOutlined, ClockCircleOutlined, FileProtectOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva, useDocumentosProspecto, usePuede } from "@/presentation/hooks";
+import { useProspectos, useLotes, useManzanas, useOportunidades, useAsesorDeSesion, useEntradasReserva, useDocumentosProspecto, usePuede, useEtapas, useProyectos } from "@/presentation/hooks";
 import { DOCUMENTOS_REQUERIDOS } from "@/domain/portalProspecto/entities";
 import type { Prospecto, ProspectoEstado } from "@/domain/prospecto/entities/Prospecto";
 import { getContainer } from "@/infrastructure/container";
 import { prospectoSchema } from "@/presentation/validations";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { ModalDocumentacionProspecto } from "@/presentation/components/prospectos/ModalDocumentacionProspecto";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useAuth } from "@/presentation/providers";
 import { compararNumeroLote, detectarLoteEnNotas, formatCurrency } from "@/utils";
+import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
 
 const { Text } = Typography;
 
@@ -41,11 +43,14 @@ export function ProspectosPage() {
   const { empresaActual } = useEmpresa();
   const { user } = useAuth();
   const { idAsesor } = useAsesorDeSesion();
-  const { data: lotes } = useLotes();
-  const { data: manzanas } = useManzanas();
-  const { data: oportunidades } = useOportunidades();
+  const { data: lotes, isLoading: loadingLotes } = useLotes();
+  const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
+  const { data: oportunidades, isLoading: loadingOportunidades } = useOportunidades();
+  const { data: etapas, isLoading: loadingEtapas } = useEtapas();
+  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: entradasReserva } = useEntradasReserva();
   const [searchText, setSearchText] = useState("");
+  const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [prospectoDocumentacion, setProspectoDocumentacion] = useState<Prospecto | null>(null);
   // Modal de reserva: se abre al pasar (o volver) a estado "reserva" y solo
@@ -63,22 +68,40 @@ export function ProspectosPage() {
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["prospectos"] });
 
+  const proyectoPorLote = useMemo(
+    () => crearMapaProyectoPorLote(lotes, manzanas, etapas),
+    [lotes, manzanas, etapas],
+  );
+  const prospectosDelProyecto = useMemo(() => {
+    if (proyectoFilter === null) return prospectos ?? [];
+    const idsProspectos = new Set(
+      (oportunidades ?? [])
+        .filter(
+          (oportunidad) =>
+            oportunidad.id_lote !== null &&
+            proyectoPorLote.get(oportunidad.id_lote) === proyectoFilter,
+        )
+        .map((oportunidad) => oportunidad.id_prospecto),
+    );
+    return (prospectos ?? []).filter((prospecto) => idsProspectos.has(prospecto.id_prospecto));
+  }, [prospectos, oportunidades, proyectoFilter, proyectoPorLote]);
+
   const filteredData = useMemo(() => {
     if (!prospectos) return [];
-    return prospectos.filter((p) =>
+    return prospectosDelProyecto.filter((p) =>
       p.nombres.toLowerCase().includes(searchText.toLowerCase()) ||
       (p.email ?? "").toLowerCase().includes(searchText.toLowerCase())
     );
-  }, [prospectos, searchText]);
+  }, [prospectos, prospectosDelProyecto, searchText]);
 
   const pipelineStats = useMemo(() => {
     if (!prospectos) return {};
     const stats: Record<string, number> = {};
     for (const etapa of pipelineEtapas) {
-      stats[etapa] = prospectos.filter((p) => p.estado === etapa).length;
+      stats[etapa] = prospectosDelProyecto.filter((p) => p.estado === etapa).length;
     }
     return stats;
-  }, [prospectos]);
+  }, [prospectos, prospectosDelProyecto]);
 
   // Documentación enviada desde el portal público, agrupada por prospecto:
   // alimenta el indicador y la checklist de revisión.
@@ -106,12 +129,12 @@ export function ProspectosPage() {
   const sinSeguimiento = useMemo(() => {
     if (!prospectos) return [];
     const now = new Date();
-    return prospectos.filter((p) => {
+    return prospectosDelProyecto.filter((p) => {
       if (!p.fecha_ultimo_seguimiento) return true;
       const diff = now.getTime() - new Date(p.fecha_ultimo_seguimiento).getTime();
       return diff > 48 * 60 * 60 * 1000;
     });
-  }, [prospectos]);
+  }, [prospectos, prospectosDelProyecto]);
 
   // Datos para el modal de reserva: lotes disponibles con su etiqueta.
   const lotesDisponibles = useMemo(
@@ -434,6 +457,14 @@ export function ProspectosPage() {
         title="Prospectos"
         subtitle="Pipeline de ventas y seguimiento"
         search={{ value: searchText, onChange: setSearchText, placeholder: "Buscar prospecto..." }}
+        extra={
+          <FiltroProyecto
+            value={proyectoFilter}
+            onChange={setProyectoFilter}
+            options={(proyectos ?? []).map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+            loading={loadingProyectos}
+          />
+        }
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
             Nuevo Prospecto
@@ -472,7 +503,15 @@ export function ProspectosPage() {
         columns={columns}
         dataSource={filteredData}
         rowKey="id_prospecto"
-        loading={isLoading}
+        loading={
+          isLoading ||
+          (proyectoFilter !== null &&
+            (loadingOportunidades ||
+              loadingLotes ||
+              loadingManzanas ||
+              loadingEtapas ||
+              loadingProyectos))
+        }
       />
 
       {puedeRevisarDocumentos && (

@@ -8,6 +8,7 @@ import type { Etapa } from "@/domain/etapa/entities/Etapa";
 import { getContainer } from "@/infrastructure/container";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
+import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | null;
@@ -152,13 +153,10 @@ export function EtapasPage() {
         title="Etapas"
         search={{ value: searchText, onChange: setSearchText }}
         extra={
-          <Select
-            allowClear
-            placeholder="Todos los proyectos"
+          <FiltroProyecto
             value={proyectoFilter}
-            onChange={(value) => setProyectoFilter(value ?? null)}
+            onChange={setProyectoFilter}
             options={proyectoOptions}
-            style={{ minWidth: 220 }}
           />
         }
         actions={
