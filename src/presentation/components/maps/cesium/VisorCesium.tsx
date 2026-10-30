@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Segmented, Spin, Typography } from "antd";
 import { SlidersOutlined, WarningOutlined } from "@ant-design/icons";
-import type { Cesium3DTileset, ImageryLayer, Viewer } from "cesium";
+import type { Cesium3DTileset, Viewer } from "cesium";
 import type { PlanoLote } from "@/domain/mapa/entities";
 import { useOnlineStatus } from "@/presentation/hooks";
 import type { LimitesGeo } from "../georef";
@@ -158,8 +158,7 @@ export function VisorCesium({
   const onRefrescarDatosRef = useRef(onRefrescarDatos);
 
   const [cargando, setCargando] = useState(true);
-  const [capaBase, setCapaBase] = useState<CapaBaseCesium>("fotografica");
-  const [capaEsriActiva, setCapaEsriActiva] = useState(false);
+  const [capaBase, setCapaBase] = useState<CapaBaseCesium>("terreno");
   const [motivoRespaldo, setMotivoRespaldo] = useState<MotivoRespaldo | null>(null);
   const [avisoEscena, setAvisoEscena] = useState<string | null>(null);
   const [errorEscena, setErrorEscena] = useState(false);
@@ -250,12 +249,41 @@ export function VisorCesium({
         const token = String(import.meta.env.VITE_CESIUM_TOKEN ?? "").trim();
         if (token) cesium.Ion.defaultAccessToken = token;
 
+        let nivelMaximoImagen: number | null;
+        try {
+          nivelMaximoImagen = await nivelMaximoEsriConCobertura(
+            limitesRef.current,
+            ZOOM_MAXIMO_IMAGEN_ESRI,
+          );
+        } catch (error) {
+          console.warn(
+            "No se pudo determinar la cobertura de imágenes Esri; se limita el zoom satelital.",
+            error,
+          );
+          nivelMaximoImagen = 17;
+          if (vivo) {
+            setAvisoEscena(
+              "No se pudo comprobar la cobertura satelital; se usará una resolución conservadora.",
+            );
+          }
+        }
+        if (!vivo) return;
+
         // No se pasa `creditContainer`: la atribución queda donde Cesium la
         // pone por defecto, visible y sin atajos de CSS (design.md D9).
         viewer = new cesium.Viewer(contenedor, {
-          // La vista Google Photorealistic se carga como capa principal al
-          // abrir Cesium; Esri se añade solo si se elige terreno o hay fallback.
-          baseLayer: false,
+          // La misma fotografía del territorio que ya usan el modo Satélite y
+          // la capa aérea del Visor 3D: sin API key y sin cuota ion.
+          baseLayer:
+            nivelMaximoImagen === null
+              ? false
+              : new cesium.ImageryLayer(
+                  new cesium.UrlTemplateImageryProvider({
+                    url: PLANTILLA_TILE_ESRI,
+                    credit: CREDITO_ESRI,
+                    maximumLevel: nivelMaximoImagen,
+                  }),
+                ),
           terrain: cesium.Terrain.fromWorldTerrain(),
           animation: false,
           timeline: false,
@@ -277,6 +305,11 @@ export function VisorCesium({
 
         motorRef.current = cesium;
         viewerRef.current = viewer;
+        if (nivelMaximoImagen === null) {
+          setAvisoEscena(
+            "Esri no tiene imágenes satelitales disponibles para esta ubicación. El terreno y los lotes siguen visibles.",
+          );
+        }
         actualizarEntidadesLote(
           viewer,
           cesium,
@@ -390,68 +423,8 @@ export function VisorCesium({
     volarAEscena(viewer, motor, posicionesRef.current);
   }, [norte, sur, este, oeste]);
 
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    const motor = motorRef.current;
-    if (
-      cargando ||
-      capaBase !== "terreno" ||
-      !viewer ||
-      !motor ||
-      viewer.isDestroyed()
-    ) {
-      return;
-    }
-
-    let vivo = true;
-    let capa: ImageryLayer | null = null;
-    setCapaEsriActiva(false);
-    void (async () => {
-      let nivelMaximoImagen: number | null;
-      try {
-        nivelMaximoImagen = await nivelMaximoEsriConCobertura(
-          limitesRef.current,
-          ZOOM_MAXIMO_IMAGEN_ESRI,
-        );
-      } catch (error) {
-        console.warn(
-          "No se pudo determinar la cobertura de imágenes Esri; se limita el zoom satelital.",
-          error,
-        );
-        nivelMaximoImagen = 17;
-        if (vivo) {
-          setAvisoEscena(
-            "No se pudo comprobar la cobertura satelital; se usará una resolución conservadora.",
-          );
-        }
-      }
-      if (!vivo || viewer.isDestroyed()) return;
-      if (nivelMaximoImagen === null) {
-        setAvisoEscena(
-          "Esri no tiene imágenes satelitales disponibles para esta ubicación. El terreno y los lotes siguen visibles.",
-        );
-        return;
-      }
-
-      capa = viewer.imageryLayers.addImageryProvider(
-        new motor.UrlTemplateImageryProvider({
-          url: PLANTILLA_TILE_ESRI,
-          credit: CREDITO_ESRI,
-          maximumLevel: nivelMaximoImagen,
-        }),
-      );
-      setCapaEsriActiva(true);
-    })();
-
-    return () => {
-      vivo = false;
-      setCapaEsriActiva(false);
-      if (capa && !viewer.isDestroyed()) viewer.imageryLayers.remove(capa, true);
-    };
-  }, [cargando, capaBase, norte, sur, este, oeste]);
-
-  // La capa fotográfica se carga al abrir Cesium y solo mientras esté activa;
-  // fuera de este modo no se consumen tiles de Google Photorealistic.
+  // La capa fotográfica solo se pide cuando alguien la pide: descargarla en
+  // segundo plano agotaría la cuota ion sin que nadie la haya mirado.
   useEffect(() => {
     const viewer = viewerRef.current;
     const motor = motorRef.current;
@@ -525,7 +498,7 @@ export function VisorCesium({
       !viewer ||
       !motor ||
       viewer.isDestroyed() ||
-      !capaEsriActiva
+      viewer.imageryLayers.length === 0
     ) {
       return;
     }
@@ -543,7 +516,7 @@ export function VisorCesium({
       if (viewer.isDestroyed()) return;
       capas.forEach((capa) => viewer.imageryLayers.remove(capa, true));
     };
-  }, [cargando, capaBase, mostrarEtiquetas, capaEsriActiva]);
+  }, [cargando, capaBase, mostrarEtiquetas]);
 
   // Tarea 5.1: la hora del día gobierna el reloj del Viewer. Con
   // `globe.enableLighting` encendido, el instante del reloj es lo que decide
