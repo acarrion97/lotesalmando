@@ -345,18 +345,36 @@ export function ReportesPage() {
     pagos.filter((p) => p.id_cobranza === idCobranza);
 
   const ventasPorFormaPago = useMemo(() => {
-    const grupos = new Map<string, { cantidad: number; centavos: number }>();
+    const grupos = new Map<
+      string,
+      { cantidad: number; pagos: number; centavos: number; centavosPagados: number }
+    >();
     for (const v of ventasFiltradas) {
       if (v.estado === "cancelada") continue;
-      const forma = formaPagoPrincipal(pagosDeVenta(v.id_venta), etiquetaFormaPago);
-      const g = grupos.get(forma) ?? { cantidad: 0, centavos: 0 };
+      const pagosVenta = pagosDeVenta(v.id_venta);
+      const forma = formaPagoPrincipal(pagosVenta, etiquetaFormaPago);
+      const g = grupos.get(forma) ?? {
+        cantidad: 0,
+        pagos: 0,
+        centavos: 0,
+        centavosPagados: 0,
+      };
       grupos.set(forma, {
         cantidad: g.cantidad + 1,
+        pagos: g.pagos + pagosVenta.length,
         centavos: g.centavos + aCentavos(v.precio_final),
+        centavosPagados:
+          g.centavosPagados + pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
       });
     }
     return [...grupos.entries()]
-      .map(([clave, g]) => ({ clave, cantidad: g.cantidad, monto: deCentavos(g.centavos) }))
+      .map(([clave, g]) => ({
+        clave,
+        cantidad: g.cantidad,
+        pagos: g.pagos,
+        monto: deCentavos(g.centavos),
+        montoPagado: deCentavos(g.centavosPagados),
+      }))
       .sort((a, b) => b.monto - a.monto);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ventasFiltradas, pagosPorVenta]);
@@ -382,9 +400,7 @@ export function ReportesPage() {
         const pagosCuota = pagosDeCobranza.get(c.id_cobranza) ?? [];
         const idVenta = mapas.contrato.get(c.id_contrato)?.id_venta;
         const venta = idVenta === undefined ? undefined : mapas.venta.get(idVenta);
-        const pagado = deCentavos(
-          pagosCuota.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
-        );
+        const pagado = deCentavos(pagosCuota.reduce((s, p) => s + aCentavos(p.monto_pagado), 0));
         const ultimo = pagosCuota.reduce<string | undefined>(
           (acc, p) => (!acc || p.fecha_pago > acc ? p.fecha_pago : acc),
           undefined,
@@ -475,13 +491,15 @@ export function ReportesPage() {
       render: (_, v) => {
         const pagosVenta = pagosDeVenta(v.id_venta);
         if (pagosVenta.length === 0) return "-";
-        const total = deCentavos(
-          pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
-        );
+        const total = deCentavos(pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0));
         return (
           <span>
             {formaPagoPrincipal(pagosVenta, etiquetaFormaPago)}
-            <Text type="secondary"> · {formatCurrency(total)}</Text>
+            <Text type="secondary">
+              {" "}
+              · {pagosVenta.length} {pagosVenta.length === 1 ? "pago" : "pagos"} ·{" "}
+              {formatCurrency(total)}
+            </Text>
           </span>
         );
       },
@@ -551,6 +569,23 @@ export function ReportesPage() {
     {
       title: "Monto",
       dataIndex: "monto",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+  ];
+  const colsVentasPorForma: TableColumnType<(typeof ventasPorFormaPago)[number]>[] = [
+    { title: "Forma de pago", dataIndex: "clave" },
+    { title: "Ventas", dataIndex: "cantidad", align: "right" },
+    { title: "Pagos", dataIndex: "pagos", align: "right" },
+    {
+      title: "Monto vendido",
+      dataIndex: "monto",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    {
+      title: "Monto pagado",
+      dataIndex: "montoPagado",
       align: "right",
       render: (v: number) => formatCurrency(v),
     },
@@ -703,9 +738,7 @@ export function ReportesPage() {
         ],
         filas: ventasFiltradas.map((v) => {
           const pagosVenta = pagosDeVenta(v.id_venta);
-          const pagado = deCentavos(
-            pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
-          );
+          const pagado = deCentavos(pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0));
           return [
             v.id_venta,
             v.created_at ? diaEnEmpresa(v.created_at) : "",
@@ -716,7 +749,7 @@ export function ReportesPage() {
             v.precio_final,
             pagosVenta.length === 0
               ? ""
-              : `${formaPagoPrincipal(pagosVenta, etiquetaFormaPago)} (${formatCurrency(pagado)})`,
+              : `${formaPagoPrincipal(pagosVenta, etiquetaFormaPago)} (${pagosVenta.length} ${pagosVenta.length === 1 ? "pago" : "pagos"} · ${formatCurrency(pagado)})`,
             pagado,
             v.precio_final - pagado,
             v.estado,
@@ -725,8 +758,14 @@ export function ReportesPage() {
       },
       {
         nombre: "Por forma de pago",
-        columnas: ["Forma de pago", "Ventas", "Monto"],
-        filas: ventasPorFormaPago.map((f) => [f.clave, f.cantidad, f.monto]),
+        columnas: ["Forma de pago", "Ventas", "Pagos", "Monto vendido", "Monto pagado"],
+        filas: ventasPorFormaPago.map((f) => [
+          f.clave,
+          f.cantidad,
+          f.pagos,
+          f.monto,
+          f.montoPagado,
+        ]),
       },
       {
         nombre: "Cuotas realizadas",
@@ -952,7 +991,7 @@ export function ReportesPage() {
                 />
                 <DataTable
                   title={() => "Ventas por forma de pago"}
-                  columns={colsAgrupado("Forma de pago")}
+                  columns={colsVentasPorForma}
                   dataSource={ventasPorFormaPago}
                   rowKey="clave"
                   pagination={false}
@@ -962,18 +1001,25 @@ export function ReportesPage() {
                         <Text strong>Total</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={1} align="right">
-                        <Text strong>
-                          {ventasPorFormaPago.reduce((s, f) => s + f.cantidad, 0)}
-                        </Text>
+                        <Text strong>{ventasPorFormaPago.reduce((s, f) => s + f.cantidad, 0)}</Text>
                       </Table.Summary.Cell>
                       <Table.Summary.Cell index={2} align="right">
+                        <Text strong>{ventasPorFormaPago.reduce((s, f) => s + f.pagos, 0)}</Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={3} align="right">
                         <Text strong>
                           {formatCurrency(
                             deCentavos(
-                              ventasPorFormaPago.reduce(
-                                (s, f) => s + aCentavos(f.monto),
-                                0,
-                              ),
+                              ventasPorFormaPago.reduce((s, f) => s + aCentavos(f.monto), 0),
+                            ),
+                          )}
+                        </Text>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={4} align="right">
+                        <Text strong>
+                          {formatCurrency(
+                            deCentavos(
+                              ventasPorFormaPago.reduce((s, f) => s + aCentavos(f.montoPagado), 0),
                             ),
                           )}
                         </Text>

@@ -22,6 +22,9 @@ export class GetPagosUseCase {
       id_usuario: pago.id_usuario,
       monto_pagado: pago.monto_pagado,
       fecha_pago: pago.fecha_pago,
+      // Sin este campo el DTO pierde la forma de pago y los reportes la
+      // muestran siempre como "No especificada".
+      forma_pago: pago.forma_pago,
     };
   }
 }
