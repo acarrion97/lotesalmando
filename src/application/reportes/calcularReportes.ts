@@ -175,6 +175,13 @@ export interface FilaAgrupada {
   monto: number;
 }
 
+export interface FilaPagoPorMesYForma {
+  mes: string;
+  forma: string;
+  cantidad: number;
+  monto: number;
+}
+
 /** Agrupa pagos por una clave y suma sus montos; mayor monto primero. */
 export function agruparPagos(pagos: Pago[], clave: (p: Pago) => string): FilaAgrupada[] {
   const grupos = new Map<string, Pago[]>();
@@ -189,6 +196,31 @@ export function agruparPagos(pagos: Pago[], clave: (p: Pago) => string): FilaAgr
       monto: sumar(lista, (p) => p.monto_pagado),
     }))
     .sort((a, b) => b.monto - a.monto);
+}
+
+/** Agrupa pagos por mes calendario y forma de pago. */
+export function agruparPagosPorMesYForma(
+  pagos: Pago[],
+  formaDePago: (p: Pago) => string,
+): FilaPagoPorMesYForma[] {
+  const grupos = new Map<string, Map<string, Pago[]>>();
+  for (const pago of pagos) {
+    const mes = mesDe(pago.fecha_pago);
+    if (!mes) continue;
+    const forma = formaDePago(pago);
+    const porForma = grupos.get(mes) ?? new Map<string, Pago[]>();
+    porForma.set(forma, [...(porForma.get(forma) ?? []), pago]);
+    grupos.set(mes, porForma);
+  }
+  return [...grupos.entries()].flatMap(([mes, porForma]) =>
+    [...porForma.entries()].map(([forma, lista]) => ({
+      mes,
+      forma,
+      cantidad: lista.length,
+      monto: sumar(lista, (pago) => pago.monto_pagado),
+    })),
+  )
+    .sort((a, b) => a.mes.localeCompare(b.mes) || a.forma.localeCompare(b.forma));
 }
 
 export const totalPagos = (pagos: Pago[]): number => sumar(pagos, (p) => p.monto_pagado);

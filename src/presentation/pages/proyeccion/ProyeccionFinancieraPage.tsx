@@ -24,9 +24,24 @@ import {
 } from "@ant-design/icons";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { DataTable } from "@/presentation/components/common/DataTable";
-import { useProyeccionFinanciera, useEtapas, useProyectos } from "@/presentation/hooks";
+import { GraficoPagosPorForma } from "@/presentation/components/reportes/GraficoPagosPorForma";
+import {
+  useProyeccionFinanciera,
+  useEtapas,
+  useProyectos,
+  usePagos,
+  useCobranzas,
+  useContratos,
+  useVentas,
+  useLotes,
+  useManzanas,
+} from "@/presentation/hooks";
 import { formatCurrency } from "@/utils";
 import type { TableColumnType, TableProps } from "antd";
+import {
+  agruparPagosPorMesYForma,
+  type FilaPagoPorMesYForma,
+} from "@/application/reportes/calcularReportes";
 import type {
   FilaProyeccion,
   ModeloAbsorcion,
@@ -34,6 +49,16 @@ import type {
 } from "@/application/proyecciones/dto/ProyeccionFinancieraDto";
 
 const { Text, Title } = Typography;
+
+const FORMA_PAGO_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  deposito: "Depósito",
+  tarjeta: "Tarjeta",
+  cheque: "Cheque",
+  otro: "Otro",
+  no_especificada: "No especificada",
+};
 
 const MODELOS: { value: ModeloAbsorcion; label: string }[] = [
   { value: "logistic", label: "Logística (base)" },
@@ -87,6 +112,12 @@ export function ProyeccionFinancieraPage() {
   const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const { data: etapas } = useEtapas();
   const { data: proyectos } = useProyectos();
+  const pagosQuery = usePagos();
+  const cobranzasQuery = useCobranzas();
+  const contratosQuery = useContratos();
+  const ventasQuery = useVentas();
+  const lotesQuery = useLotes();
+  const manzanasQuery = useManzanas();
 
   const opciones: ProyeccionOpciones = {
     etapaId,
@@ -213,6 +244,18 @@ export function ProyeccionFinancieraPage() {
     },
   ];
 
+  const colPagosPorMesYForma: TableColumnType<FilaPagoPorMesYForma>[] = [
+    { title: "Mes", dataIndex: "mes" },
+    { title: "Forma de pago", dataIndex: "forma" },
+    { title: "Pagos", dataIndex: "cantidad", align: "right" },
+    {
+      title: "Monto recibido",
+      dataIndex: "monto",
+      align: "right",
+      render: (v: number) => money(v),
+    },
+  ];
+
   if (isError) {
     return (
       <div>
@@ -265,6 +308,52 @@ export function ProyeccionFinancieraPage() {
     etapaId !== undefined && etapasDelProyecto.some((etapa) => etapa.id_etapa === etapaId)
       ? etapaId
       : etapasDelProyecto[0]?.id_etapa;
+  const pagosHistoricosPorMesYForma = (() => {
+    const contratoPorId = new Map(
+      (contratosQuery.data ?? []).map((contrato) => [contrato.id_contrato, contrato]),
+    );
+    const ventaPorId = new Map((ventasQuery.data ?? []).map((venta) => [venta.id_venta, venta]));
+    const lotePorId = new Map((lotesQuery.data ?? []).map((lote) => [lote.id_lote, lote]));
+    const etapaPorManzana = new Map(
+      (manzanasQuery.data ?? []).map((manzana) => [manzana.id_manzana, manzana.id_etapa]),
+    );
+    const cobranzasDeEtapa = new Set(
+      (cobranzasQuery.data ?? [])
+        .filter((cobranza) => {
+          const ventaId = contratoPorId.get(cobranza.id_contrato)?.id_venta;
+          const loteId = ventaId === undefined ? undefined : ventaPorId.get(ventaId)?.id_lote;
+          const manzanaId = loteId === undefined ? undefined : lotePorId.get(loteId)?.id_manzana;
+          return (
+            manzanaId !== undefined &&
+            etapaPorManzana.get(manzanaId) === etapaSeleccionada
+          );
+        })
+        .map((cobranza) => cobranza.id_cobranza),
+    );
+    const pagosDeEtapa = (pagosQuery.data ?? []).filter((pago) =>
+      cobranzasDeEtapa.has(pago.id_cobranza),
+    );
+    return agruparPagosPorMesYForma(
+      pagosDeEtapa,
+      (pago) => FORMA_PAGO_LABEL[pago.forma_pago ?? "no_especificada"] ?? "Otro",
+    );
+  })();
+  const cargandoResumenPagos = [
+    pagosQuery,
+    cobranzasQuery,
+    contratosQuery,
+    ventasQuery,
+    lotesQuery,
+    manzanasQuery,
+  ].some((query) => query.isLoading);
+  const errorResumenPagos = [
+    pagosQuery,
+    cobranzasQuery,
+    contratosQuery,
+    ventasQuery,
+    lotesQuery,
+    manzanasQuery,
+  ].some((query) => query.isError);
   const maxVend = Math.max(...filas.map((f) => f.vendidos), 1);
 
   const tarjetas = [
@@ -329,12 +418,48 @@ export function ProyeccionFinancieraPage() {
       key: "flujo",
       label: "Flujo de caja",
       children: (
-        <DataTable<FilaProyeccion>
-          columns={colFlujo}
-          dataSource={filas}
-          rowKey="mes"
-          pagination={false}
-        />
+        <>
+          <DataTable<FilaProyeccion>
+            columns={colFlujo}
+            dataSource={filas}
+            rowKey="mes"
+            pagination={false}
+          />
+          <Card style={{ marginTop: 16 }}>
+            <Title level={5}>Recaudación histórica por mes y forma de pago</Title>
+            <Text type="secondary">
+              Pagos reales registrados en esta etapa; se muestran como referencia y no forman
+              parte de la proyección.
+            </Text>
+            {errorResumenPagos ? (
+              <Alert
+                type="error"
+                showIcon
+                message="No se pudo cargar el resumen de pagos por forma."
+                style={{ marginTop: 12 }}
+              />
+            ) : cargandoResumenPagos ? (
+              <Skeleton active paragraph={{ rows: 2 }} style={{ marginTop: 12 }} />
+            ) : pagosHistoricosPorMesYForma.length === 0 ? (
+              <Empty
+                description="Sin pagos reales registrados en esta etapa"
+                style={{ margin: "20px 0 0" }}
+              />
+            ) : (
+              <>
+                <GraficoPagosPorForma filas={pagosHistoricosPorMesYForma} />
+                <DataTable<FilaPagoPorMesYForma>
+                  card={false}
+                  columns={colPagosPorMesYForma}
+                  dataSource={pagosHistoricosPorMesYForma}
+                  rowKey={(fila) => `${fila.mes}-${fila.forma}`}
+                  pagination={false}
+                  style={{ marginTop: 12 }}
+                />
+              </>
+            )}
+          </Card>
+        </>
       ),
     },
     {

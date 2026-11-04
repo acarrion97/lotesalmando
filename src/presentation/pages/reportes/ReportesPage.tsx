@@ -37,6 +37,7 @@ import {
 import { useEmpresa } from "@/presentation/providers";
 import type { Pago } from "@/domain/pago/entities";
 import { DataTable } from "@/presentation/components/common/DataTable";
+import { GraficoPagosPorForma } from "@/presentation/components/reportes/GraficoPagosPorForma";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import {
   FiltroRangoFechas,
@@ -52,6 +53,7 @@ import {
 import {
   aCentavos,
   agruparPagos,
+  agruparPagosPorMesYForma,
   antiguedadDeSaldos,
   cuotasEnCartera,
   deCentavos,
@@ -70,6 +72,7 @@ import {
   type FilaAntiguedad,
   type FilaAsesor,
   type FilaInventario,
+  type FilaPagoPorMesYForma,
   type VentasPorMes,
 } from "@/application/reportes/calcularReportes";
 import {
@@ -323,6 +326,10 @@ export function ReportesPage() {
     () => agruparPagos(pagosFiltrados, etiquetaFormaPago),
     [pagosFiltrados],
   );
+  const pagosPorMesYForma = useMemo(
+    () => agruparPagosPorMesYForma(pagosFiltrados, etiquetaFormaPago),
+    [pagosFiltrados],
+  );
   const pagosPorMes = useMemo(
     () =>
       agruparPagos(pagosFiltrados, (p) => mesDe(p.fecha_pago)).sort((a, b) =>
@@ -536,6 +543,7 @@ export function ReportesPage() {
   });
   const pagosPorMesVisible = pagosPorMes;
   const pagosPorFormaVisible = pagosPorForma;
+  const pagosPorMesYFormaVisible = pagosPorMesYForma;
   const inventarioVisible = inventario.filter((f) =>
     coincideEnReporte(
       "inventario",
@@ -613,6 +621,17 @@ export function ReportesPage() {
       title: "Estado",
       dataIndex: "estado",
       render: (e: string) => <Tag color={TIPOS_VENTA_COLOR[e]}>{e}</Tag>,
+    },
+  ];
+  const colsPagosPorMesYForma: TableColumnType<FilaPagoPorMesYForma>[] = [
+    { title: "Mes", dataIndex: "mes" },
+    { title: "Forma de pago", dataIndex: "forma" },
+    { title: "Pagos", dataIndex: "cantidad", align: "right" },
+    {
+      title: "Monto",
+      dataIndex: "monto",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
     },
   ];
   const colsMes: TableColumnType<VentasPorMes>[] = [
@@ -949,6 +968,11 @@ export function ReportesPage() {
         columnas: ["Forma de pago", "Pagos", "Monto"],
         filas: pagosPorForma.map((f) => [f.clave, f.cantidad, f.monto]),
       },
+      {
+        nombre: "Mes y forma de pago",
+        columnas: ["Mes", "Forma de pago", "Pagos", "Monto"],
+        filas: pagosPorMesYForma.map((f) => [f.mes, f.forma, f.cantidad, f.monto]),
+      },
     ]);
   const exportarInventario = () =>
     exportar("inventario", [
@@ -1270,6 +1294,9 @@ export function ReportesPage() {
               pagosFiltrados.length === 0,
               <>
                 {aplicaPeriodo("Período según la fecha del pago.")}
+                <Card title="Tendencia mensual por forma de pago" style={{ marginBottom: 16 }}>
+                  <GraficoPagosPorForma filas={pagosPorMesYFormaVisible} />
+                </Card>
                 <Row gutter={[16, 16]}>
                   <Col xs={24} lg={12}>
                     <DataTable
@@ -1290,6 +1317,13 @@ export function ReportesPage() {
                     />
                   </Col>
                 </Row>
+                <DataTable
+                  title={() => "Por mes y forma de pago"}
+                  columns={colsPagosPorMesYForma}
+                  dataSource={pagosPorMesYFormaVisible}
+                  rowKey={(fila) => `${fila.mes}-${fila.forma}`}
+                  pagination={false}
+                />
               </>,
             ),
           },
