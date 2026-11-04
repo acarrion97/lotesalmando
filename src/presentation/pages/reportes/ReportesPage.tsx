@@ -362,23 +362,27 @@ export function ReportesPage() {
       string,
       { cantidad: number; pagos: number; centavos: number; centavosPagados: number }
     >();
+    const grupoPorForma = (forma: string) => {
+      let grupo = grupos.get(forma);
+      if (!grupo) {
+        grupo = { cantidad: 0, pagos: 0, centavos: 0, centavosPagados: 0 };
+        grupos.set(forma, grupo);
+      }
+      return grupo;
+    };
     for (const v of ventasFiltradas) {
       if (v.estado === "cancelada") continue;
       const pagosVenta = pagosDeVenta(v.id_venta);
       const forma = formaPagoPrincipal(pagosVenta, etiquetaFormaPago);
-      const g = grupos.get(forma) ?? {
-        cantidad: 0,
-        pagos: 0,
-        centavos: 0,
-        centavosPagados: 0,
-      };
-      grupos.set(forma, {
-        cantidad: g.cantidad + 1,
-        pagos: g.pagos + pagosVenta.length,
-        centavos: g.centavos + aCentavos(v.precio_final),
-        centavosPagados:
-          g.centavosPagados + pagosVenta.reduce((s, p) => s + aCentavos(p.monto_pagado), 0),
-      });
+      const grupoVenta = grupoPorForma(forma);
+      grupoVenta.cantidad++;
+      grupoVenta.centavos += aCentavos(v.precio_final);
+
+      for (const pago of pagosVenta) {
+        const grupoPago = grupoPorForma(etiquetaFormaPago(pago));
+        grupoPago.pagos++;
+        grupoPago.centavosPagados += aCentavos(pago.monto_pagado);
+      }
     }
     return [...grupos.entries()]
       .map(([clave, g]) => ({

@@ -86,7 +86,8 @@ export function ventasPorMes(ventas: Venta[]): VentasPorMes[] {
 
 /**
  * Forma de pago que más monto cubrió entre los pagos dados: la principal de
- * una venta, ya que el precio puede repartirse en varias formas de pago. Con
+ * una venta, ya que el precio puede repartirse en varias formas de pago. Los
+ * pagos históricos sin forma registrada no desplazan una forma conocida. Con
  * empate gana la alfabéticamente primera para que el resultado sea estable.
  * Devuelve `sinPagos` si la venta todavía no tiene pagos registrados.
  */
@@ -96,8 +97,10 @@ export function formaPagoPrincipal(
   sinPagos = "Sin pagos",
 ): string {
   if (pagos.length === 0) return sinPagos;
+  const pagosConFormaConocida = pagos.filter((p) => p.forma_pago !== "no_especificada");
+  const pagosAContabilizar = pagosConFormaConocida.length > 0 ? pagosConFormaConocida : pagos;
   const centavos = new Map<string, number>();
-  for (const p of pagos) {
+  for (const p of pagosAContabilizar) {
     const clave = etiqueta(p);
     centavos.set(clave, (centavos.get(clave) ?? 0) + aCentavos(p.monto_pagado));
   }
