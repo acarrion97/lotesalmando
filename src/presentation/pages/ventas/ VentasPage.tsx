@@ -124,7 +124,7 @@ export function VentasPage() {
           dataSource={filteredData}
           rowKey="id_venta"
           loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
+          pagination={{ defaultPageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} registros` }}
         />
       </Card>
 

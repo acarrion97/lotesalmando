@@ -163,7 +163,7 @@ export function AlertasPage() {
           dataSource={filteredData}
           rowKey="id"
           loading={isLoading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} alertas` }}
+          pagination={{ defaultPageSize: 10, showSizeChanger: true, showTotal: (total) => `Total ${total} alertas` }}
         />
       </Card>
     </div>

@@ -34,7 +34,7 @@ export function DataTable<T extends object>({
         pagination === false
           ? false
           : {
-              pageSize: DEFAULT_PAGE_SIZE,
+              defaultPageSize: DEFAULT_PAGE_SIZE,
               showSizeChanger: true,
               showTotal: (total) => `Total ${total} registros`,
               ...pagination,

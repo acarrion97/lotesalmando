@@ -302,7 +302,7 @@ export function PlataformaPage() {
             },
           }}
           pagination={{
-            pageSize: 10,
+            defaultPageSize: 10,
             showSizeChanger: true,
             showTotal: (total) => `Total ${total} empresas`,
           }}

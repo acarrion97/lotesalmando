@@ -712,7 +712,7 @@ export function LotesPage() {
             rowKey="id_lote"
             loading={loadingFilteredData}
             pagination={{
-              pageSize: 10,
+              defaultPageSize: 10,
               showSizeChanger: true,
               pageSizeOptions: ["10", "20", "50"],
               showTotal: (total) => (
