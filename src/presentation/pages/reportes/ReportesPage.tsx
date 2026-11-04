@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Col,
+  Input,
   Row,
   Select,
   Space,
@@ -15,7 +16,7 @@ import {
   message,
 } from "antd";
 import type { TableColumnType } from "antd";
-import { DownloadOutlined, FilePdfOutlined } from "@ant-design/icons";
+import { DownloadOutlined, FilePdfOutlined, SearchOutlined } from "@ant-design/icons";
 import {
   useAsesores,
   useClientes,
@@ -105,6 +106,17 @@ const FORMA_PAGO_LABEL: Record<string, string> = {
 /** Etiqueta legible de la forma de pago de un pago; sin dato => "No especificada". */
 const etiquetaFormaPago = (p: { forma_pago?: string }): string =>
   FORMA_PAGO_LABEL[p.forma_pago ?? "no_especificada"] ?? "Otro";
+
+const normalizarBusqueda = (valor: string): string =>
+  valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+
+const coincideBusqueda = (busqueda: string, ...valores: unknown[]): boolean => {
+  const termino = normalizarBusqueda(busqueda.trim());
+  return (
+    termino.length === 0 ||
+    valores.some((valor) => normalizarBusqueda(String(valor ?? "")).includes(termino))
+  );
+};
 
 interface ReporteListo {
   base: string;
@@ -210,6 +222,7 @@ export function ReportesPage() {
   const [filtroFechas, setFiltroFechas] = useState<FiltroFechas>(FILTRO_FECHAS_INICIAL);
   const [idProyecto, setIdProyecto] = useState<number | undefined>();
   const [idAsesor, setIdAsesor] = useState<number | undefined>();
+  const [busquedasReporte, setBusquedasReporte] = useState<Record<string, string>>({});
 
   // ---- Resolución de nombres: lote -> manzana -> etapa -> proyecto ----
   const mapas = useMemo(() => {
@@ -457,6 +470,90 @@ export function ReportesPage() {
         meses,
       ),
     [asesores, idAsesor, prospectosFiltrados, cotizaciones, ventasFiltradas, meses],
+  );
+
+  const coincideEnReporte = (reporte: string, ...valores: unknown[]) =>
+    coincideBusqueda(busquedasReporte[reporte] ?? "", ...valores);
+  // La búsqueda por persona/lote se aplica a los detalles; los agregados se
+  // conservan para que sus resúmenes no desaparezcan por una búsqueda ajena.
+  const mensualVentasVisible = mensual;
+  const ventasPorFormaPagoVisible = ventasPorFormaPago;
+  const cuotasRealizadasVisible = cuotasRealizadas.filter((c) =>
+    coincideEnReporte(
+      "ventas",
+      c.idCobranza,
+      c.cliente,
+      infoDeCobranza(c.idCobranza)?.cedula,
+      c.lote,
+      c.numeroCuota,
+      c.fechaVencimiento,
+      c.montoCuota,
+      c.pagado,
+      c.saldo,
+      c.formaPago,
+      c.ultimoPago,
+      c.estado,
+    ),
+  );
+  const ventasReporteVisible = ventasFiltradas.filter((v) => {
+    const pagosVenta = pagosDeVenta(v.id_venta);
+    const cliente = mapas.cliente.get(v.id_cliente);
+    return coincideEnReporte(
+      "ventas",
+      v.id_venta,
+      v.created_at,
+      v.created_at ? diaEnEmpresa(v.created_at) : "",
+      cliente?.nombres ?? `Cliente #${v.id_cliente}`,
+      cliente?.cedula_ruc,
+      cliente?.email,
+      cliente?.telefono,
+      etiquetaLote(v.id_lote),
+      nombreProyectoDeLote(v.id_lote),
+      v.id_asesor == null ? "" : mapas.asesor.get(v.id_asesor)?.nombre_comercial,
+      v.precio_final,
+      formaPagoPrincipal(pagosVenta, etiquetaFormaPago),
+      v.estado,
+    );
+  });
+  const antiguedadVisible = antiguedad;
+  const cuotasVencidasVisible = cuotasVencidas.filter((c) => {
+    const info = infoDeCobranza(c.id_cobranza);
+    return coincideEnReporte(
+      "cartera",
+      c.id_cobranza,
+      info?.cliente,
+      info?.cedula,
+      info?.lote,
+      c.numero_cuota,
+      c.fecha_vencimiento,
+      c.monto_cuota,
+      c.diasMora,
+    );
+  });
+  const pagosPorMesVisible = pagosPorMes;
+  const pagosPorFormaVisible = pagosPorForma;
+  const inventarioVisible = inventario.filter((f) =>
+    coincideEnReporte(
+      "inventario",
+      f.proyecto,
+      f.total,
+      ...ESTADOS_LOTE.flatMap(({ key, label }) => [label, f.porEstado[key]]),
+      f.valorDisponible,
+      f.avanceVentas,
+    ),
+  );
+  const embudoVisible = embudo;
+  const desempenoVisible = desempeno.filter((a) =>
+    coincideEnReporte(
+      "comercial",
+      a.asesor,
+      a.prospectos,
+      a.cotizaciones,
+      a.ventas,
+      a.montoVendido,
+      a.metaMensual,
+      a.cumplimientoMeta,
+    ),
   );
 
   // ---- Columnas ----
@@ -911,14 +1008,37 @@ export function ReportesPage() {
   );
 
   const tab = (
+    reporte: string,
     kpis: React.ReactNode,
     exportador: () => ReporteListo,
     vacio: boolean,
     contenido: React.ReactNode,
+    mostrarBuscador = true,
   ) => (
     <Space direction="vertical" size="middle" style={{ width: "100%" }}>
       <Row gutter={[12, 12]}>{kpis}</Row>
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        {mostrarBuscador && (
+          <Input
+            prefix={<SearchOutlined />}
+            placeholder="Buscar en este reporte..."
+            aria-label={`Buscar en el reporte de ${reporte}`}
+            value={busquedasReporte[reporte] ?? ""}
+            onChange={(e) =>
+              setBusquedasReporte((actual) => ({ ...actual, [reporte]: e.target.value }))
+            }
+            allowClear
+            style={{ width: 300, maxWidth: "100%" }}
+          />
+        )}
         <BotonesExportar generar={exportador} contextoPdf={contextoPdf} disabled={vacio} />
       </div>
       {contenido}
@@ -966,6 +1086,7 @@ export function ReportesPage() {
             key: "ventas",
             label: "Ventas",
             children: tab(
+              "ventas",
               <>
                 {kpi("Ventas", resumenVentas.cantidad)}
                 {kpi("Monto vendido", formatCurrency(resumenVentas.montoVendido), "#52c41a")}
@@ -985,14 +1106,14 @@ export function ReportesPage() {
                 <DataTable
                   title={() => "Ventas por mes"}
                   columns={colsMes}
-                  dataSource={mensual}
+                  dataSource={mensualVentasVisible}
                   rowKey="mes"
                   pagination={false}
                 />
                 <DataTable
                   title={() => "Ventas por forma de pago"}
                   columns={colsVentasPorForma}
-                  dataSource={ventasPorFormaPago}
+                  dataSource={ventasPorFormaPagoVisible}
                   rowKey="clave"
                   pagination={false}
                   summary={() => (
@@ -1027,14 +1148,25 @@ export function ReportesPage() {
                     </Table.Summary.Row>
                   )}
                 />
+                <Input
+                  prefix={<SearchOutlined />}
+                  placeholder="Buscar en cuotas realizadas y ventas..."
+                  aria-label="Buscar en cuotas realizadas y ventas"
+                  value={busquedasReporte.ventas ?? ""}
+                  onChange={(e) =>
+                    setBusquedasReporte((actual) => ({ ...actual, ventas: e.target.value }))
+                  }
+                  allowClear
+                  style={{ width: 300, maxWidth: "100%" }}
+                />
                 <DataTable
-                  title={() => `Cuotas realizadas (${cuotasRealizadas.length})`}
+                  title={() => `Cuotas realizadas (${cuotasRealizadasVisible.length})`}
                   columns={colsCuotasRealizadas}
-                  dataSource={cuotasRealizadas}
+                  dataSource={cuotasRealizadasVisible}
                   rowKey="idCobranza"
                   expandable={{ expandedRowRender: (c) => detalleCuotaRealizada(c) }}
                   summary={(paginas) => {
-                    const totales = (paginas.length ? paginas : cuotasRealizadas).reduce(
+                    const totales = (paginas.length ? paginas : cuotasRealizadasVisible).reduce(
                       (acc, c) => ({
                         montoCuota: acc.montoCuota + aCentavos(c.montoCuota),
                         pagado: acc.pagado + aCentavos(c.pagado),
@@ -1069,18 +1201,22 @@ export function ReportesPage() {
                   }}
                 />
                 <DataTable
-                  title={() => "Detalle de ventas"}
+                  title={() =>
+                    `Detalle de ventas${busquedasReporte.ventas?.trim() ? ` (${ventasReporteVisible.length} de ${ventasFiltradas.length})` : ""}`
+                  }
                   columns={colsVentas}
-                  dataSource={ventasFiltradas}
+                  dataSource={ventasReporteVisible}
                   rowKey="id_venta"
                 />
               </>,
+              false,
             ),
           },
           {
             key: "cartera",
             label: "Cartera y mora",
             children: tab(
+              "cartera",
               <>
                 {kpi("Cuotas por cobrar", cuotas.length)}
                 {kpi("Monto por cobrar", formatCurrency(montoCartera))}
@@ -1104,14 +1240,14 @@ export function ReportesPage() {
                 <DataTable
                   title={() => "Antigüedad de saldos"}
                   columns={colsAntiguedad}
-                  dataSource={antiguedad}
+                  dataSource={antiguedadVisible}
                   rowKey="tramo"
                   pagination={false}
                 />
                 <DataTable
                   title={() => "Cuotas en mora"}
                   columns={colsMora}
-                  dataSource={cuotasVencidas}
+                  dataSource={cuotasVencidasVisible}
                   rowKey="id_cobranza"
                 />
               </>,
@@ -1121,6 +1257,7 @@ export function ReportesPage() {
             key: "recaudacion",
             label: "Recaudación",
             children: tab(
+              "recaudacion",
               <>
                 {kpi("Pagos recibidos", pagosFiltrados.length)}
                 {kpi("Monto recaudado", formatCurrency(totalPagos(pagosFiltrados)), "#52c41a")}
@@ -1134,7 +1271,7 @@ export function ReportesPage() {
                     <DataTable
                       title={() => "Por mes"}
                       columns={colsAgrupado("Mes")}
-                      dataSource={pagosPorMes}
+                      dataSource={pagosPorMesVisible}
                       rowKey="clave"
                       pagination={false}
                     />
@@ -1143,7 +1280,7 @@ export function ReportesPage() {
                     <DataTable
                       title={() => "Por forma de pago"}
                       columns={colsAgrupado("Forma de pago")}
-                      dataSource={pagosPorForma}
+                      dataSource={pagosPorFormaVisible}
                       rowKey="clave"
                       pagination={false}
                     />
@@ -1156,6 +1293,7 @@ export function ReportesPage() {
             key: "inventario",
             label: "Inventario",
             children: tab(
+              "inventario",
               <>
                 {kpi(
                   "Lotes",
@@ -1183,7 +1321,7 @@ export function ReportesPage() {
                 )}
                 <DataTable
                   columns={colsInventario}
-                  dataSource={inventario}
+                  dataSource={inventarioVisible}
                   rowKey="proyecto"
                   pagination={false}
                 />
@@ -1194,6 +1332,7 @@ export function ReportesPage() {
             key: "comercial",
             label: "Comercial",
             children: tab(
+              "comercial",
               <>
                 {kpi("Prospectos", prospectosFiltrados.length)}
                 {kpi(
@@ -1228,14 +1367,14 @@ export function ReportesPage() {
                       render: (v: number) => `${v}%`,
                     },
                   ]}
-                  dataSource={embudo}
+                  dataSource={embudoVisible}
                   rowKey="estado"
                   pagination={false}
                 />
                 <DataTable
                   title={() => "Desempeño por asesor"}
                   columns={colsAsesor}
-                  dataSource={desempeno}
+                  dataSource={desempenoVisible}
                   rowKey={(f) => f.id_asesor ?? "sin"}
                   pagination={false}
                 />
