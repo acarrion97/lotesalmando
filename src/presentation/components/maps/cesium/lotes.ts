@@ -1,4 +1,4 @@
-import type { Cartesian3, Entity, Viewer } from "cesium";
+import type { Entity, Viewer } from "cesium";
 import type { PlanoLote } from "@/domain/mapa/entities";
 import { ESTILO_ESTADO_PLANO } from "../estilosEstadoLote";
 import type { LimitesGeo } from "../georef";
@@ -10,15 +10,6 @@ export type EntidadesLoteCesium = Map<number, Entity>;
 
 export function idEntidadLote(idLote: number): string {
   return `lote:${idLote}`;
-}
-
-function distanciaMaximaEtiqueta(cesium: MotorCesium, posiciones: readonly Cartesian3[]): number {
-  const lados = posiciones.map((posicion, index) =>
-    cesium.Cartesian3.distance(posicion, posiciones[(index + 1) % posiciones.length]),
-  );
-  const ladoMenor = Math.min(...lados.filter((distancia) => distancia > 0));
-  if (!Number.isFinite(ladoMenor)) return 150;
-  return Math.min(1500, Math.max(30, ladoMenor * 12));
 }
 
 export function actualizarEntidadesLote(
@@ -37,7 +28,6 @@ export function actualizarEntidadesLote(
     const coordenadas = poligonoAWgs84(lote.poligono, limites);
     const posiciones = cesium.Cartesian3.fromDegreesArray(coordenadas.flat());
     const centro = centroide(coordenadas);
-    const distanciaEtiquetas = distanciaMaximaEtiqueta(cesium, posiciones);
     const estilo = ESTILO_ESTADO_PLANO[lote.estado] ?? ESTILO_ESTADO_PLANO.disponible;
     const color = cesium.Color.fromCssColorString(estilo.color);
     const alpha = Math.max(estilo.fillOpacity, 0.18);
@@ -56,6 +46,7 @@ export function actualizarEntidadesLote(
         heightReference: cesium.HeightReference.CLAMP_TO_GROUND,
       }),
       label: new cesium.LabelGraphics({
+        show: false,
         text: lote.numero_lote,
         font: "12px sans-serif",
         style: cesium.LabelStyle.FILL_AND_OUTLINE,
@@ -64,7 +55,6 @@ export function actualizarEntidadesLote(
         outlineWidth: 3,
         showBackground: true,
         backgroundColor: cesium.Color.BLACK.withAlpha(0.65),
-        distanceDisplayCondition: new cesium.DistanceDisplayCondition(0, distanciaEtiquetas),
         disableDepthTestDistance: Number.POSITIVE_INFINITY,
         heightReference: cesium.HeightReference.CLAMP_TO_GROUND,
       }),

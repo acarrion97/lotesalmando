@@ -50,6 +50,7 @@ interface Visor3DProps {
   /** Alto máximo del visor (px). */
   alturaMaxima?: number;
   mostrarEtiquetas?: boolean;
+  zoomMinimoEtiquetas?: number;
 }
 
 interface Hover {
@@ -105,6 +106,7 @@ export function Visor3D({
   onImagenError,
   alturaMaxima,
   mostrarEtiquetas = true,
+  zoomMinimoEtiquetas = 16,
 }: Visor3DProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [medida, setMedida] = useState<{ url: string; w: number; h: number } | null>(null);
@@ -455,7 +457,11 @@ export function Visor3D({
             }}
           />
         ) : capaActiva === "aerea" && limites ? (
-          <CapaSatelite limites={limites} mostrarEtiquetas={mostrarEtiquetas} />
+          <CapaSatelite
+            limites={limites}
+            mostrarEtiquetas={mostrarEtiquetas}
+            zoomMinimoEtiquetas={zoomMinimoEtiquetas}
+          />
         ) : (
           <img
             src={imagenUrl}

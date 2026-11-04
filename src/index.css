@@ -81,3 +81,6 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--lam-text-tertiary);
 }
+.cesium-widget-credits {
+  display: none !important;
+}

@@ -74,6 +74,7 @@ interface VisorCesiumProps {
   onLoteClick?: (lote: PlanoLote) => void;
   loteSeleccionadoId?: number | null;
   mostrarEtiquetas: boolean;
+  zoomMinimoEtiquetas: number;
   /**
    * Refresco de datos (tarea 5.4): el tick del proveedor le pide al padre que
    * reconsulte por sus hooks existentes. Los lotes llegan como props y se
@@ -135,6 +136,19 @@ function volarALote(
   });
 }
 
+function zoomDeCamara(viewer: Viewer): number | null {
+  const frustum = viewer.camera.frustum;
+  if (!("fovy" in frustum) || typeof frustum.fovy !== "number") return null;
+  const alturaVista = viewer.canvas.clientHeight;
+  const alturaCamara = viewer.camera.positionCartographic.height;
+  if (alturaVista <= 0 || alturaCamara <= 0) return null;
+  const latitud = viewer.camera.positionCartographic.latitude;
+  const metrosPorPixel =
+    (2 * alturaCamara * Math.tan(frustum.fovy / 2)) / alturaVista;
+  const resolucionZoomCero = 156543.03392 * Math.max(Math.cos(latitud), 0.01);
+  return Math.log2(resolucionZoomCero / metrosPorPixel);
+}
+
 export function VisorCesium({
   limites,
   altura,
@@ -142,6 +156,7 @@ export function VisorCesium({
   onLoteClick,
   loteSeleccionadoId = null,
   mostrarEtiquetas,
+  zoomMinimoEtiquetas,
   onRefrescarDatos,
 }: VisorCesiumProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -507,11 +522,44 @@ export function VisorCesium({
         }),
       ),
     );
+    const actualizarVisibilidad = () => {
+      const zoom = zoomDeCamara(viewer);
+      if (zoom === null) return;
+      const visibles = zoom >= zoomMinimoEtiquetas;
+      capas.forEach((capa) => {
+        capa.show = visibles;
+      });
+    };
+    actualizarVisibilidad();
+    viewer.camera.changed.addEventListener(actualizarVisibilidad);
     return () => {
       if (viewer.isDestroyed()) return;
+      viewer.camera.changed.removeEventListener(actualizarVisibilidad);
       capas.forEach((capa) => viewer.imageryLayers.remove(capa, true));
     };
-  }, [cargando, capaBase, mostrarEtiquetas]);
+  }, [cargando, capaBase, mostrarEtiquetas, zoomMinimoEtiquetas]);
+
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    const motor = motorRef.current;
+    if (cargando || !viewer || !motor || viewer.isDestroyed()) return;
+
+    const actualizarVisibilidad = () => {
+      const zoom = zoomDeCamara(viewer);
+      const visibles =
+        mostrarEtiquetas && zoom !== null && zoom >= zoomMinimoEtiquetas;
+      for (const entidad of entidadesLoteRef.current.values()) {
+        if (entidad.label) entidad.label.show = new motor.ConstantProperty(visibles);
+      }
+    };
+    actualizarVisibilidad();
+    viewer.camera.changed.addEventListener(actualizarVisibilidad);
+    return () => {
+      if (!viewer.isDestroyed()) {
+        viewer.camera.changed.removeEventListener(actualizarVisibilidad);
+      }
+    };
+  }, [cargando, lotes, mostrarEtiquetas, zoomMinimoEtiquetas]);
 
   // Tarea 5.1: la hora del día gobierna el reloj del Viewer. Con
   // `globe.enableLighting` encendido, el instante del reloj es lo que decide
@@ -753,7 +801,7 @@ export function VisorCesium({
           color: "#595959",
           fontSize: 11,
           pointerEvents: "none",
-          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)",
+          boxShadow: "0 2px 8px rgba(0, 0, 0, 0.12)"
         }}
       >
         Arrastrá para girar · rueda para acercar

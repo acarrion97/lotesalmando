@@ -15,6 +15,7 @@ import {
 interface CapaSateliteProps {
   limites: LimitesGeo;
   mostrarEtiquetas?: boolean;
+  zoomMinimoEtiquetas?: number;
 }
 
 const ATRIBUCION = "Esri · Maxar · Earthstar Geographics";
@@ -175,7 +176,11 @@ function TileEtiquetas({ zoom, x, y, left, top }: TileEtiquetasProps) {
  * Se mide sola (ResizeObserver) para poder vivir dentro del visor del plano
  * o bajo la escena 3D sin que el caller tenga que pasarle tamaños.
  */
-export function CapaSatelite({ limites, mostrarEtiquetas = true }: CapaSateliteProps) {
+export function CapaSatelite({
+  limites,
+  mostrarEtiquetas = true,
+  zoomMinimoEtiquetas = 16,
+}: CapaSateliteProps) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [ancho, setAncho] = useState(0);
   const [densidad, setDensidad] = useState(1);
@@ -265,6 +270,8 @@ export function CapaSatelite({ limites, mostrarEtiquetas = true }: CapaSateliteP
     ? `${rejilla.zoom}:${rejilla.tiles.map(({ x, y }) => `${x}/${y}`).join(",")}`
     : null;
   const escala = rejilla && rejilla.anchoPx > 0 ? ancho / rejilla.anchoPx : 1;
+  const etiquetasVisibles =
+    mostrarEtiquetas && !!rejilla && rejilla.zoom >= zoomMinimoEtiquetas;
 
   useEffect(() => {
     if (!rejilla || claveDisponibilidad === null) return;
@@ -331,7 +338,7 @@ export function CapaSatelite({ limites, mostrarEtiquetas = true }: CapaSateliteP
               disponibilidadInicial={tilesDisponibles.get(`${tile.x}/${tile.y}`)}
             />
           ))}
-          {mostrarEtiquetas &&
+          {etiquetasVisibles &&
             rejilla.tiles.map((tile) => (
               <TileEtiquetas
                 key={`${rejilla.zoom}-${tile.x}-${tile.y}-etiquetas`}
@@ -391,7 +398,7 @@ export function CapaSatelite({ limites, mostrarEtiquetas = true }: CapaSateliteP
           pointerEvents: "none",
         }}
       >
-        {mostrarEtiquetas ? `${ATRIBUCION} · ${ATRIBUCION_ETIQUETAS}` : ATRIBUCION}
+        {etiquetasVisibles ? `${ATRIBUCION} · ${ATRIBUCION_ETIQUETAS}` : ATRIBUCION}
       </div>
     </div>
   );

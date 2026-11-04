@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from "react";
-import { Empty, Segmented, Switch, Tooltip, Typography } from "antd";
+import { Empty, Segmented, Slider, Switch, Tooltip, Typography } from "antd";
 import type { ReactNode } from "react";
 import {
   AppstoreOutlined,
@@ -98,6 +98,7 @@ export function VisorMapaModos({
   const modoActivo: ModoMapa = dibujo ? "plano" : modo;
   const alto = alturaMaxima ?? Math.max(360, window.innerHeight - 260);
   const [mostrarEtiquetas, setMostrarEtiquetas] = useState(true);
+  const [zoomMinimoEtiquetas, setZoomMinimoEtiquetas] = useState(18);
 
   // La proporción de la imagen gobierna la ventana geográfica que cubre la
   // capa satélite; se mide con una imagen de carga (misma URL: un solo
@@ -186,18 +187,41 @@ export function VisorMapaModos({
           })}
         />
         {ubicacion && ["satelite", "3d", "cesium", "render"].includes(modoActivo) && (
-          <label
-            title="Esri solo muestra los nombres publicados para esta zona y escala; algunas teselas no contienen etiquetas."
-            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-          >
-            <Switch
-              size="small"
-              checked={mostrarEtiquetas}
-              onChange={setMostrarEtiquetas}
-              aria-label="Mostrar etiquetas del mapa"
-            />
-            <Text>Etiquetas</Text>
-          </label>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <label
+              title="Esri solo muestra los nombres publicados para esta zona y escala; algunas teselas no contienen etiquetas."
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <Switch
+                size="small"
+                checked={mostrarEtiquetas}
+                onChange={setMostrarEtiquetas}
+                aria-label="Mostrar etiquetas del mapa"
+              />
+              <Text>Etiquetas</Text>
+            </label>
+            {["satelite", "3d", "cesium"].includes(modoActivo) && (
+              <label
+                title="Las etiquetas aparecerán cuando el nivel de zoom del mapa alcance este valor."
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                <Text type="secondary" style={{ whiteSpace: "nowrap" }}>
+                  Desde z{zoomMinimoEtiquetas}
+                </Text>
+                <Slider
+                  min={14}
+                  max={20}
+                  step={1}
+                  value={zoomMinimoEtiquetas}
+                  onChange={setZoomMinimoEtiquetas}
+                  disabled={!mostrarEtiquetas}
+                  aria-label="Nivel de zoom mínimo para mostrar etiquetas"
+                  tooltip={{ formatter: (valor) => (valor == null ? "" : `Zoom ${valor}`) }}
+                  style={{ width: 130, margin: "4px 0" }}
+                />
+              </label>
+            )}
+          </div>
         )}
         {acciones}
       </div>
@@ -212,6 +236,7 @@ export function VisorMapaModos({
           resaltados={resaltados}
           mostrarPrecio={mostrarPrecio}
           mostrarEtiquetas={mostrarEtiquetas}
+          zoomMinimoEtiquetas={zoomMinimoEtiquetas}
           onImagenError={onImagenError}
           alturaMaxima={alto}
         />
@@ -238,6 +263,7 @@ export function VisorMapaModos({
             resaltados={resaltados}
             mostrarPrecio={mostrarPrecio}
             mostrarEtiquetas={mostrarEtiquetas}
+            zoomMinimoEtiquetas={zoomMinimoEtiquetas}
             onImagenError={onImagenError}
             alturaMaxima={alto}
           />
@@ -258,6 +284,7 @@ export function VisorMapaModos({
             loteSeleccionadoId={loteSeleccionadoId}
             onRefrescarDatos={onRefrescarLotes}
             mostrarEtiquetas={mostrarEtiquetas}
+            zoomMinimoEtiquetas={zoomMinimoEtiquetas}
           />
         </Suspense>
       ) : modoActivo === "cesium" ? (
@@ -322,7 +349,11 @@ export function VisorMapaModos({
           alturaMaxima={alto}
           capaBase={
             modoActivo === "satelite" && limites ? (
-              <CapaSatelite limites={limites} mostrarEtiquetas={mostrarEtiquetas} />
+              <CapaSatelite
+                limites={limites}
+                mostrarEtiquetas={mostrarEtiquetas}
+                zoomMinimoEtiquetas={zoomMinimoEtiquetas}
+              />
             ) : undefined
           }
           mostrarImagen={modoActivo !== "satelite"}
