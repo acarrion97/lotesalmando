@@ -208,12 +208,20 @@ function createMockRepositories(): Repositories {
   const reciboRepo = new MockReciboRepository();
   const empresaRepo = new MockEmpresaRepository();
   const proyectoRepo = new MockProyectoRepository();
-  const clienteRepo = new MockClienteRepository();
   const manzanaRepo = new MockManzanaRepository();
   const etapaRepo = new MockEtapaRepository();
   const configuracionContratoRepo = new MockConfiguracionContratoRepository();
   const configuracionPagosRepo = new MockConfiguracionPagosRepository();
   const comprobanteRepo = new MockComprobanteRepository();
+  const clienteRepo = new MockClienteRepository(
+    cotizacionRepo,
+    saleRepo,
+    contractRepo,
+    cobranzaRepo,
+    pagoRepo,
+    reciboRepo,
+    comprobanteRepo,
+  );
   const inventarioRepo = new MockInventarioRepository();
   const aceptarCotizacion = new MockAceptarCotizacion(
     cotizacionRepo,

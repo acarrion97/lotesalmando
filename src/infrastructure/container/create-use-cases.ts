@@ -350,10 +350,8 @@ export function createUseCases(repos: Repositories): UseCases {
     updateCliente: new UpdateClienteUseCase(repos.clienteRepo),
     deleteCliente: new DeleteClienteUseCase(
       repos.clienteRepo,
-      repos.cotizacionRepo,
-      repos.saleRepo,
-      repos.contractRepo,
-      repos.cobranzaRepo,
+      repos.comprobanteStorage,
+      repos.documentoContratoStorage,
     ),
     materializarClienteReserva: new MaterializarClienteReservaUseCase(repos.clienteRepo),
     getCotizaciones: new GetCotizacionesUseCase(repos.cotizacionRepo),

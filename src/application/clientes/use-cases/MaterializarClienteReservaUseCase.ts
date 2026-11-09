@@ -1,5 +1,6 @@
 import type { Cliente } from "@/domain/cliente/entities";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
+import { normalizarIdentificacion } from "@/domain/cliente/normalizarIdentificacion";
 
 /** Snapshot del cliente capturado al reservar, guardado en la oportunidad. */
 export interface DatosClienteReserva {
@@ -35,11 +36,15 @@ export class MaterializarClienteReservaUseCase {
       throw new Error("Faltan los datos del cliente de la reserva");
     }
 
-    const clientes = await this.clienteRepo.getAll();
+    const clientes =
+      datos.id_empresa === null
+        ? await this.clienteRepo.getAll()
+        : await this.clienteRepo.getByEmpresaId(datos.id_empresa);
     const existente = clientes.find(
       (c) =>
         (datos.id_empresa === null || c.id_empresa === datos.id_empresa) &&
-        ((cedula !== "" && c.cedula_ruc === cedula) ||
+        ((cedula !== "" &&
+          normalizarIdentificacion(c.cedula_ruc) === normalizarIdentificacion(cedula)) ||
           (email !== "" && (c.email ?? "").toLowerCase() === email)),
     );
     if (existente) return existente;

@@ -17,6 +17,10 @@ export class MockComprobanteRepository implements ComprobanteRepository {
     return (await this.getAll()).filter((c) => c.id_cobranza === cobranzaId);
   }
 
+  async getByClienteId(clienteId: number): Promise<Comprobante[]> {
+    return this.data.filter((c) => c.id_cliente === clienteId);
+  }
+
   async getById(id: number): Promise<Comprobante | null> {
     return this.data.find((c) => c.id_comprobante === id) ?? null;
   }
@@ -37,5 +41,9 @@ export class MockComprobanteRepository implements ComprobanteRepository {
     };
     this.data[index] = actualizado;
     return actualizado;
+  }
+
+  async deleteByClienteId(clienteId: number): Promise<void> {
+    this.data = this.data.filter((c) => c.id_cliente !== clienteId);
   }
 }

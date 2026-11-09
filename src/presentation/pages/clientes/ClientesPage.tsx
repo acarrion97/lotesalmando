@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { Alert, Button, Space, Input, Modal, Form, Descriptions, message } from "antd";
+import { Alert, Button, Space, Input, Modal, Form, Descriptions, message, Tooltip } from "antd";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined, MailOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos, useContratos, useCobranzas } from "@/presentation/hooks";
+import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos, useContratos } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
-import { useEmpresa } from "@/presentation/providers";
+import { useAuth, useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { getContainer } from "@/infrastructure/container";
 import { clienteSchema } from "@/presentation/validations";
@@ -24,6 +24,7 @@ interface ModalState {
 
 export function ClientesPage() {
   const { empresaActual } = useEmpresa();
+  const { user } = useAuth();
   const empresaId = empresaActual?.id_empresa ?? 0;
   const { data: clientes, isLoading } = useClientes(empresaId);
   const { data: cotizaciones, isLoading: loadingCotizaciones } = useCotizaciones();
@@ -33,13 +34,14 @@ export function ClientesPage() {
   const { data: etapas, isLoading: loadingEtapas } = useEtapas();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: contratos, isLoading: loadingContratos } = useContratos();
-  const { data: cobranzas, isLoading: loadingCobranzas } = useCobranzas();
   const [searchText, setSearchText] = useState("");
   const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const [deleteForm] = Form.useForm<{ motivo: string }>();
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const queryClient = useQueryClient();
   const container = getContainer();
@@ -73,31 +75,7 @@ export function ClientesPage() {
   );
   const [soloSinEmail, setSoloSinEmail] = useState(false);
 
-  // Un cliente solo se puede eliminar si NO tiene cuotas asignadas. No hay
-  // relación directa cliente↔cobranza: las cuotas nacen de los contratos de
-  // las ventas del cliente (cliente → ventas → contratos → cobranzas), así
-  // que se recorre esa cadena para armar el conjunto de clientes bloqueados.
-  // Las cotizaciones y ventas sin cuotas sí se borran, junto con el cliente
-  // (`DeleteClienteUseCase` repite esta verificación antes de tocar la BD).
-  const idsClientesConCuotas = useMemo(() => {
-    const clientePorVenta = new Map<number, number>();
-    for (const v of ventas ?? []) clientePorVenta.set(v.id_venta, v.id_cliente);
-
-    const ventaPorContrato = new Map<number, number>();
-    for (const c of contratos ?? []) ventaPorContrato.set(c.id_contrato, c.id_venta);
-
-    const ids = new Set<number>();
-    for (const cob of cobranzas ?? []) {
-      const idVenta = ventaPorContrato.get(cob.id_contrato);
-      if (idVenta === undefined) continue;
-      const idCliente = clientePorVenta.get(idVenta);
-      if (idCliente !== undefined) ids.add(idCliente);
-    }
-    return ids;
-  }, [ventas, contratos, cobranzas]);
-
-  // Lo que se arrastra al borrar: el modal lo muestra para que no haya
-  // sorpresas (solo filas sin cuotas; las de con cuotas ni llegan acá).
+  // El resumen y el motivo se guardan en la auditoría antes del borrado en cascada.
   const historialDelCliente = useMemo(() => {
     const record = modal.type === "delete" ? modal.record : null;
     if (!record) return null;
@@ -135,6 +113,7 @@ export function ClientesPage() {
   const closeModal = () => {
     setModal({ type: null, visible: false, record: null });
     editForm.resetFields();
+    deleteForm.resetFields();
   };
 
   const handleEdit = async () => {
@@ -156,21 +135,34 @@ export function ClientesPage() {
     if (!modal.record) return;
 
     try {
-      await container.deleteCliente.execute(modal.record.id_cliente);
+      if (!user?.id_usuario) throw new Error("No se pudo identificar al usuario que realiza la eliminación");
+      const { motivo } = await deleteForm.validateFields();
+      setEliminando(true);
+      const resultado = await container.deleteCliente.execute(
+        modal.record.id_cliente,
+        motivo.trim(),
+        user.id_usuario,
+      );
       await refreshClientes();
-      // El borrado arrastra cotizaciones, ventas y contratos: hay que
-      // refrescarlos para que la tabla de acciones y los selectores no
-      // muestren filas que ya no existen.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["cotizaciones"] }),
         queryClient.invalidateQueries({ queryKey: inventoryKeys.ventas(empresaId) }),
         queryClient.invalidateQueries({ queryKey: ["contratos", empresaId] }),
         queryClient.invalidateQueries({ queryKey: inventoryKeys.cobranzas(empresaId) }),
+        queryClient.invalidateQueries({ queryKey: inventoryKeys.pagos(empresaId) }),
+        queryClient.invalidateQueries({ queryKey: ["comprobantes"] }),
       ]);
       messageApi.success("Cliente eliminado correctamente");
+      if (resultado.archivosPendientesEliminar > 0) {
+        messageApi.warning(
+          `El cliente fue eliminado, pero ${resultado.archivosPendientesEliminar} archivo(s) adjunto(s) no pudieron borrarse del almacenamiento.`,
+        );
+      }
       closeModal();
     } catch (error) {
       messageApi.error(error instanceof Error ? error.message : "No se pudo eliminar el cliente");
+    } finally {
+      setEliminando(false);
     }
   };
 
@@ -290,9 +282,19 @@ export function ClientesPage() {
           {puedeEditar && (
             <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           )}
-          {puedeEliminar && !idsClientesConCuotas.has(record.id_cliente) && (
-            <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
-          )}
+          <Tooltip title={puedeEliminar ? "Eliminar cliente y todo su historial en cascada" : "Requiere el permiso eliminar_clientes"}>
+            <span>
+              <Button
+                type="link"
+                danger
+                icon={<DeleteOutlined />}
+                disabled={!puedeEliminar}
+                onClick={() => openModal("delete", record)}
+              >
+                Eliminar
+              </Button>
+            </span>
+          </Tooltip>
         </Space>
       ),
     },
@@ -362,13 +364,9 @@ export function ClientesPage() {
         rowKey="id_cliente"
         loading={
           isLoading ||
-          // Las acciones de cada fila dependen de cotizaciones, ventas,
-          // contratos y cuotas (definen si se puede eliminar), así que se
-          // esperan siempre.
           loadingCotizaciones ||
           loadingVentas ||
           loadingContratos ||
-          loadingCobranzas ||
           (proyectoFilter !== null &&
             (loadingLotes ||
               loadingManzanas ||
@@ -431,6 +429,7 @@ export function ClientesPage() {
             name="cedula_ruc"
             label="Cedula / RUC"
             rules={[{ required: true, message: "Ingrese la cedula o RUC" }]}
+            help="No se repite dentro de esta empresa; se ignoran espacios, puntos, guiones y mayúsculas."
           >
             <Input />
           </Form.Item>
@@ -475,6 +474,7 @@ export function ClientesPage() {
             name="cedula_ruc"
             label="Cedula / RUC"
             rules={[{ required: true, message: "Ingrese la cedula o RUC" }]}
+            help="No se repite dentro de esta empresa; se ignoran espacios, puntos, guiones y mayúsculas."
           >
             <Input />
           </Form.Item>
@@ -502,10 +502,16 @@ export function ClientesPage() {
       <Modal
         title="Eliminar Cliente"
         open={modal.visible && modal.type === "delete"}
-        onCancel={closeModal}
+        onCancel={() => {
+          if (!eliminando) closeModal();
+        }}
+        closable={!eliminando}
+        maskClosable={!eliminando}
         onOk={handleDelete}
+        confirmLoading={eliminando}
         okText="Eliminar"
         cancelText="Cancelar"
+        cancelButtonProps={{ disabled: eliminando }}
         okButtonProps={{ danger: true }}
       >
         <p style={{ marginTop: 16 }}>
@@ -516,14 +522,33 @@ export function ClientesPage() {
             type="warning"
             showIcon
             style={{ marginBottom: 8 }}
-            message="Se eliminará también su historial sin cuotas"
-            description={`${historialDelCliente.cotizaciones} cotizacion(es), ${historialDelCliente.ventas} venta(s) y ${historialDelCliente.contratos} contrato(s) que no tienen cuotas asignadas.`}
+            message="Se eliminará permanentemente todo el historial"
+            description={`${historialDelCliente.cotizaciones} cotizacion(es), ${historialDelCliente.ventas} venta(s) y ${historialDelCliente.contratos} contrato(s), además de sus cuotas, pagos, recibos y comprobantes relacionados.`}
           />
         )}
-        <p style={{ color: "#8c8c8c", marginBottom: 0 }}>
-          Los clientes con cuotas asignadas no se pueden eliminar: primero hay que
-          resolver sus cuotas.
-        </p>
+        <Alert
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Esta acción no se puede deshacer"
+          description="Se guardará el cliente y el motivo en la auditoría. Los documentos y comprobantes adjuntos también se eliminarán del almacenamiento."
+        />
+        <Form form={deleteForm} layout="vertical">
+          <Form.Item
+            name="motivo"
+            label="Motivo de eliminación"
+            rules={[
+              {
+                validator: (_, value: string | undefined) =>
+                  (value?.trim().length ?? 0) >= 5
+                    ? Promise.resolve()
+                    : Promise.reject(new Error("Escriba un motivo de al menos 5 caracteres")),
+              },
+            ]}
+          >
+            <Input.TextArea rows={3} maxLength={1000} showCount placeholder="Indique por qué se elimina este cliente" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

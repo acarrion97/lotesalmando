@@ -61,6 +61,7 @@ export class SupabaseComprobanteStorage implements ComprobanteStorage {
 
   async removeByPath(path: string): Promise<void> {
     if (!path) return;
-    await supabase.storage.from(BUCKET).remove([path]);
+    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+    if (error) throw error;
   }
 }

@@ -236,7 +236,14 @@ export function ClienteDeudasModal({
         ) : filas.length === 0 ? (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Este cliente no tiene deudas pendientes"
+            description={
+              <Space direction="vertical" size={4}>
+                <span>Este cliente no tiene deudas pendientes</span>
+                <Text type="secondary">
+                  Las cuotas pagadas no se muestran aquí y se conservan en su historial financiero.
+                </Text>
+              </Space>
+            }
             style={{ margin: "24px 0" }}
           />
         ) : (

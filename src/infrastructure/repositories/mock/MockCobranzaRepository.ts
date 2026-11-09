@@ -26,6 +26,10 @@ export class MockCobranzaRepository implements CobranzaRepository {
     return this.data.filter((c) => c.id_contrato === contratoId);
   }
 
+  async deleteByContratoId(contratoId: number): Promise<void> {
+    this.data = this.data.filter((c) => c.id_contrato !== contratoId);
+  }
+
   async getById(id: number): Promise<Cobranza | null> {
     return this.data.find((c) => c.id_cobranza === id) ?? null;
   }

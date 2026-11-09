@@ -2,6 +2,13 @@ import { supabase } from "@/infrastructure/supabase/client";
 import type { Cliente } from "@/domain/cliente/entities";
 import type { ClienteRepository } from "@/domain/cliente/repositories";
 
+function lanzarErrorCliente(error: { code?: string; message: string }): never {
+  if (error.code === "23505") {
+    throw new Error("Ya existe un cliente con esa cédula o RUC en esta empresa");
+  }
+  throw error;
+}
+
 export class SupabaseClienteRepository implements ClienteRepository {
   async getAll(): Promise<Cliente[]> {
     const { data, error } = await supabase.from("cliente").select("*");
@@ -33,18 +40,43 @@ export class SupabaseClienteRepository implements ClienteRepository {
 
   async create(data: Omit<Cliente, "id_cliente">): Promise<Cliente> {
     const { data: created, error } = await supabase.from("cliente").insert(data).select().single();
-    if (error) throw error;
+    if (error) lanzarErrorCliente(error);
     return created as Cliente;
   }
 
   async update(id: number, data: Partial<Cliente>): Promise<Cliente> {
     const { data: updated, error } = await supabase.from("cliente").update(data).eq("id_cliente", id).select().single();
-    if (error) throw error;
+    if (error) lanzarErrorCliente(error);
     return updated as Cliente;
   }
 
-  async delete(id: number): Promise<void> {
-    const { error } = await supabase.from("cliente").delete().eq("id_cliente", id);
+  async delete(id: number, motivo: string, idUsuario: number) {
+    const { data, error } = await supabase.rpc("eliminar_cliente_en_cascada", {
+      p_id_cliente: id,
+      p_motivo: motivo,
+      p_id_usuario: idUsuario,
+    });
     if (error) throw error;
+    if (!data || typeof data !== "object") {
+      throw new Error("La eliminación del cliente no devolvió resultado");
+    }
+
+    const resultado = data as {
+      documentos_contrato?: unknown;
+      comprobantes?: unknown;
+    };
+    if (
+      !Array.isArray(resultado.documentos_contrato) ||
+      !Array.isArray(resultado.comprobantes) ||
+      !resultado.documentos_contrato.every((path) => typeof path === "string") ||
+      !resultado.comprobantes.every((path) => typeof path === "string")
+    ) {
+      throw new Error("La eliminación del cliente devolvió rutas de archivo inválidas");
+    }
+
+    return {
+      documentosContrato: resultado.documentos_contrato,
+      comprobantes: resultado.comprobantes,
+    };
   }
 }
