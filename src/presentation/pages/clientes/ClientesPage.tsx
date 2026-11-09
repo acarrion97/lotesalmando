@@ -70,6 +70,20 @@ export function ClientesPage() {
   );
   const [soloSinEmail, setSoloSinEmail] = useState(false);
 
+  // Un cliente solo se puede eliminar si no tiene cuotas asignadas. No hay
+  // relación directa cliente↔cobranza: las cuotas nacen de los contratos de
+  // las ventas del cliente (cliente → ventas → contratos → cobranzas), así
+  // que quien tiene cuotas siempre tiene ventas. Además la BD define
+  // ON DELETE RESTRICT sobre `cotizador.id_cliente` y `ventas.id_cliente`,
+  // por lo que también quedan fuera quienes tienen cotizaciones o ventas sin
+  // cuotas todavía: si el botón apareciera, el borrado fallaría igual.
+  const idsClientesConHistorial = useMemo(() => {
+    const ids = new Set<number>();
+    for (const c of cotizaciones ?? []) ids.add(c.id_cliente);
+    for (const v of ventas ?? []) ids.add(v.id_cliente);
+    return ids;
+  }, [cotizaciones, ventas]);
+
   const filteredData = useMemo(() => {
     const base = soloSinEmail ? sinEmail : clientesDelProyecto;
     return base.filter(
@@ -241,7 +255,7 @@ export function ClientesPage() {
           {puedeEditar && (
             <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           )}
-          {puedeEliminar && (
+          {puedeEliminar && !idsClientesConHistorial.has(record.id_cliente) && (
             <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
           )}
         </Space>
@@ -313,10 +327,12 @@ export function ClientesPage() {
         rowKey="id_cliente"
         loading={
           isLoading ||
+          // Las acciones de cada fila dependen de cotizaciones y ventas
+          // (definen si se puede eliminar), así que esperamos ambas siempre.
+          loadingCotizaciones ||
+          loadingVentas ||
           (proyectoFilter !== null &&
-            (loadingCotizaciones ||
-              loadingVentas ||
-              loadingLotes ||
+            (loadingLotes ||
               loadingManzanas ||
               loadingEtapas ||
               loadingProyectos))
