@@ -84,6 +84,12 @@ import { MockRegistrarInteresPublico } from "@/infrastructure/transactions/MockR
 import { SupabaseRegistrarInteresPublico } from "@/infrastructure/transactions/SupabaseRegistrarInteresPublico";
 import { MockConfirmarPagoConRecibo } from "@/infrastructure/transactions/MockConfirmarPagoConRecibo";
 import { SupabaseConfirmarPagoConRecibo } from "@/infrastructure/transactions/SupabaseConfirmarPagoConRecibo";
+import type { ActualizarPagoPort } from "@/application/pagos/ports/ActualizarPago";
+import type { EliminarPagoPort } from "@/application/pagos/ports/EliminarPago";
+import { MockActualizarPago } from "@/infrastructure/transactions/MockActualizarPago";
+import { MockEliminarPago } from "@/infrastructure/transactions/MockEliminarPago";
+import { SupabaseActualizarPago } from "@/infrastructure/transactions/SupabaseActualizarPago";
+import { SupabaseEliminarPago } from "@/infrastructure/transactions/SupabaseEliminarPago";
 import { MockEmitirReciboPagoPrevio } from "@/infrastructure/transactions/MockEmitirReciboPagoPrevio";
 import { SupabaseEmitirReciboPagoPrevio } from "@/infrastructure/transactions/SupabaseEmitirReciboPagoPrevio";
 
@@ -145,6 +151,10 @@ export interface Repositories {
    * (RPC 044 en Supabase / misma lógica fiscal en el modo demo).
    */
   emitirReciboPagoPrevio: EmitirReciboPagoPrevioPort;
+  /** Corrección de un pago cargado por equivocación (RPC `editar_pago`). */
+  actualizarPago: ActualizarPagoPort;
+  /** Baja de pagos repetidos con motivo guardado en auditoría (RPC `eliminar_pago`). */
+  eliminarPago: EliminarPagoPort;
   /** Entradas (señas) cobradas al reservar un lote; no apuntan a cuota. */
   entradaRepo: EntradaReservaRepository;
   usuarioRepo: UsuarioRepository;
@@ -247,6 +257,9 @@ function createMockRepositories(): Repositories {
     empresaRepo,
   );
 
+  const actualizarPago = new MockActualizarPago(cobranzaRepo, pagoRepo, reciboRepo);
+  const eliminarPago = new MockEliminarPago(cobranzaRepo, pagoRepo, reciboRepo);
+
   const prospectoRepo: ProspectoRepository = {
     getAll: async () => [],
     getByEmpresaId: async () => [],
@@ -348,6 +361,8 @@ function createMockRepositories(): Repositories {
     reciboRepo,
     confirmarPagoConRecibo,
     emitirReciboPagoPrevio,
+    actualizarPago,
+    eliminarPago,
     entradaRepo: new MockEntradaReservaRepository(),
     usuarioRepo: new MockUsuarioRepository(),
     aceptarCotizacion,
@@ -395,6 +410,8 @@ function createSupabaseRepositories(): Repositories {
   const reciboRepo = new SupabaseReciboRepository();
   const confirmarPagoConRecibo = new SupabaseConfirmarPagoConRecibo();
   const emitirReciboPagoPrevio = new SupabaseEmitirReciboPagoPrevio();
+  const actualizarPago = new SupabaseActualizarPago();
+  const eliminarPago = new SupabaseEliminarPago();
 
   return {
     empresaRepo: new SupabaseEmpresaRepository(),
@@ -411,6 +428,8 @@ function createSupabaseRepositories(): Repositories {
     reciboRepo,
     confirmarPagoConRecibo,
     emitirReciboPagoPrevio,
+    actualizarPago,
+    eliminarPago,
     entradaRepo: new SupabaseEntradaReservaRepository(),
     usuarioRepo: new SupabaseUsuarioRepository(),
     inventarioRepo: new SupabaseInventarioRepository(),

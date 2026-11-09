@@ -1,6 +1,13 @@
 import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, Space } from "antd";
-import { PlusOutlined, EyeOutlined, DollarOutlined, FileTextOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  EyeOutlined,
+  DollarOutlined,
+  FileTextOutlined,
+  EditOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import {
   usePagos,
@@ -13,8 +20,14 @@ import {
   useDescargarRecibo,
   useEmitirReciboPagoPrevio,
   useProyectos,
+  usePuede,
 } from "@/presentation/hooks";
-import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
+import {
+  RegistrarPagoModal,
+  EditarPagoModal,
+  EliminarPagoModal,
+  type CobranzaAPagar,
+} from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
@@ -33,6 +46,17 @@ type PagoRow = {
   id_usuario: number;
   monto_pagado: number;
   fecha_pago: string;
+  forma_pago?: string;
+};
+
+/** Etiquetas de las formas de pago válidas para mostrar en el detalle. */
+const formasPago: Record<string, string> = {
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  deposito: "Depósito",
+  tarjeta: "Tarjeta",
+  cheque: "Cheque",
+  otro: "Otro",
 };
 
 export function PagosPage() {
@@ -62,6 +86,26 @@ export function PagosPage() {
     record: null,
   });
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const puedeEditar = usePuede("editar_pagos");
+  const puedeEliminar = usePuede("eliminar_pagos");
+  const [editModal, setEditModal] = useState<{ visible: boolean; record: PagoRow | null }>({
+    visible: false,
+    record: null,
+  });
+  const [deleteModal, setDeleteModal] = useState<{ visible: boolean; record: PagoRow | null }>({
+    visible: false,
+    record: null,
+  });
+
+  // Pagos repetidos: la misma cuota con más de un pago. Solo esos se pueden
+  // eliminar (regla también impuesta por la RPC `eliminar_pago`, migración 048).
+  const cobranzasConPagosRepetidos = useMemo(() => {
+    const conteo = new Map<number, number>();
+    for (const p of pagos ?? []) {
+      conteo.set(p.id_cobranza, (conteo.get(p.id_cobranza) ?? 0) + 1);
+    }
+    return new Set([...conteo.entries()].filter(([, n]) => n > 1).map(([id]) => id));
+  }, [pagos]);
 
   const pagosEnRango = useMemo(
     () =>
@@ -138,6 +182,11 @@ export function PagosPage() {
       render: (id: number, record: PagoRow) => (
         <div>
           <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>
+          {cobranzasConPagosRepetidos.has(id) && (
+            <Tag color="warning" title="Esta cuota tiene más de un pago">
+              Repetido
+            </Tag>
+          )}
           <div style={{ fontSize: 12, color: "rgba(0,0,0,0.55)" }}>
             {infoDeCobranza(record.id_cobranza)?.cliente ?? "-"}
           </div>
@@ -177,7 +226,7 @@ export function PagosPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 120,
+      width: 190,
       render: (_: unknown, record: PagoRow) => (
         <Space size={4}>
           <Button
@@ -186,6 +235,40 @@ export function PagosPage() {
             style={{ color: "#1677ff" }}
             onClick={() => setViewModal({ visible: true, record })}
           />
+          {/* Corregir equivocación de carga: monto, fecha y forma de pago. */}
+          {puedeEditar && (
+            <Tooltip title={isOnline ? "Editar pago" : "Sin conexión: no se puede editar"}>
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                disabled={!isOnline}
+                style={{ color: "#faad14" }}
+                onClick={() => setEditModal({ visible: true, record })}
+              />
+            </Tooltip>
+          )}
+          {/* Solo pagos repetidos (misma cuota con más de un pago). */}
+          {puedeEliminar && (
+            <Tooltip
+              title={
+                !isOnline
+                  ? "Sin conexión: no se puede eliminar"
+                  : cobranzasConPagosRepetidos.has(record.id_cobranza)
+                    ? "Eliminar pago repetido"
+                    : "Solo se pueden eliminar pagos repetidos (cuota con más de un pago)"
+              }
+            >
+              <Button
+                type="text"
+                icon={<DeleteOutlined />}
+                disabled={
+                  !isOnline || !cobranzasConPagosRepetidos.has(record.id_cobranza)
+                }
+                style={{ color: "#ff4d4f" }}
+                onClick={() => setDeleteModal({ visible: true, record })}
+              />
+            </Tooltip>
+          )}
           {/* Con recibo se descarga; un pago anterior al cambio lo tiene sin
               recibo y ofrece emitirlo (primera emisión, reserva número). */}
           {reciboPorPago.has(record.id_pago) ? (
@@ -362,6 +445,9 @@ export function PagosPage() {
                 ? formatDateOnly(diaEnEmpresa(viewModal.record.fecha_pago))
                 : "-"}
             </Descriptions.Item>
+            <Descriptions.Item label="Forma de pago">
+              {formasPago[viewModal.record.forma_pago ?? ""] ?? "No especificada"}
+            </Descriptions.Item>
           </Descriptions>
         )}
       </Modal>
@@ -371,6 +457,23 @@ export function PagosPage() {
         open={createModalOpen}
         opciones={cobranzasAPagar}
         onClose={() => setCreateModalOpen(false)}
+      />
+
+      {/* Corrección de una equivocación: monto, fecha y forma de pago */}
+      <EditarPagoModal
+        open={editModal.visible}
+        pago={editModal.record}
+        tieneRecibo={
+          editModal.record !== null && reciboPorPago.has(editModal.record.id_pago)
+        }
+        onClose={() => setEditModal({ visible: false, record: null })}
+      />
+
+      {/* Baja de un pago repetido con motivo obligatorio guardado en BD */}
+      <EliminarPagoModal
+        open={deleteModal.visible}
+        pago={deleteModal.record}
+        onClose={() => setDeleteModal({ visible: false, record: null })}
       />
     </div>
   );

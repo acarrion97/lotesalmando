@@ -21,6 +21,10 @@ export class MockContractRepository implements ContractRepository {
     return this.data.find((c) => c.id_venta === ventaId) ?? null;
   }
 
+  async getByVentaIds(ventaIds: number[]): Promise<Contrato[]> {
+    return this.data.filter((c) => ventaIds.includes(c.id_venta));
+  }
+
   async create(data: Omit<Contrato, "id_contrato">): Promise<Contrato> {
     const newId = this.data.length > 0 ? Math.max(...this.data.map((c) => c.id_contrato)) + 1 : 1;
     const contrato: Contrato = { ...data, id_contrato: newId };
@@ -49,5 +53,9 @@ export class MockContractRepository implements ContractRepository {
     };
     this.data[index] = actualizado;
     return actualizado;
+  }
+
+  async delete(id: number): Promise<void> {
+    this.data = this.data.filter((c) => c.id_contrato !== id);
   }
 }

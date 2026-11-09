@@ -17,6 +17,10 @@ export class MockCotizacionRepository implements CotizacionRepository {
     return this.data.find((c) => c.id_cotizacion === id) ?? null;
   }
 
+  async getByClienteId(clienteId: number): Promise<Cotizacion[]> {
+    return this.data.filter((c) => c.id_cliente === clienteId);
+  }
+
   async create(data: Omit<Cotizacion, "id_cotizacion">): Promise<Cotizacion> {
     const newId = this.data.length > 0 ? Math.max(...this.data.map((c) => c.id_cotizacion)) + 1 : 1;
     const cotizacion: Cotizacion = { ...data, id_cotizacion: newId };
@@ -29,5 +33,9 @@ export class MockCotizacionRepository implements CotizacionRepository {
     if (index === -1) throw new Error(`Cotizacion ${id} not found`);
     this.data[index] = { ...this.data[index], ...data, id_cotizacion: id };
     return this.data[index];
+  }
+
+  async delete(id: number): Promise<void> {
+    this.data = this.data.filter((c) => c.id_cotizacion !== id);
   }
 }

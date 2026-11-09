@@ -23,6 +23,12 @@ export class SupabaseSaleRepository implements SaleRepository {
     return data as Venta;
   }
 
+  async getByClienteId(clienteId: number): Promise<Venta[]> {
+    const { data, error } = await supabase.from("ventas").select("*").eq("id_cliente", clienteId);
+    if (error) throw error;
+    return (data ?? []) as Venta[];
+  }
+
   async create(data: Omit<Venta, "id_venta">): Promise<Venta> {
     const { data: created, error } = await supabase.from("ventas").insert(data).select().single();
     if (error) throw error;
@@ -33,5 +39,10 @@ export class SupabaseSaleRepository implements SaleRepository {
     const { data: updated, error } = await supabase.from("ventas").update(data).eq("id_venta", id).select().single();
     if (error) throw error;
     return updated as Venta;
+  }
+
+  async delete(id: number): Promise<void> {
+    const { error } = await supabase.from("ventas").delete().eq("id_venta", id);
+    if (error) throw error;
   }
 }

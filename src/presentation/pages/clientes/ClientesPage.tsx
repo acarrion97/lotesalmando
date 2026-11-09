@@ -3,7 +3,7 @@ import { Alert, Button, Space, Input, Modal, Form, Descriptions, message } from 
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined, MailOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos } from "@/presentation/hooks";
+import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos, useContratos, useCobranzas } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
 import { useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
@@ -13,6 +13,7 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { ClienteDeudasModal } from "./ClienteDeudasModal";
+import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
 
 interface ModalState {
@@ -31,6 +32,8 @@ export function ClientesPage() {
   const { data: manzanas, isLoading: loadingManzanas } = useManzanas();
   const { data: etapas, isLoading: loadingEtapas } = useEtapas();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
+  const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: cobranzas, isLoading: loadingCobranzas } = useCobranzas();
   const [searchText, setSearchText] = useState("");
   const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
@@ -70,19 +73,42 @@ export function ClientesPage() {
   );
   const [soloSinEmail, setSoloSinEmail] = useState(false);
 
-  // Un cliente solo se puede eliminar si no tiene cuotas asignadas. No hay
+  // Un cliente solo se puede eliminar si NO tiene cuotas asignadas. No hay
   // relación directa cliente↔cobranza: las cuotas nacen de los contratos de
   // las ventas del cliente (cliente → ventas → contratos → cobranzas), así
-  // que quien tiene cuotas siempre tiene ventas. Además la BD define
-  // ON DELETE RESTRICT sobre `cotizador.id_cliente` y `ventas.id_cliente`,
-  // por lo que también quedan fuera quienes tienen cotizaciones o ventas sin
-  // cuotas todavía: si el botón apareciera, el borrado fallaría igual.
-  const idsClientesConHistorial = useMemo(() => {
+  // que se recorre esa cadena para armar el conjunto de clientes bloqueados.
+  // Las cotizaciones y ventas sin cuotas sí se borran, junto con el cliente
+  // (`DeleteClienteUseCase` repite esta verificación antes de tocar la BD).
+  const idsClientesConCuotas = useMemo(() => {
+    const clientePorVenta = new Map<number, number>();
+    for (const v of ventas ?? []) clientePorVenta.set(v.id_venta, v.id_cliente);
+
+    const ventaPorContrato = new Map<number, number>();
+    for (const c of contratos ?? []) ventaPorContrato.set(c.id_contrato, c.id_venta);
+
     const ids = new Set<number>();
-    for (const c of cotizaciones ?? []) ids.add(c.id_cliente);
-    for (const v of ventas ?? []) ids.add(v.id_cliente);
+    for (const cob of cobranzas ?? []) {
+      const idVenta = ventaPorContrato.get(cob.id_contrato);
+      if (idVenta === undefined) continue;
+      const idCliente = clientePorVenta.get(idVenta);
+      if (idCliente !== undefined) ids.add(idCliente);
+    }
     return ids;
-  }, [cotizaciones, ventas]);
+  }, [ventas, contratos, cobranzas]);
+
+  // Lo que se arrastra al borrar: el modal lo muestra para que no haya
+  // sorpresas (solo filas sin cuotas; las de con cuotas ni llegan acá).
+  const historialDelCliente = useMemo(() => {
+    const record = modal.type === "delete" ? modal.record : null;
+    if (!record) return null;
+    const ventasCliente = (ventas ?? []).filter((v) => v.id_cliente === record.id_cliente);
+    const idsVentas = new Set(ventasCliente.map((v) => v.id_venta));
+    return {
+      cotizaciones: (cotizaciones ?? []).filter((c) => c.id_cliente === record.id_cliente).length,
+      ventas: ventasCliente.length,
+      contratos: (contratos ?? []).filter((c) => idsVentas.has(c.id_venta)).length,
+    };
+  }, [modal, cotizaciones, ventas, contratos]);
 
   const filteredData = useMemo(() => {
     const base = soloSinEmail ? sinEmail : clientesDelProyecto;
@@ -132,6 +158,15 @@ export function ClientesPage() {
     try {
       await container.deleteCliente.execute(modal.record.id_cliente);
       await refreshClientes();
+      // El borrado arrastra cotizaciones, ventas y contratos: hay que
+      // refrescarlos para que la tabla de acciones y los selectores no
+      // muestren filas que ya no existen.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cotizaciones"] }),
+        queryClient.invalidateQueries({ queryKey: inventoryKeys.ventas(empresaId) }),
+        queryClient.invalidateQueries({ queryKey: ["contratos", empresaId] }),
+        queryClient.invalidateQueries({ queryKey: inventoryKeys.cobranzas(empresaId) }),
+      ]);
       messageApi.success("Cliente eliminado correctamente");
       closeModal();
     } catch (error) {
@@ -255,7 +290,7 @@ export function ClientesPage() {
           {puedeEditar && (
             <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           )}
-          {puedeEliminar && !idsClientesConHistorial.has(record.id_cliente) && (
+          {puedeEliminar && !idsClientesConCuotas.has(record.id_cliente) && (
             <Button type="link" danger icon={<DeleteOutlined />} onClick={() => openModal("delete", record)}>Eliminar</Button>
           )}
         </Space>
@@ -327,10 +362,13 @@ export function ClientesPage() {
         rowKey="id_cliente"
         loading={
           isLoading ||
-          // Las acciones de cada fila dependen de cotizaciones y ventas
-          // (definen si se puede eliminar), así que esperamos ambas siempre.
+          // Las acciones de cada fila dependen de cotizaciones, ventas,
+          // contratos y cuotas (definen si se puede eliminar), así que se
+          // esperan siempre.
           loadingCotizaciones ||
           loadingVentas ||
+          loadingContratos ||
+          loadingCobranzas ||
           (proyectoFilter !== null &&
             (loadingLotes ||
               loadingManzanas ||
@@ -472,6 +510,19 @@ export function ClientesPage() {
       >
         <p style={{ marginTop: 16 }}>
           ¿Estás seguro que deseas eliminar al cliente <strong>{modal.record?.nombres}</strong>?
+        </p>
+        {historialDelCliente && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginBottom: 8 }}
+            message="Se eliminará también su historial sin cuotas"
+            description={`${historialDelCliente.cotizaciones} cotizacion(es), ${historialDelCliente.ventas} venta(s) y ${historialDelCliente.contratos} contrato(s) que no tienen cuotas asignadas.`}
+          />
+        )}
+        <p style={{ color: "#8c8c8c", marginBottom: 0 }}>
+          Los clientes con cuotas asignadas no se pueden eliminar: primero hay que
+          resolver sus cuotas.
         </p>
       </Modal>
     </div>

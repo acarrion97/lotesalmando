@@ -30,4 +30,9 @@ export class MockReciboRepository implements ReciboRepository {
   save(recibo: Recibo): void {
     this.recibos.set(recibo.id_pago, recibo);
   }
+
+  /** Equivalente al `DELETE FROM recibos WHERE id_pago = ...` de la RPC. */
+  deleteByPagoId(idPago: number): boolean {
+    return this.recibos.delete(idPago);
+  }
 }

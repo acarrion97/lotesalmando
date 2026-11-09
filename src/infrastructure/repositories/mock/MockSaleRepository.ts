@@ -17,6 +17,10 @@ export class MockSaleRepository implements SaleRepository {
     return this.data.find((v) => v.id_venta === id) ?? null;
   }
 
+  async getByClienteId(clienteId: number): Promise<Venta[]> {
+    return this.data.filter((v) => v.id_cliente === clienteId);
+  }
+
   async create(data: Omit<Venta, "id_venta">): Promise<Venta> {
     const newId = this.data.length > 0 ? Math.max(...this.data.map((v) => v.id_venta)) + 1 : 1;
     const venta: Venta = { ...data, id_venta: newId };
@@ -29,5 +33,9 @@ export class MockSaleRepository implements SaleRepository {
     if (index === -1) throw new Error(`Venta ${id} not found`);
     this.data[index] = { ...this.data[index], ...data, id_venta: id };
     return this.data[index];
+  }
+
+  async delete(id: number): Promise<void> {
+    this.data = this.data.filter((v) => v.id_venta !== id);
   }
 }

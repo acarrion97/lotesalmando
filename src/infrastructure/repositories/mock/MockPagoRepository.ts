@@ -27,4 +27,17 @@ export class MockPagoRepository implements PagoRepository {
     this.data.push(pago);
     return pago;
   }
+
+  /** Corrección de un pago (equivalente a la RPC `editar_pago`). */
+  async update(id: number, data: Partial<Pago>): Promise<Pago> {
+    const index = this.data.findIndex((p) => p.id_pago === id);
+    if (index === -1) throw new Error(`Pago ${id} not found`);
+    this.data[index] = { ...this.data[index], ...data, id_pago: id };
+    return this.data[index];
+  }
+
+  /** Baja de un pago (equivalente a la RPC `eliminar_pago`). */
+  async delete(id: number): Promise<void> {
+    this.data = this.data.filter((p) => p.id_pago !== id);
+  }
 }

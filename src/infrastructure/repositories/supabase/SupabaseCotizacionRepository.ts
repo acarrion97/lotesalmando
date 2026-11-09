@@ -24,6 +24,12 @@ export class SupabaseCotizacionRepository implements CotizacionRepository {
     return data as Cotizacion;
   }
 
+  async getByClienteId(clienteId: number): Promise<Cotizacion[]> {
+    const { data, error } = await supabase.from("cotizador").select("*").eq("id_cliente", clienteId);
+    if (error) throw error;
+    return (data ?? []) as Cotizacion[];
+  }
+
   async create(data: Omit<Cotizacion, "id_cotizacion">): Promise<Cotizacion> {
     const { data: created, error } = await supabase.from("cotizador").insert(data).select().single();
     if (error) throw error;
@@ -34,5 +40,10 @@ export class SupabaseCotizacionRepository implements CotizacionRepository {
     const { data: updated, error } = await supabase.from("cotizador").update(data).eq("id_cotizacion", id).select().single();
     if (error) throw error;
     return updated as Cotizacion;
+  }
+
+  async delete(id: number): Promise<void> {
+    const { error } = await supabase.from("cotizador").delete().eq("id_cotizacion", id);
+    if (error) throw error;
   }
 }

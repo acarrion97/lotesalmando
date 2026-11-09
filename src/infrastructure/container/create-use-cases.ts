@@ -33,6 +33,8 @@ import { CreateClienteUseCase } from "@/application/clientes/use-cases/CreateCli
 import { MaterializarClienteReservaUseCase } from "@/application/clientes/use-cases/MaterializarClienteReservaUseCase";
 import { UpdateClienteUseCase } from "@/application/clientes/use-cases/UpdateClienteUseCase";
 import { DeleteClienteUseCase } from "@/application/clientes/use-cases/DeleteClienteUseCase";
+import { ActualizarPagoUseCase } from "@/application/pagos/use-cases/ActualizarPagoUseCase";
+import { EliminarPagoUseCase } from "@/application/pagos/use-cases/EliminarPagoUseCase";
 import { GetCotizacionesUseCase } from "@/application/cotizaciones/use-cases/GetCotizacionesUseCase";
 import { CreateCotizacionUseCase } from "@/application/cotizaciones/use-cases/CreateCotizacionUseCase";
 import { UpdateCotizacionUseCase } from "@/application/cotizaciones/use-cases/UpdateCotizacionUseCase";
@@ -192,6 +194,10 @@ export interface UseCases {
   emitirRecibo: EmitirReciboUseCase;
   /** Emite el recibo de un pago anterior al cambio (botón «Generar recibo»). */
   emitirReciboPagoPrevio: EmitirReciboPagoPrevioUseCase;
+  /** Corrige monto/fecha/forma de un pago cargado por equivocación. */
+  actualizarPago: ActualizarPagoUseCase;
+  /** Elimina pagos repetidos dejando el motivo en la auditoría. */
+  eliminarPago: EliminarPagoUseCase;
   getRecibos: GetRecibosUseCase;
   descargarRecibo: DescargarReciboUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
@@ -342,7 +348,13 @@ export function createUseCases(repos: Repositories): UseCases {
     getAllClientes: new GetAllClientesUseCase(repos.clienteRepo),
     createCliente: new CreateClienteUseCase(repos.clienteRepo),
     updateCliente: new UpdateClienteUseCase(repos.clienteRepo),
-    deleteCliente: new DeleteClienteUseCase(repos.clienteRepo),
+    deleteCliente: new DeleteClienteUseCase(
+      repos.clienteRepo,
+      repos.cotizacionRepo,
+      repos.saleRepo,
+      repos.contractRepo,
+      repos.cobranzaRepo,
+    ),
     materializarClienteReserva: new MaterializarClienteReservaUseCase(repos.clienteRepo),
     getCotizaciones: new GetCotizacionesUseCase(repos.cotizacionRepo),
     createCotizacion: new CreateCotizacionUseCase(repos.cotizacionRepo),
@@ -360,6 +372,8 @@ export function createUseCases(repos: Repositories): UseCases {
       repos.reciboRepo,
       repos.emitirReciboPagoPrevio,
     ),
+    actualizarPago: new ActualizarPagoUseCase(repos.actualizarPago),
+    eliminarPago: new EliminarPagoUseCase(repos.eliminarPago),
     getRecibos: new GetRecibosUseCase(repos.reciboRepo),
     descargarRecibo: new DescargarReciboUseCase(repos.reciboRepo, generadorReciboDocumento),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),

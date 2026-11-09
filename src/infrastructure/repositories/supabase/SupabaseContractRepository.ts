@@ -30,6 +30,13 @@ export class SupabaseContractRepository implements ContractRepository {
     return data as Contrato;
   }
 
+  async getByVentaIds(ventaIds: number[]): Promise<Contrato[]> {
+    if (ventaIds.length === 0) return [];
+    const { data, error } = await supabase.from("contratos").select("*").in("id_venta", ventaIds);
+    if (error) throw error;
+    return (data ?? []) as Contrato[];
+  }
+
   async create(data: Omit<Contrato, "id_contrato">): Promise<Contrato> {
     const { data: created, error } = await supabase.from("contratos").insert(data).select().single();
     if (error) throw error;
@@ -59,5 +66,10 @@ export class SupabaseContractRepository implements ContractRepository {
       .single();
     if (error) throw error;
     return data as Contrato;
+  }
+
+  async delete(id: number): Promise<void> {
+    const { error } = await supabase.from("contratos").delete().eq("id_contrato", id);
+    if (error) throw error;
   }
 }
