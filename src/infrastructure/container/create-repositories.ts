@@ -153,7 +153,7 @@ export interface Repositories {
   emitirReciboPagoPrevio: EmitirReciboPagoPrevioPort;
   /** Corrección de un pago cargado por equivocación (RPC `editar_pago`). */
   actualizarPago: ActualizarPagoPort;
-  /** Baja de pagos repetidos con motivo guardado en auditoría (RPC `eliminar_pago`). */
+  /** Baja de pagos con motivo guardado en auditoría (RPC `eliminar_pago`). */
   eliminarPago: EliminarPagoPort;
   /** Entradas (señas) cobradas al reservar un lote; no apuntan a cuota. */
   entradaRepo: EntradaReservaRepository;

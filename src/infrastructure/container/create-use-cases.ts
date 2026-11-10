@@ -196,7 +196,7 @@ export interface UseCases {
   emitirReciboPagoPrevio: EmitirReciboPagoPrevioUseCase;
   /** Corrige monto/fecha/forma de un pago cargado por equivocación. */
   actualizarPago: ActualizarPagoUseCase;
-  /** Elimina pagos repetidos dejando el motivo en la auditoría. */
+  /** Elimina pagos dejando el motivo en la auditoría. */
   eliminarPago: EliminarPagoUseCase;
   getRecibos: GetRecibosUseCase;
   descargarRecibo: DescargarReciboUseCase;

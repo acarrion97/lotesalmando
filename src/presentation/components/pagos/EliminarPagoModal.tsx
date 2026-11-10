@@ -15,7 +15,7 @@ export interface PagoAEliminar {
 }
 
 /**
- * Elimina un pago repetido (la cuota con más de un pago). El motivo es
+ * Elimina cualquier pago. El motivo es
  * obligatorio y queda guardado en `pagos_eliminaciones` (migración 048) para
  * que siempre se pueda explicar por qué se borró.
  */

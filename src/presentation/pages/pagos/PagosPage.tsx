@@ -97,14 +97,12 @@ export function PagosPage() {
     record: null,
   });
 
-  // Pagos repetidos: la misma cuota con más de un pago. Solo esos se pueden
-  // eliminar (regla también impuesta por la RPC `eliminar_pago`, migración 048).
-  const cobranzasConPagosRepetidos = useMemo(() => {
+  const pagosPorCobranza = useMemo(() => {
     const conteo = new Map<number, number>();
     for (const p of pagos ?? []) {
       conteo.set(p.id_cobranza, (conteo.get(p.id_cobranza) ?? 0) + 1);
     }
-    return new Set([...conteo.entries()].filter(([, n]) => n > 1).map(([id]) => id));
+    return conteo;
   }, [pagos]);
 
   const pagosEnRango = useMemo(
@@ -182,7 +180,7 @@ export function PagosPage() {
       render: (id: number, record: PagoRow) => (
         <div>
           <Tag>{cobranzaMap[id] ? `Cuota ${cobranzaMap[id]}` : `Cobranza #${id}`}</Tag>
-          {cobranzasConPagosRepetidos.has(id) && (
+          {(pagosPorCobranza.get(id) ?? 0) > 1 && (
             <Tag color="warning" title="Esta cuota tiene más de un pago">
               Repetido
             </Tag>
@@ -247,23 +245,19 @@ export function PagosPage() {
               />
             </Tooltip>
           )}
-          {/* Solo pagos repetidos (misma cuota con más de un pago). */}
+          {/* Todo pago puede eliminarse, siempre con motivo obligatorio. */}
           {puedeEliminar && (
             <Tooltip
               title={
                 !isOnline
                   ? "Sin conexión: no se puede eliminar"
-                  : cobranzasConPagosRepetidos.has(record.id_cobranza)
-                    ? "Eliminar pago repetido"
-                    : "Solo se pueden eliminar pagos repetidos (cuota con más de un pago)"
+                  : "Eliminar pago"
               }
             >
               <Button
                 type="text"
                 icon={<DeleteOutlined />}
-                disabled={
-                  !isOnline || !cobranzasConPagosRepetidos.has(record.id_cobranza)
-                }
+                disabled={!isOnline}
                 style={{ color: "#ff4d4f" }}
                 onClick={() => setDeleteModal({ visible: true, record })}
               />

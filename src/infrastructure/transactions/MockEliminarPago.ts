@@ -32,14 +32,6 @@ export class MockEliminarPago implements EliminarPagoPort {
     const pago = await this.pagos.getById(input.id_pago);
     if (!pago) throw new Error("El pago no existe o ya fue eliminado");
 
-    // Misma regla que la RPC: solo pagos repetidos (la cuota con más de un pago).
-    const deLaCuota = await this.pagos.getByCobranzaId(pago.id_cobranza);
-    if (deLaCuota.length < 2) {
-      throw new Error(
-        "Solo se pueden eliminar pagos repetidos: esta cuota tiene un único pago",
-      );
-    }
-
     const reciboEliminado = this.recibos.deleteByPagoId(input.id_pago);
 
     this.eliminaciones.push({

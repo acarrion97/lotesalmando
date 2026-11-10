@@ -15,8 +15,8 @@ export interface PagoEliminado {
 }
 
 /**
- * Eliminación de un pago, permitida solo cuando la cuota tiene más de un
- * pago (pagos repetidos). Va como RPC (`eliminar_pago`, migración 048):
+ * Eliminación de cualquier pago. Va como RPC (`eliminar_pago`, migración 048
+ * y actualización posterior):
  * borra el recibo (FK RESTRICT), registra el motivo en la auditoría y
  * recalcula la cuota, todo en una transacción.
  */
