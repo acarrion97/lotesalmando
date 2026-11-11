@@ -9,8 +9,11 @@ export interface GuardarPlanInput {
   descripcion: string | null;
   imagen_url: string | null;
   url_checkout: string | null;
+  url_checkout_anual: string | null;
   /** Precio mensual en USD. NULL = no se muestra en la pagina de planes. */
   precio: number | null;
+  /** Precio total anual en USD. NULL = no se muestra en la modalidad anual. */
+  precio_anual: number | null;
   orden: number;
   activo: boolean;
   /** Plan "unico": solo por su pagina /registro/<clave> (pago directo), fuera de /registro/planes. */
@@ -45,7 +48,9 @@ export class GuardarPlanUseCase {
       descripcion: input.descripcion?.trim() || null,
       imagen_url: input.imagen_url?.trim() || null,
       url_checkout: input.url_checkout?.trim() || null,
+      url_checkout_anual: input.url_checkout_anual?.trim() || null,
       precio: input.precio,
+      precio_anual: input.precio_anual,
       orden: input.orden,
       activo: input.activo,
       es_unico: input.es_unico,
@@ -75,7 +80,9 @@ export class GuardarPlanUseCase {
       descripcion: plan.descripcion,
       imagen_url: plan.imagen_url,
       url_checkout: plan.url_checkout,
+      url_checkout_anual: plan.url_checkout_anual,
       precio: plan.precio,
+      precio_anual: plan.precio_anual,
       orden: plan.orden,
       activo: plan.activo,
       es_unico: plan.es_unico,

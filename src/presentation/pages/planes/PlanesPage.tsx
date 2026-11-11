@@ -38,7 +38,9 @@ interface FormValues {
   nombre: string;
   descripcion?: string;
   url_checkout?: string;
+  url_checkout_anual?: string;
   precio?: number | null;
+  precio_anual?: number | null;
   orden: number;
   activo: boolean;
   es_unico: boolean;
@@ -273,7 +275,9 @@ export function PlanesPage() {
       descripcion: plan.descripcion,
       imagen_url: plan.imagen_url,
       url_checkout: plan.url_checkout,
+      url_checkout_anual: plan.url_checkout_anual,
       precio: plan.precio,
+      precio_anual: plan.precio_anual,
       orden: plan.orden,
       activo: plan.activo,
       es_unico: plan.es_unico,
@@ -305,7 +309,9 @@ export function PlanesPage() {
       nombre: plan.nombre,
       descripcion: plan.descripcion ?? undefined,
       url_checkout: plan.url_checkout ?? undefined,
+      url_checkout_anual: plan.url_checkout_anual ?? undefined,
       precio: plan.precio,
+      precio_anual: plan.precio_anual,
       orden: plan.orden,
       activo: plan.activo,
       es_unico: plan.es_unico,
@@ -343,7 +349,9 @@ export function PlanesPage() {
       descripcion: values.descripcion ?? null,
       imagen_url: imagenUrl,
       url_checkout: values.url_checkout ?? null,
+      url_checkout_anual: values.url_checkout_anual ?? null,
       precio: values.precio ?? null,
+      precio_anual: values.precio_anual ?? null,
       orden: values.orden ?? 0,
       activo: values.activo ?? true,
       es_unico: values.es_unico ?? false,
@@ -450,6 +458,15 @@ export function PlanesPage() {
           </Form.Item>
 
           <Form.Item
+            name="url_checkout_anual"
+            label="Link de pago anual (Hotmart)"
+            rules={[{ type: "url", message: "Debe ser una URL válida" }]}
+            extra="Se usará cuando la empresa elija la modalidad anual después de registrarse."
+          >
+            <Input placeholder="https://pay.hotmart.com/..." />
+          </Form.Item>
+
+          <Form.Item
             label="Imagen del plan"
             extra="PNG, JPG o WEBP, máximo 5 MB. Se muestra en la página de elección de plan."
           >
@@ -527,6 +544,15 @@ export function PlanesPage() {
                   placeholder="Sin precio"
                   style={{ width: "100%" }}
                 />
+              </Form.Item>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Form.Item
+                name="precio_anual"
+                label="Precio (USD/año)"
+                tooltip="Precio total que se cobrará al elegir la modalidad anual."
+              >
+                <InputNumber min={0} step={0.01} placeholder="Sin precio" style={{ width: "100%" }} />
               </Form.Item>
             </Col>
             <Col xs={24} sm={8}>

@@ -5,8 +5,11 @@ export interface PlanDto {
   descripcion: string | null;
   imagen_url: string | null;
   url_checkout: string | null;
+  url_checkout_anual: string | null;
   /** Precio mensual en USD. NULL = no se muestra. */
   precio: number | null;
+  /** Precio total anual en USD. NULL = no se muestra. */
+  precio_anual: number | null;
   orden: number;
   activo: boolean;
   /**

@@ -78,6 +78,7 @@ export interface Database {
           descripcion: string | null;
           imagen_url: string | null;
           url_checkout: string | null;
+          url_checkout_anual: string | null;
           orden: number;
           activo: boolean;
           created_at: string;
@@ -86,6 +87,7 @@ export interface Database {
           max_lotes_por_proyecto: number | null;
           max_usuarios: number | null;
           precio: number | null;
+          precio_anual: number | null;
           es_unico: boolean;
         };
         Insert: {
@@ -95,6 +97,7 @@ export interface Database {
           descripcion?: string | null;
           imagen_url?: string | null;
           url_checkout?: string | null;
+          url_checkout_anual?: string | null;
           orden?: number;
           activo?: boolean;
           created_at?: string;
@@ -103,6 +106,7 @@ export interface Database {
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
           precio?: number | null;
+          precio_anual?: number | null;
           es_unico?: boolean;
         };
         Update: {
@@ -112,6 +116,7 @@ export interface Database {
           descripcion?: string | null;
           imagen_url?: string | null;
           url_checkout?: string | null;
+          url_checkout_anual?: string | null;
           orden?: number;
           activo?: boolean;
           created_at?: string;
@@ -120,6 +125,7 @@ export interface Database {
           max_lotes_por_proyecto?: number | null;
           max_usuarios?: number | null;
           precio?: number | null;
+          precio_anual?: number | null;
           es_unico?: boolean;
         };
       };

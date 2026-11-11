@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Navigate } from "react-router-dom";
-import { Alert, Button, Card, Col, Row, Spin, Tag, Typography, message, theme } from "antd";
+import { Alert, Button, Card, Col, Row, Spin, Switch, Tag, Typography, message, theme } from "antd";
 import { CheckCircleFilled, MailOutlined, SafetyCertificateOutlined } from "@ant-design/icons";
 import { useAuth } from "@/presentation/providers/AuthProvider";
 import { useEmpresa } from "@/presentation/providers/EmpresaProvider";
 import { useSeleccionarPlan } from "@/presentation/hooks/useSeleccionarPlan";
 import { usePlanes } from "@/presentation/hooks";
 import { PLANES_FALLBACK } from "./planesPago";
-import { iconoDePlan, limitesDePlan, precioFormateado } from "./planInfo";import type { PlanDto } from "@/application/plan/dto/PlanDto";
+import { iconoDePlan, limitesDePlan, precioFormateado } from "./planInfo";
+import type { PlanDto } from "@/application/plan/dto/PlanDto";
 
 const { Text, Title } = Typography;
 
@@ -18,6 +19,7 @@ export function SeleccionarPlanPage() {
   const { data: planesBD, isLoading: cargandoPlanes } = usePlanes();
   const seleccionarPlan = useSeleccionarPlan();
   const [planAbierto, setPlanAbierto] = useState<string | null>(null);
+  const [periodicidad, setPeriodicidad] = useState<"mensual" | "anual">("mensual");
   const [verificandoPago, setVerificandoPago] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
   const { token } = theme.useToken();
@@ -123,12 +125,13 @@ export function SeleccionarPlanPage() {
 
   const elegirPlan = (plan: PlanDto) => {
     setPlanAbierto(plan.clave);
+    const urlCheckout = periodicidad === "anual" ? plan.url_checkout_anual : plan.url_checkout;
     const abrirCheckout = () => {
-      if (plan.url_checkout) {
-        window.open(plan.url_checkout, "_blank", "noopener,noreferrer");
+      if (urlCheckout) {
+        window.open(urlCheckout, "_blank", "noopener,noreferrer");
       } else {
         messageApi.warning(
-          "Este plan aun no tiene link de pago configurado. Contactanos para activarlo.",
+          `Este plan aún no tiene link de pago ${periodicidad}. Contáctanos para activarlo.`,
         );
       }
     };
@@ -138,7 +141,7 @@ export function SeleccionarPlanPage() {
       {
         onSuccess: () => {
           messageApi.success(
-            `Elegiste el ${plan.nombre}. Paga con el mismo correo con el que te registraste.`,
+            `Elegiste el ${plan.nombre} ${periodicidad}. Paga con el mismo correo con el que te registraste.`,
           );
           abrirCheckout();
         },
@@ -177,6 +180,22 @@ export function SeleccionarPlanPage() {
           <Text style={{ color: "rgba(255,255,255,0.75)", fontSize: 14, display: "block" }}>
             Tu cuenta y empresa ya estan creadas. El pago se procesa de forma segura en Hotmart y
             podras cambiar de plan mas adelante.
+          </Text>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 12, marginBottom: 24 }}>
+          <Text style={{ color: "#fff", fontWeight: periodicidad === "mensual" ? 600 : 400 }}>
+            Mensual
+          </Text>
+          <Switch
+            checked={periodicidad === "anual"}
+            checkedChildren="Anual"
+            unCheckedChildren="Mensual"
+            onChange={(anual) => setPeriodicidad(anual ? "anual" : "mensual")}
+            style={{ background: periodicidad === "anual" ? "#10B981" : undefined }}
+          />
+          <Text style={{ color: "#fff", fontWeight: periodicidad === "anual" ? 600 : 400 }}>
+            Anual
           </Text>
         </div>
 
@@ -245,7 +264,7 @@ export function SeleccionarPlanPage() {
                     </div>
                   </div>
 
-                  {plan.precio != null && (
+                  {plan.precio != null && periodicidad === "mensual" && (
                     <div style={{ textAlign: "center", marginBottom: 12 }}>
                       <Text strong style={{ fontSize: 30, color: token.colorText, lineHeight: 1.2 }}>
                         {precioFormateado(plan.precio)}
@@ -255,6 +274,25 @@ export function SeleccionarPlanPage() {
                           por mes
                         </Text>
                       </div>
+                    </div>
+                  )}
+
+                  {periodicidad === "anual" && plan.precio_anual != null && (
+                    <div style={{ textAlign: "center", marginBottom: 12 }}>
+                      <Text strong style={{ fontSize: 30, color: token.colorText, lineHeight: 1.2 }}>
+                        {precioFormateado(plan.precio_anual)}
+                      </Text>
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          por año
+                        </Text>
+                      </div>
+                    </div>
+                  )}
+
+                  {periodicidad === "anual" && plan.precio_anual == null && (
+                    <div style={{ textAlign: "center", marginBottom: 12 }}>
+                      <Text type="secondary">Precio anual no configurado</Text>
                     </div>
                   )}
 
@@ -300,7 +338,7 @@ export function SeleccionarPlanPage() {
                       borderColor: "#10B981",
                     }}
                   >
-                    {seleccionado ? "Volver al pago" : "Elegir plan"}
+                    {seleccionado ? "Volver al pago" : `Elegir plan ${periodicidad}`}
                   </Button>
                 </Card>
               </Col>
