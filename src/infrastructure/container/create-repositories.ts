@@ -369,6 +369,11 @@ function createMockRepositories(): Repositories {
     pagoRepo,
     clienteRepo,
     asesorRepo,
+    // Para poder filtrar por proyecto igual que la RPC:
+    // cuota -> contrato -> venta -> lote -> manzana -> etapa -> proyecto.
+    contractRepo,
+    etapaRepo,
+    manzanaRepo,
   });
 
   return {

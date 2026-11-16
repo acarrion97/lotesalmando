@@ -25,15 +25,22 @@ const { Title, Text } = Typography;
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
   // Una sola consulta para todos los KPIs: la RPC `dashboard_estadisticas`
   // (migración 055) agrega lotes, ventas, cartera, pagos, clientes,
   // asesores y proyectos en el servidor en lugar de descargar las tablas.
-  const { data: stats, isLoading } = useEstadisticasDashboard();
+  // El selector "Filtrar por proyecto" cambia el parámetro de esa misma
+  // función (migración 056): el filtro lo aplica Postgres.
+  const { data: stats, isLoading } = useEstadisticasDashboard(selectedProyecto);
   const isOnline = useOnlineStatus();
 
-  const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
-
+  // La lista completa es la del selector; con filtro activo el dashboard
+  // pasa a ser "de un solo proyecto" y así lo indica su tarjeta.
   const proyectos = stats?.proyectos ?? [];
+  const proyectosVisibles =
+    selectedProyecto === null
+      ? proyectos
+      : proyectos.filter((p) => p.id_proyecto === selectedProyecto);
 
   const totalLotes = stats?.lotes.total ?? 0;
   const lotesDe = (estado: string) => stats?.lotes.por_estado[estado] ?? 0;
@@ -69,7 +76,7 @@ export function DashboardPage() {
   const statCards = [
     {
       title: "Proyectos Activos",
-      value: proyectos.length,
+      value: proyectosVisibles.length,
       icon: <ProjectOutlined style={{ fontSize: 24, color: "#1677ff" }} />,
       color: "#e6f4ff",
       unavailable: sinDatos,
@@ -173,7 +180,7 @@ export function DashboardPage() {
           allowClear
           style={{ width: 250 }}
           value={selectedProyecto}
-          onChange={(val) => setSelectedProyecto(val)}
+          onChange={(val) => setSelectedProyecto(val ?? null)}
           options={proyectos.map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
         />
       </div>

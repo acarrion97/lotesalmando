@@ -21,14 +21,17 @@ function num(valor: unknown): number {
 
 /**
  * Todas las estadísticas del dashboard en UNA llamada a la RPC
- * `dashboard_estadisticas` (migración 055), en lugar de descargar
+ * `dashboard_estadisticas` (migraciones 055/056), en lugar de descargar
  * proyectos + lotes + ventas + clientes + asesores + pagos y 20 páginas
  * de cobranzas.
  */
 export class SupabaseObtenerEstadisticasDashboard implements ObtenerEstadisticasDashboard {
-  async execute(): Promise<EstadisticasDashboard> {
+  async execute(idProyecto?: number | null): Promise<EstadisticasDashboard> {
     const { data, error } = await supabase.rpc("dashboard_estadisticas", {
       p_zona_horaria: zonaHorariaDelNavegador(),
+      // null = empresa completa; con valor, el filtro lo aplica Postgres
+      // sobre la cadena proyecto -> etapa -> manzana -> lote.
+      p_id_proyecto: idProyecto ?? null,
     });
 
     if (error) throw error;

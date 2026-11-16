@@ -49,5 +49,11 @@ export interface EstadisticasDashboard {
  * sobre los repositorios en memoria con las mismas fórmulas.
  */
 export interface ObtenerEstadisticasDashboard {
-  execute(): Promise<EstadisticasDashboard>;
+  /**
+   * @param idProyecto `null` / `undefined` = empresa completa; con un id,
+   *   solo los KPI de ese proyecto (lotes, ventas, cartera y pagos). El
+   *   filtro lo aplica la función en el servidor: el cliente no descarga
+   *   filas de más. `proyectos`, `clientes` y `asesores` no se filtran.
+   */
+  execute(idProyecto?: number | null): Promise<EstadisticasDashboard>;
 }

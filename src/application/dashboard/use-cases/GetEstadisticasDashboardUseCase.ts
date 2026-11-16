@@ -9,6 +9,9 @@ import type {
  * No agrega nada en el cliente: la agregación vive en la RPC
  * `dashboard_estadisticas` (o, en modo demo, en el puerto). Existe como
  * caso de uso para que la página no dependa directamente del puerto.
+ *
+ * @param idProyecto `null`/`undefined` = empresa completa; con un id, la
+ *   función acota lotes, ventas, cartera y pagos a ese proyecto.
  */
 export class GetEstadisticasDashboardUseCase {
   private estadisticas: ObtenerEstadisticasDashboard;
@@ -16,7 +19,7 @@ export class GetEstadisticasDashboardUseCase {
     this.estadisticas = estadisticas;
   }
 
-  execute(): Promise<EstadisticasDashboard> {
-    return this.estadisticas.execute();
+  execute(idProyecto?: number | null): Promise<EstadisticasDashboard> {
+    return this.estadisticas.execute(idProyecto);
   }
 }
