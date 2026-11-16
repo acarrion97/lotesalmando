@@ -82,10 +82,16 @@ export class GenerarAlertasUseCase {
   async execute(config: AlertasConfig = defaultConfig, empresaId?: number): Promise<Alerta[]> {
     const alertas: Alerta[] = [];
 
+    // Cargar en paralelo: estas lecturas son independientes y se necesitan
+    // para el dashboard/header. Evita la cascada serial de consultas al iniciar.
+    const [lotes, prospectos, cobranzas, comprobantes] = await Promise.all([
+      empresaId ? this.lotRepo.getByEmpresaId(empresaId) : this.lotRepo.getAll(),
+      empresaId ? this.prospectoRepo.getByEmpresaId(empresaId) : this.prospectoRepo.getAll(),
+      empresaId ? this.cobranzaRepo.getByEmpresaId(empresaId) : this.cobranzaRepo.getAll(),
+      empresaId ? this.comprobanteRepo.getByEmpresaId(empresaId) : this.comprobanteRepo.getAll(),
+    ]);
+
     // 1. Alertas de inventario
-    const lotes = empresaId
-      ? await this.lotRepo.getByEmpresaId(empresaId)
-      : await this.lotRepo.getAll();
     const disponibles = lotes.filter((l) => l.estado === "disponible").length;
     if (disponibles < config.stockMinimo) {
       alertas.push({
@@ -101,9 +107,6 @@ export class GenerarAlertasUseCase {
     }
 
     // 2. Alertas de seguimiento
-    const prospectos = empresaId
-      ? await this.prospectoRepo.getByEmpresaId(empresaId)
-      : await this.prospectoRepo.getAll();
     const ahora = new Date();
     for (const p of prospectos) {
       if (!p.fecha_ultimo_seguimiento) continue;
@@ -125,9 +128,6 @@ export class GenerarAlertasUseCase {
     }
 
     // 3. Alertas de cartera por vencer
-    const cobranzas = empresaId
-      ? await this.cobranzaRepo.getByEmpresaId(empresaId)
-      : await this.cobranzaRepo.getAll();
     const hoy = new Date();
     const en7Dias = new Date(hoy.getTime() + config.diasCarteraVencer * 24 * 60 * 60 * 1000);
     const porVencer = cobranzas.filter((c) => {
@@ -168,13 +168,9 @@ export class GenerarAlertasUseCase {
 
     // 5. Comprobantes de pago esperando revision (los subio el cliente
     // desde el portal y todavia no se aprobo ni se rechazo).
-    const comprobantes = empresaId
-      ? await this.comprobanteRepo.getByEmpresaId(empresaId)
-      : await this.comprobanteRepo.getAll();
     const pendientes = comprobantes.filter((c) => c.estado === "pendiente");
     if (pendientes.length > 0) {
-      const [cobranzas, contratos, ventas, clientes] = await Promise.all([
-        empresaId ? this.cobranzaRepo.getByEmpresaId(empresaId) : this.cobranzaRepo.getAll(),
+      const [contratos, ventas, clientes] = await Promise.all([
         empresaId ? this.contractRepo.getByEmpresaId(empresaId) : this.contractRepo.getAll(),
         empresaId ? this.saleRepo.getByEmpresaId(empresaId) : this.saleRepo.getAll(),
         empresaId ? this.clienteRepo.getByEmpresaId(empresaId) : this.clienteRepo.getAll(),

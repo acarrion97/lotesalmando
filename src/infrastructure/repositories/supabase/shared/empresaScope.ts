@@ -62,10 +62,11 @@ export async function leerPorIds(
     seleccion?: string;
   },
 ): Promise<Record<string, unknown>[]> {
-  const filas: Record<string, unknown>[] = [];
-  if (ids.length === 0) return filas;
+  if (ids.length === 0) return [];
 
-  for (const bloque of bloquesDeIds(ids)) {
+  const bloques = bloquesDeIds(ids);
+  const resultados = await Promise.all(bloques.map(async (bloque) => {
+    const filasBloque: Record<string, unknown>[] = [];
     for (let desde = 0; ; desde += FILAS_POR_PAGINA) {
       const { data, error } = await supabase
         .from(tabla)
@@ -79,11 +80,14 @@ export async function leerPorIds(
       // `tabla`/`seleccion` no son literales: el cliente sin tipos devuelve
       // una firma genérica, se castea a filas comunes.
       const pagina = (data ?? []) as unknown as Record<string, unknown>[];
-      filas.push(...pagina);
+      filasBloque.push(...pagina);
       if (pagina.length < FILAS_POR_PAGINA) break;
     }
-  }
-  return filas;
+    return filasBloque;
+  }));
+  // Promise.all conserva el orden de los bloques y cada bloque se pagina con
+  // orden estable; se combina al final para mantener resultados deterministas.
+  return resultados.flat();
 }
 
 async function idsFrom(
@@ -147,6 +151,20 @@ export async function getContratoIdsForEmpresa(empresaId: number): Promise<numbe
 }
 
 export async function getCobranzaIdsForEmpresa(empresaId: number): Promise<number[]> {
-  const contratoIds = await getContratoIdsForEmpresa(empresaId);
-  return idsFrom("cobranzas", "id_cobranza", "id_contrato", contratoIds);
+  return cachedIds(`cobranzas:${empresaId}`, async () => {
+    const ids: number[] = [];
+    for (let desde = 0; ; desde += FILAS_POR_PAGINA) {
+      const { data, error } = await supabase
+        .from("cobranzas")
+        .select("id_cobranza, contratos!inner(ventas!inner(usuario!inner(id_empresa)))")
+        .eq("contratos.ventas.usuario.id_empresa", empresaId)
+        .order("id_cobranza")
+        .range(desde, desde + FILAS_POR_PAGINA - 1);
+      if (error) throw error;
+      const pagina = (data ?? []) as unknown as Array<{ id_cobranza: number }>;
+      ids.push(...pagina.map((fila) => fila.id_cobranza));
+      if (pagina.length < FILAS_POR_PAGINA) break;
+    }
+    return ids;
+  });
 }

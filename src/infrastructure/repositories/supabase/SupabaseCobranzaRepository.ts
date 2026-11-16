@@ -1,13 +1,16 @@
 import { supabase } from "@/infrastructure/supabase/client";
 import type { Cobranza, CobranzaEstado } from "@/domain/cobranza/entities";
 import type { CobranzaRepository } from "@/domain/cobranza/repositories";
-import { getContratoIdsForEmpresa, leerPorIds } from "./shared/empresaScope";
+import { leerPorIds } from "./shared/empresaScope";
+import { withInFlight } from "./shared/withInFlight";
 
 // PostgREST corta cada respuesta en 1000 filas; cobranzas supera ese tope
 // (una fila por cuota), asi que se lee por paginas con un orden estable.
 const PAGE_SIZE = 1000;
 
 export class SupabaseCobranzaRepository implements CobranzaRepository {
+  private empresaRequests = new Map<number, Promise<Cobranza[]>>();
+
   private async fetchAllPages(contratoIds?: number[]): Promise<Cobranza[]> {
     // Con contratoIds la lista se manda en bloques (un `.in()` con miles de
     // ids se pasa del limite de URL) y cada bloque se pagina; sin ids solo
@@ -40,9 +43,24 @@ export class SupabaseCobranzaRepository implements CobranzaRepository {
   }
 
   async getByEmpresaId(empresaId: number): Promise<Cobranza[]> {
-    const contratoIds = await getContratoIdsForEmpresa(empresaId);
-    if (contratoIds.length === 0) return [];
-    return this.fetchAllPages(contratoIds);
+    return withInFlight(this.empresaRequests, empresaId, async () => {
+    // Filtra en Postgres por la relación contrato -> venta -> usuario. Evita
+    // traer miles de IDs de contratos y dividir cobranza en muchas consultas .in().
+    const filas: Cobranza[] = [];
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await supabase
+        .from("cobranzas")
+        .select("*, contratos!inner(ventas!inner(usuario!inner(id_empresa)))")
+        .eq("contratos.ventas.usuario.id_empresa", empresaId)
+        .order("id_cobranza")
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw error;
+      const page = (data ?? []) as unknown as Cobranza[];
+      filas.push(...page);
+      if (page.length < PAGE_SIZE) break;
+    }
+      return filas;
+    });
   }
 
   async getByContratoId(contratoId: number): Promise<Cobranza[]> {
