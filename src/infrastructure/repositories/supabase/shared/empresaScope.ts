@@ -19,6 +19,22 @@ import { supabase } from "@/infrastructure/supabase/client";
 const FILAS_POR_PAGINA = 1000;
 /** Ids por bloque dentro de un `.in()` (muy por debajo del límite de URL). */
 const IDS_POR_BLOQUE = 500;
+const CACHE_MS = 30_000;
+const scopeCache = new Map<string, { expiresAt: number; value: number[] }>();
+const scopeInFlight = new Map<string, Promise<number[]>>();
+
+function cachedIds(key: string, load: () => Promise<number[]>): Promise<number[]> {
+  const cached = scopeCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return Promise.resolve(cached.value);
+  const pending = scopeInFlight.get(key);
+  if (pending) return pending;
+  const request = load().then((value) => {
+    scopeCache.set(key, { value, expiresAt: Date.now() + CACHE_MS });
+    return value;
+  }).finally(() => scopeInFlight.delete(key));
+  scopeInFlight.set(key, request);
+  return request;
+}
 
 /** La lista de ids, partida en bloques seguros para un `.in()`. */
 export function bloquesDeIds(ids: number[]): number[][] {
@@ -77,7 +93,7 @@ async function idsFrom(
   filterValues: number[]
 ): Promise<number[]> {
   if (filterValues.length === 0) return [];
-
+  return cachedIds(`${table}:${column}:${filterColumn}:${filterValues.join(",")}`, async () => {
   const ids: number[] = [];
   for (let desde = 0; ; desde += FILAS_POR_PAGINA) {
     const { data, error } = await supabase
@@ -94,12 +110,15 @@ async function idsFrom(
     if (pagina.length < FILAS_POR_PAGINA) break;
   }
   return ids;
+  });
 }
 
 export async function getProyectoIdsForEmpresa(empresaId: number): Promise<number[]> {
+  return cachedIds(`proyectos:${empresaId}`, async () => {
   const { data, error } = await supabase.from("proyectos").select("id_proyecto").eq("id_empresa", empresaId);
   if (error) throw error;
   return (data ?? []).map((row) => row.id_proyecto as number);
+  });
 }
 
 export async function getEtapaIdsForEmpresa(empresaId: number): Promise<number[]> {
