@@ -431,11 +431,19 @@ export async function importarBloques(
             clavesVistas.has(claveNormalizada) ||
             mapaClaves?.compuestas.has(claveNormalizada) === true;
           if (repetida) {
+            const detalleClave = (tabla.claveNatural ?? [])
+              .map((campo) => {
+                const etiqueta = tabla.columnas.find((columna) => columna.key === campo)?.etiqueta ?? campo;
+                return `${etiqueta}: ${String(fila.valores[campo] ?? "")}`;
+              })
+              .join(" · ");
             resultadosFila.push({
               numero: fila.numero,
               resumen: fila.resumen,
               estado: "existente",
-              mensaje: "Ya existía en la base de datos (misma clave): se omite",
+              mensaje: detalleClave
+                ? `Ya existía en la base de datos (${detalleClave}): se omite`
+                : "Ya existía en la base de datos (misma clave): se omite",
             });
             continue;
           }
