@@ -144,6 +144,7 @@ import { generadorReciboDocumento } from "@/infrastructure/documents/generadorRe
 import { GetMediosProyectoUseCase } from "@/application/proyectos/use-cases/GetMediosProyectoUseCase";
 import { SubirMedioProyectoUseCase } from "@/application/proyectos/use-cases/SubirMedioProyectoUseCase";
 import { QuitarMedioProyectoUseCase } from "@/application/proyectos/use-cases/QuitarMedioProyectoUseCase";
+import { GetEstadisticasDashboardUseCase } from "@/application/dashboard/use-cases/GetEstadisticasDashboardUseCase";
 
 export interface UseCases {
   getEmpresas: GetEmpresasUseCase;
@@ -201,6 +202,8 @@ export interface UseCases {
   getRecibos: GetRecibosUseCase;
   descargarRecibo: DescargarReciboUseCase;
   getCarteraMetricas: GetCarteraMetricasUseCase;
+  /** Todos los KPIs del dashboard en una sola llamada (RPC 055). */
+  getEstadisticasDashboard: GetEstadisticasDashboardUseCase;
   getProyeccionFinanciera: GetProyeccionFinancieraUseCase;
   detectarCuotasVencidas: DetectarCuotasVencidasUseCase;
   generarAlertas: GenerarAlertasUseCase;
@@ -375,6 +378,9 @@ export function createUseCases(repos: Repositories): UseCases {
     getRecibos: new GetRecibosUseCase(repos.reciboRepo),
     descargarRecibo: new DescargarReciboUseCase(repos.reciboRepo, generadorReciboDocumento),
     getCarteraMetricas: new GetCarteraMetricasUseCase(repos.cobranzaRepo),
+    getEstadisticasDashboard: new GetEstadisticasDashboardUseCase(
+      repos.obtenerEstadisticasDashboard,
+    ),
     getProyeccionFinanciera: new GetProyeccionFinancieraUseCase(
       repos.etapaRepo,
       repos.manzanaRepo,

@@ -10,6 +10,7 @@ export { useGuardarPartnership } from "./useGuardarPartnership";
 export { useEliminarPartnership } from "./useEliminarPartnership";
 export { useCreateEmpresaConAdmin } from "./useCreateEmpresaConAdmin";
 export { usePlataformaMetricas } from "./usePlataformaMetricas";
+export { useEstadisticasDashboard } from "./useEstadisticasDashboard";
 export { useProyectos } from "./useProyectos";
 export { useLotes } from "./useLotes";
 export { useLotesByManzana } from "./useLotesByManzana";

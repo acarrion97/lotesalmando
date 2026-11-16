@@ -43,6 +43,7 @@ import type { Asesor } from "@/domain/asesor/entities";
 import type { ReciboRepository } from "@/domain/recibo/repositories";
 import type { ConfirmarPagoConRecibo } from "@/application/recibos/ports/ConfirmarPagoConRecibo";
 import type { EmitirReciboPagoPrevio as EmitirReciboPagoPrevioPort } from "@/application/recibos/ports/EmitirReciboPagoPrevio";
+import type { ObtenerEstadisticasDashboard } from "@/application/dashboard/ports/ObtenerEstadisticasDashboard";
 
 import { MockEmpresaRepository } from "@/infrastructure/repositories/mock/MockEmpresaRepository";
 import { MockPlanRepository } from "@/infrastructure/repositories/mock/MockPlanRepository";
@@ -92,6 +93,7 @@ import { SupabaseActualizarPago } from "@/infrastructure/transactions/SupabaseAc
 import { SupabaseEliminarPago } from "@/infrastructure/transactions/SupabaseEliminarPago";
 import { MockEmitirReciboPagoPrevio } from "@/infrastructure/transactions/MockEmitirReciboPagoPrevio";
 import { SupabaseEmitirReciboPagoPrevio } from "@/infrastructure/transactions/SupabaseEmitirReciboPagoPrevio";
+import { MockObtenerEstadisticasDashboard } from "@/infrastructure/repositories/mock/MockObtenerEstadisticasDashboard";
 
 import { SupabaseEmpresaRepository } from "@/infrastructure/repositories/supabase/SupabaseEmpresaRepository";
 import { SupabasePlanRepository } from "@/infrastructure/repositories/supabase/SupabasePlanRepository";
@@ -130,6 +132,7 @@ import { SupabaseComprobanteStorage } from "@/infrastructure/storage/SupabaseCom
 import { SupabasePortalProspectoStorage } from "@/infrastructure/storage/SupabasePortalProspectoStorage";
 import { SupabaseDocumentoContratoStorage } from "@/infrastructure/storage/SupabaseDocumentoContratoStorage";
 import { SupabasePlanImagenStorage } from "@/infrastructure/storage/SupabasePlanImagenStorage";
+import { SupabaseObtenerEstadisticasDashboard } from "@/infrastructure/repositories/supabase/SupabaseObtenerEstadisticasDashboard";
 import { SupabaseProyectoMedioStorage } from "@/infrastructure/storage/SupabaseProyectoMedioStorage";
 
 export interface Repositories {
@@ -194,6 +197,11 @@ export interface Repositories {
   aceptarCotizacion: AceptarCotizacionPort;
   /** Puerto de infraestructura: registro de interés del mapa público (RPC en Supabase). */
   registrarInteresPublico: RegistrarInteresPublicoPort;
+  /**
+   * Puerto de infraestructura: todos los KPIs del dashboard en UNA llamada
+   * (RPC `dashboard_estadisticas`, migración 055).
+   */
+  obtenerEstadisticasDashboard: ObtenerEstadisticasDashboard;
 }
 
 function createMockRepositories(): Repositories {
@@ -353,6 +361,16 @@ function createMockRepositories(): Repositories {
     delete: async () => {},
   };
 
+  const estadisticasDashboard = new MockObtenerEstadisticasDashboard({
+    proyectoRepo,
+    lotRepository,
+    saleRepo,
+    cobranzaRepo,
+    pagoRepo,
+    clienteRepo,
+    asesorRepo,
+  });
+
   return {
     empresaRepo,
     planRepo: new MockPlanRepository(),
@@ -383,6 +401,7 @@ function createMockRepositories(): Repositories {
       oportunidadRepo,
       lotRepository,
     ),
+    obtenerEstadisticasDashboard: estadisticasDashboard,
     actividadRepo,
     asesorRepo,
     rolRepo: new MockRolRepository(),
@@ -466,6 +485,7 @@ function createSupabaseRepositories(): Repositories {
     comprobanteStorage: new SupabaseComprobanteStorage(),
     portalProspectoStorage: new SupabasePortalProspectoStorage(),
     documentoContratoStorage: new SupabaseDocumentoContratoStorage(),
+    obtenerEstadisticasDashboard: new SupabaseObtenerEstadisticasDashboard(),
   };
 }
 

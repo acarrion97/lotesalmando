@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { Card, Col, Row, Statistic, Typography, Select, Skeleton, Button, Tag } from "antd";
 import {
   ProjectOutlined,
@@ -18,73 +18,40 @@ import {
   BarChartOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { useProyectos, useLotes, useVentas, useCobranzas, usePagos, useClientes, useAsesores, useOnlineStatus } from "@/presentation/hooks";
-import { useEmpresa } from "@/presentation/providers";
+import { useEstadisticasDashboard, useOnlineStatus } from "@/presentation/hooks";
 import { formatCurrency } from "@/utils";
 
 const { Title, Text } = Typography;
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { empresaActual } = useEmpresa();
-  const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
-  const { data: lotes, isLoading: loadingLotes } = useLotes();
-  const { data: ventas, isLoading: loadingVentas } = useVentas();
-  const { data: cobranzas, isLoading: loadingCobranzas } = useCobranzas();
-  const { data: pagos, isLoading: loadingPagos } = usePagos();
-  const { data: clientes } = useClientes(empresaActual?.id_empresa ?? 0);
-  const { data: asesores } = useAsesores();
+  // Una sola consulta para todos los KPIs: la RPC `dashboard_estadisticas`
+  // (migración 055) agrega lotes, ventas, cartera, pagos, clientes,
+  // asesores y proyectos en el servidor en lugar de descargar las tablas.
+  const { data: stats, isLoading } = useEstadisticasDashboard();
   const isOnline = useOnlineStatus();
 
   const [selectedProyecto, setSelectedProyecto] = useState<number | null>(null);
 
-  const isLoading = loadingProyectos || loadingLotes || loadingVentas || loadingCobranzas || loadingPagos;
+  const proyectos = stats?.proyectos ?? [];
 
-  const now = new Date();
-  const currentMonth = now.getMonth();
-  const currentYear = now.getFullYear();
-  const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-  const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+  const totalLotes = stats?.lotes.total ?? 0;
+  const lotesDe = (estado: string) => stats?.lotes.por_estado[estado] ?? 0;
+  const lotesDisponibles = lotesDe("disponible");
+  const lotesReservados = lotesDe("reservado");
+  const lotesVendidos = lotesDe("vendido");
+  const lotesEnNegociacion = lotesDe("en_negociacion");
 
-  const lotesFiltered = useMemo(() => {
-    if (!lotes) return [];
-    return lotes;
-  }, [lotes]);
+  const ventasCountMesActual = stats?.ventas.mes_actual ?? 0;
+  const ventasCountMesAnterior = stats?.ventas.mes_anterior ?? 0;
+  const valorVendido = stats?.ventas.valor_vendido ?? 0;
 
-  const lotesDisponibles = lotesFiltered.filter((l) => l.estado === "disponible").length;
-  const lotesReservados = lotesFiltered.filter((l) => l.estado === "reservado").length;
-  const lotesVendidos = lotesFiltered.filter((l) => l.estado === "vendido").length;
-  const lotesEnNegociacion = lotesFiltered.filter((l) => l.estado === "en_negociacion").length;
-  const totalLotes = lotesFiltered.length;
+  const cobranzaPendiente = stats?.cartera.monto_pendiente ?? 0;
+  const cobranzaVencida = stats?.cartera.monto_vencido ?? 0;
+  const cobranzaPagada = stats?.cartera.monto_pagado ?? 0;
+  const morosidad = stats?.cartera.vencida ?? 0;
 
-  const ventasMesActual = ventas?.filter((v) => {
-    const fecha = new Date(v.created_at ?? "");
-    return fecha.getMonth() === currentMonth && fecha.getFullYear() === currentYear;
-  }) ?? [];
-  const ventasMesAnterior = ventas?.filter((v) => {
-    const fecha = new Date(v.created_at ?? "");
-    return fecha.getMonth() === lastMonth && fecha.getFullYear() === lastMonthYear;
-  }) ?? [];
-
-  // Una venta cuenta como realizada tanto si esta completada (todo pagado) como
-  // pendiente (con cuotas por cobrar); solo las canceladas quedan fuera.
-  const esVentaRealizada = (estado?: string | null) => {
-    const e = (estado ?? "").trim().toLowerCase();
-    return e === "completada" || e === "pendiente";
-  };
-  const ventasCountMesActual = ventasMesActual.filter((v) => esVentaRealizada(v.estado)).length;
-  const ventasCountMesAnterior = ventasMesAnterior.filter((v) => esVentaRealizada(v.estado)).length;
-
-  // En centavos enteros para que los flotantes no ensucien el total.
-  const valorVendido =
-    (ventas?.filter((v) => esVentaRealizada(v.estado)).reduce((sum, v) => sum + Math.round(v.precio_final * 100), 0) ?? 0) / 100;
-
-  const cobranzaPendiente = cobranzas?.filter((c) => c.estado === "pendiente").reduce((sum, c) => sum + c.monto_cuota, 0) ?? 0;
-  const cobranzaVencida = cobranzas?.filter((c) => c.estado === "vencida").reduce((sum, c) => sum + c.monto_cuota, 0) ?? 0;
-  const cobranzaPagada = cobranzas?.filter((c) => c.estado === "pagada").reduce((sum, c) => sum + c.monto_cuota, 0) ?? 0;
-  const morosidad = (cobranzas?.filter((c) => c.estado === "vencida").length ?? 0);
-
-  const pagosRecibidos = pagos?.reduce((sum, p) => sum + p.monto_pagado, 0) ?? 0;
+  const pagosRecibidos = stats?.pagos.total ?? 0;
 
   const getChangePercent = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? 100 : 0;
@@ -93,36 +60,40 @@ export function DashboardPage() {
 
   const ventasChange = getChangePercent(ventasCountMesActual, ventasCountMesAnterior);
 
-  // Ventas, cobranzas and pagos are intentionally not persisted offline
-  // (offline/data-policy) — without a connection and nothing cached, these
-  // KPIs would otherwise silently read as 0, which looks like "no debt"
-  // rather than "unknown". Show that explicitly instead.
-  const financialDataUnavailable = !isOnline && (ventas === undefined || cobranzas === undefined || pagos === undefined);
+  // Sin datos = sin conexión (este panel no se persiste offline, ver
+  // offline/data-policy) o un fallo de la consulta. En ambos casos un 0
+  // mentiría: parecería "no hay nada" cuando en realidad no se pudo leer.
+  const sinDatos = stats === undefined;
+  const motivoSinDatos = isOnline ? "No se pudo cargar" : "Requiere conexión";
 
   const statCards = [
     {
       title: "Proyectos Activos",
-      value: proyectos?.length ?? 0,
+      value: proyectos.length,
       icon: <ProjectOutlined style={{ fontSize: 24, color: "#1677ff" }} />,
       color: "#e6f4ff",
+      unavailable: sinDatos,
     },
     {
       title: "Lotes Disponibles",
       value: lotesDisponibles,
       icon: <HomeOutlined style={{ fontSize: 24, color: "#52c41a" }} />,
       color: "#f6ffed",
+      unavailable: sinDatos,
     },
     {
       title: "Lotes Reservados",
       value: lotesReservados,
       icon: <ClockCircleOutlined style={{ fontSize: 24, color: "#faad14" }} />,
       color: "#fffbe6",
+      unavailable: sinDatos,
     },
     {
       title: "Lotes Vendidos",
       value: lotesVendidos,
       icon: <CheckCircleOutlined style={{ fontSize: 24, color: "#ff4d4f" }} />,
       color: "#fff2f0",
+      unavailable: sinDatos,
     },
     {
       title: "Ventas del Mes",
@@ -130,7 +101,7 @@ export function DashboardPage() {
       icon: <ShoppingCartOutlined style={{ fontSize: 24, color: "#722ed1" }} />,
       color: "#f9f0ff",
       change: ventasChange,
-      unavailable: financialDataUnavailable,
+      unavailable: sinDatos,
     },
     {
       title: "Valor Vendido Total",
@@ -138,7 +109,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <DollarOutlined style={{ fontSize: 24, color: "#13c2c2" }} />,
       color: "#e6fffb",
-      unavailable: financialDataUnavailable,
+      unavailable: sinDatos,
     },
     {
       title: "Cartera Pendiente",
@@ -146,7 +117,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <WalletOutlined style={{ fontSize: 24, color: "#faad14" }} />,
       color: "#fffbe6",
-      unavailable: financialDataUnavailable,
+      unavailable: sinDatos,
     },
     {
       title: "Cartera Vencida",
@@ -154,7 +125,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <WarningOutlined style={{ fontSize: 24, color: "#ff4d4f" }} />,
       color: "#fff2f0",
-      unavailable: financialDataUnavailable,
+      unavailable: sinDatos,
     },
     {
       title: "Pagos Recibidos",
@@ -162,7 +133,7 @@ export function DashboardPage() {
       isCurrency: true,
       icon: <ArrowUpOutlined style={{ fontSize: 24, color: "#52c41a" }} />,
       color: "#f6ffed",
-      unavailable: financialDataUnavailable,
+      unavailable: sinDatos,
     },
   ];
 
@@ -203,7 +174,7 @@ export function DashboardPage() {
           style={{ width: 250 }}
           value={selectedProyecto}
           onChange={(val) => setSelectedProyecto(val)}
-          options={proyectos?.map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
+          options={proyectos.map((p) => ({ value: p.id_proyecto, label: p.nombre }))}
         />
       </div>
 
@@ -238,7 +209,7 @@ export function DashboardPage() {
                     />
                   )}
                   {"unavailable" in card && card.unavailable ? (
-                    <Tag color="warning" style={{ fontSize: 11 }}>Requiere conexión</Tag>
+                    <Tag color="warning" style={{ fontSize: 11 }}>{motivoSinDatos}</Tag>
                   ) : (
                     "change" in card && card.change !== undefined && (
                       <Tag color={card.change >= 0 ? "green" : "red"} style={{ fontSize: 11 }}>
@@ -274,8 +245,10 @@ export function DashboardPage() {
         </Col>
         <Col xs={24} lg={8}>
           <Card title="Resumen Cartera" style={{ borderRadius: 10 }}>
-            {financialDataUnavailable ? (
-              <Text type="secondary">Se requiere conexión para consultar la cartera.</Text>
+            {sinDatos ? (
+              <Text type="secondary">
+                {isOnline ? "No se pudo cargar la cartera." : "Se requiere conexión para consultar la cartera."}
+              </Text>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -327,8 +300,8 @@ export function DashboardPage() {
         <Col xs={24} sm={12}>
           <Card title="Metricas Comerciales" style={{ borderRadius: 10 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <Statistic title="Clientes Registrados" value={clientes?.length ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<UserOutlined style={{ color: "#1677ff" }} />} />
-              <Statistic title="Asesores Activos" value={asesores?.filter((a) => a.estado === "activo").length ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<TeamOutlined style={{ color: "#52c41a" }} />} />
+              <Statistic title="Clientes Registrados" value={stats?.clientes ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<UserOutlined style={{ color: "#1677ff" }} />} />
+              <Statistic title="Asesores Activos" value={stats?.asesores_activos ?? 0} styles={{ content: { fontWeight: 700 } }} prefix={<TeamOutlined style={{ color: "#52c41a" }} />} />
               <Statistic title="Cotizaciones" value={0} styles={{ content: { fontWeight: 700 } }} prefix={<FileTextOutlined style={{ color: "#722ed1" }} />} />
             </div>
           </Card>
