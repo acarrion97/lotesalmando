@@ -3,7 +3,7 @@ import { Alert, Button, Space, Input, Modal, Form, Descriptions, message, Toolti
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, WalletOutlined, LinkOutlined, MailOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useClientes, useCotizaciones, useVentas, useLotes, useManzanas, useEtapas, useProyectos, useContratos } from "@/presentation/hooks";
+import { useClientes, useCobranzas, useCotizaciones, usePagos, useVentas, useLotes, useManzanas, useEtapas, useProyectos, useContratos } from "@/presentation/hooks";
 import { usePuede } from "@/presentation/hooks";
 import { useAuth, useEmpresa } from "@/presentation/providers";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
@@ -15,6 +15,7 @@ import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto"
 import { ClienteDeudasModal } from "./ClienteDeudasModal";
 import { inventoryKeys } from "@/presentation/hooks/inventoryKeys";
 import { crearMapaProyectoPorLote } from "@/presentation/utils/proyectos";
+import { saldoDeCuota, totalPagadoPorCobranza } from "@/presentation/utils/deudas";
 
 interface ModalState {
   type: "view" | "edit" | "delete" | "deudas" | null;
@@ -34,6 +35,8 @@ export function ClientesPage() {
   const { data: etapas, isLoading: loadingEtapas } = useEtapas();
   const { data: proyectos, isLoading: loadingProyectos } = useProyectos();
   const { data: contratos, isLoading: loadingContratos } = useContratos();
+  const { data: cobranzas } = useCobranzas();
+  const { data: pagos } = usePagos();
   const [searchText, setSearchText] = useState("");
   const [proyectoFilter, setProyectoFilter] = useState<number | null>(null);
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
@@ -87,6 +90,35 @@ export function ClientesPage() {
       contratos: (contratos ?? []).filter((c) => idsVentas.has(c.id_venta)).length,
     };
   }, [modal, cotizaciones, ventas, contratos]);
+
+  /**
+   * Clientes con alguna cuota aún por cobrar. Se resuelve la cadena
+   * contrato → venta → cliente y se descuentan los pagos registrados, igual
+   * que la cartera del reporte: una cuota cubierta por pagos no cuenta como
+   * deuda aunque su `estado` haya quedado desfasado. El botón "Deudas" solo se
+   * muestra para estos clientes.
+   */
+  const clientesConDeuda = useMemo(() => {
+    const idVentaPorContrato = new Map(
+      (contratos ?? []).map((c) => [c.id_contrato, c.id_venta]),
+    );
+    const idClientePorVenta = new Map(
+      (ventas ?? []).map((v) => [v.id_venta, v.id_cliente]),
+    );
+    const pagadoPorCobranza = totalPagadoPorCobranza(pagos);
+
+    const conDeuda = new Set<number>();
+    for (const cob of cobranzas ?? []) {
+      if ((cob.estado ?? "").trim().toLowerCase() === "pagada") continue;
+      const pagado = pagadoPorCobranza.get(cob.id_cobranza) ?? 0;
+      if (saldoDeCuota(cob.monto_cuota, pagado) === 0) continue;
+
+      const idVenta = idVentaPorContrato.get(cob.id_contrato);
+      const idCliente = idVenta === undefined ? undefined : idClientePorVenta.get(idVenta);
+      if (idCliente !== undefined) conDeuda.add(idCliente);
+    }
+    return conDeuda;
+  }, [cobranzas, contratos, ventas, pagos]);
 
   const filteredData = useMemo(() => {
     const base = soloSinEmail ? sinEmail : clientesDelProyecto;
@@ -278,7 +310,9 @@ export function ClientesPage() {
       render: (_: unknown, record: Cliente) => (
         <Space>
           <Button type="link" icon={<EyeOutlined />} onClick={() => openModal("view", record)}>Ver</Button>
-          <Button type="link" icon={<WalletOutlined />} onClick={() => openModal("deudas", record)}>Deudas</Button>
+          {clientesConDeuda.has(record.id_cliente) && (
+            <Button type="link" icon={<WalletOutlined />} onClick={() => openModal("deudas", record)}>Deudas</Button>
+          )}
           {puedeEditar && (
             <Button type="link" icon={<EditOutlined />} onClick={() => openModal("edit", record)}>Editar</Button>
           )}

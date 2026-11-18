@@ -9,6 +9,7 @@ import { ModalRevisionComprobante } from "@/presentation/components/comprobantes
 import type { Comprobante } from "@/domain/comprobante/entities";
 import type { Cliente } from "@/domain/cliente/entities/Cliente";
 import { formatCurrency, formatDateOnly } from "@/utils";
+import { saldoDeCuota, totalPagadoPorCobranza } from "@/presentation/utils/deudas";
 
 const { Text } = Typography;
 
@@ -17,6 +18,8 @@ interface DeudaFila {
   numero_contrato: string;
   numero_cuota: number;
   monto_cuota: number;
+  /** Monto aún por cobrar tras descontar los pagos registrados. */
+  saldo: number;
   estado: string;
   fecha_vencimiento: string | null;
 }
@@ -40,12 +43,12 @@ const columnasBase: TableColumnType<DeudaFila>[] = [
     render: (fecha?: string | null) => (fecha ? formatDateOnly(fecha.slice(0, 10)) : "-"),
   },
   {
-    title: "Monto",
-    dataIndex: "monto_cuota",
-    key: "monto_cuota",
-    width: 120,
+    title: "Saldo",
+    dataIndex: "saldo",
+    key: "saldo",
+    width: 130,
     align: "right",
-    render: (monto: number) => formatCurrency(monto),
+    render: (saldo: number) => formatCurrency(saldo),
   },
   {
     title: "Estado",
@@ -100,14 +103,8 @@ export function ClienteDeudasModal({
     return mapa;
   }, [comprobantes]);
 
-  /** Total pagado por cuota, para mostrarlo en el modal de edición. */
-  const pagadoPorCobranza = useMemo(() => {
-    const mapa = new Map<number, number>();
-    for (const p of pagos ?? []) {
-      mapa.set(p.id_cobranza, (mapa.get(p.id_cobranza) ?? 0) + Math.round(p.monto_pagado * 100));
-    }
-    return new Map([...mapa.entries()].map(([id, centavos]) => [id, centavos / 100]));
-  }, [pagos]);
+  /** Total pagado por cuota, para el saldo real y el modal de edición. */
+  const pagadoPorCobranza = useMemo(() => totalPagadoPorCobranza(pagos), [pagos]);
 
   const { filas, saldo } = useMemo(() => {
     if (!cliente) return { filas: [] as DeudaFila[], saldo: 0 };
@@ -130,17 +127,26 @@ export function ClienteDeudasModal({
     }
     if (numeroPorContrato.size === 0) return { filas: [] as DeudaFila[], saldo: 0 };
 
-    // Cuotas no pagadas de esos contratos.
+    // Cuotas no pagadas de esos contratos, descontando los pagos registrados.
+    // Una cuota cubierta por pagos no es deuda aunque su estado esté desfasado.
     const deudas: DeudaFila[] = [];
+    let saldoCentavos = 0;
     for (const cob of cobranzas ?? []) {
       const estado = (cob.estado ?? "").trim().toLowerCase();
       const numero = numeroPorContrato.get(cob.id_contrato);
       if (!numero || estado === "pagada") continue;
+
+      const pagado = pagadoPorCobranza.get(cob.id_cobranza) ?? 0;
+      const saldo = saldoDeCuota(cob.monto_cuota, pagado);
+      if (saldo === 0) continue;
+
+      saldoCentavos += Math.round(saldo * 100);
       deudas.push({
         id_cobranza: cob.id_cobranza,
         numero_contrato: numero,
         numero_cuota: cob.numero_cuota,
         monto_cuota: cob.monto_cuota,
+        saldo,
         estado,
         fecha_vencimiento: cob.fecha_vencimiento ?? null,
       });
@@ -152,11 +158,8 @@ export function ClienteDeudasModal({
         : a.numero_contrato.localeCompare(b.numero_contrato),
     );
 
-    // Centavos enteros para no arrastrar ruido de flotantes (mismo criterio
-    // que CuotasPendientesVenta y CobranzasPage).
-    const total = deudas.reduce((s, d) => s + Math.round(d.monto_cuota * 100), 0) / 100;
-    return { filas: deudas, saldo: total };
-  }, [cliente, ventas, contratos, cobranzas, proyectoId, infoDeContrato]);
+    return { filas: deudas, saldo: saldoCentavos / 100 };
+  }, [cliente, ventas, contratos, cobranzas, proyectoId, infoDeContrato, pagadoPorCobranza]);
 
   const cargando = open && (loadingVentas || (proyectoId != null && loadingRelaciones));
 
@@ -309,7 +312,7 @@ export function ClienteDeudasModal({
               dataSource={filas}
               pagination={false}
               tableLayout="fixed"
-              scroll={{ x: 820, y: 280 }}
+              scroll={{ x: 830, y: 280 }}
             />
           </>
         )}
