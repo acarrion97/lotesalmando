@@ -71,7 +71,7 @@ export function AsignarProspectoModal({
     // Al cambiar de modo se limpian los datos del cliente: no queremos reservar
     // a una persona con el nombre de la otra.
     form.resetFields(["id_prospecto", "nombres", "cedula_ruc", "email", "telefono", "origen", "notas", "entrada"]);
-    if (nuevoModo === "nuevo") form.setFieldsValue({ origen: "directo", entrada: 0 });
+    if (nuevoModo === "nuevo") form.setFieldsValue({ origen: "directo" });
   };
 
   const elegirProspecto = (idProspecto: number) => {
@@ -111,7 +111,7 @@ export function AsignarProspectoModal({
       telefono?: string;
       origen?: string;
       notas?: string;
-      entrada?: number;
+      entrada: number;
     };
     try {
       values = await form.validateFields();
@@ -135,10 +135,7 @@ export function AsignarProspectoModal({
           telefono: values.telefono?.trim() ? values.telefono : null,
         },
         // La seña solo se pide al crear el prospecto, igual que en Prospectos.
-        entrada:
-          modoActivo === "nuevo" && (values.entrada ?? 0) > 0
-            ? { monto: values.entrada ?? 0 }
-            : null,
+        entrada: { monto: values.entrada },
       });
 
       await Promise.all([
@@ -289,23 +286,22 @@ export function AsignarProspectoModal({
               <Form.Item name="telefono" label="Teléfono" rules={[{ max: 50, message: "Máximo 50 caracteres" }]}>
                 <Input placeholder="0991234567" />
               </Form.Item>
-              {modoActivo === "nuevo" && (
                 <Form.Item
                   name="entrada"
-                  label="Entrada (opcional)"
-                  extra={`Si el prospecto entregó una seña al reservar, ingrésela aquí. Máximo ${formatCurrency(
+                  label="Entrada obligatoria"
+                  rules={[{ required: true, message: "Ingrese la entrada" }, { type: "number", min: 0.01, message: "La entrada debe ser mayor que 0" }]}
+                  extra={`Entrada obligatoria. Máximo ${formatCurrency(
                     Math.max(0, (lote.precio_lista ?? 0) - 1),
-                  )}. Dejar en 0 si no se cobra nada.`}
+                  )}.`}
                 >
                   <InputNumber
                     style={{ width: "100%" }}
-                    min={0}
+                    min={0.01}
                     max={Math.max(0, (lote.precio_lista ?? 0) - 1)}
                     step={100}
-                    placeholder="0"
+                    placeholder="Ingrese el monto"
                   />
                 </Form.Item>
-              )}
             </Form>
           </div>
         )}

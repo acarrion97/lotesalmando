@@ -27,8 +27,8 @@ export interface AsignarProspectoReservaInput {
   nuevo?: NuevoProspectoReserva | null;
   /** Snapshot que se guarda en la oportunidad y se usa al vender. */
   cliente: DatosClienteReserva;
-  /** Entrada (seña) cobrada al asignar; omitirla o monto 0 = sin cobro. */
-  entrada?: { monto: number } | null;
+  /** Entrada (seña) cobrada al asignar; es obligatoria. */
+  entrada: { monto: number };
 }
 
 export interface AsignarProspectoReservaResult {
@@ -79,8 +79,8 @@ export class AsignarProspectoReservaUseCase {
 
     // Se valida antes de escribir nada: si el monto no es válido, la reserva
     // queda intacta y el usuario solo corrige el formulario.
-    const montoEntrada = input.entrada?.monto ?? 0;
-    if (!Number.isFinite(montoEntrada) || montoEntrada < 0) {
+    const montoEntrada = input.entrada?.monto;
+    if (!Number.isFinite(montoEntrada) || montoEntrada <= 0) {
       throw new Error("El monto de la entrada no es válido");
     }
     if (montoEntrada > 0 && montoEntrada > (lote.precio_lista ?? 0)) {

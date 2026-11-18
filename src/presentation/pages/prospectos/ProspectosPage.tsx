@@ -331,7 +331,7 @@ export function ProspectosPage() {
       cedula_ruc: string;
       email?: string;
       telefono?: string;
-      entrada?: number;
+      entrada: number;
     };
     try {
       values = await reservaForm.validateFields();
@@ -352,8 +352,7 @@ export function ProspectosPage() {
           email: values.email ?? "",
           telefono: values.telefono?.trim() ? values.telefono : null,
         },
-        // Entrada (seña) opcional: 0 o ausente = sin cobro, la reserva avanza igual.
-        entrada: (values.entrada ?? 0) > 0 ? { monto: values.entrada ?? 0 } : null,
+        entrada: { monto: values.entrada },
       });
       await refresh();
       await Promise.all([
@@ -707,18 +706,19 @@ export function ProspectosPage() {
                 </Form.Item>
                 <Form.Item
                   name="entrada"
-                  label="Entrada (opcional)"
+                  label="Entrada obligatoria"
+                  rules={[{ required: true, message: "Ingrese la entrada" }, { type: "number", min: 0.01, message: "La entrada debe ser mayor que 0" }]}
                   extra={
                     loteResumen
-                      ? `Si se cobra una seña al reservar, ingrésela aquí. Máximo ${formatCurrency(
+                      ? `Entrada obligatoria. Máximo ${formatCurrency(
                           Math.max(0, (loteResumen.precio_lista ?? 0) - 1)
-                        )}. Dejar en 0 si no se cobra nada.`
-                      : "Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                        )}.`
+                      : "Entrada obligatoria."
                   }
                 >
                   <InputNumber
                     style={{ width: "100%" }}
-                    min={0}
+                    min={0.01}
                     max={loteResumen ? Math.max(0, (loteResumen.precio_lista ?? 0) - 1) : undefined}
                     step={100}
                     placeholder="0"

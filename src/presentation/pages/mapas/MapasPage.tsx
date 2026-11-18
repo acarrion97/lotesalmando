@@ -550,6 +550,10 @@ export function MapasPage() {
       message.error("Seleccione el prospecto para la reserva");
       return;
     }
+    if (!Number.isFinite(reservaEntrada) || reservaEntrada <= 0) {
+      message.error("Ingrese una entrada mayor que 0");
+      return;
+    }
 
     setReservaSubmitting(true);
     try {
@@ -569,8 +573,7 @@ export function MapasPage() {
           email: prospecto.email ?? "",
           telefono: prospecto.telefono?.trim() ? prospecto.telefono : null,
         },
-        // Entrada (seña) opcional: 0 = sin cobro, la reserva avanza igual.
-        entrada: reservaEntrada > 0 ? { monto: reservaEntrada } : null,
+        entrada: { monto: reservaEntrada },
       });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["lotes"] }),
@@ -1428,13 +1431,13 @@ export function MapasPage() {
                   }))}
                 />
                 <Form.Item
-                  label="Entrada (opcional)"
+                  label="Entrada obligatoria"
                   style={{ marginTop: 16 }}
-                  extra="Si se cobra una seña al reservar, ingrésela aquí. Dejar en 0 si no se cobra nada."
+                  extra="Entrada obligatoria. Ingrese un monto mayor que 0."
                 >
                   <InputNumber
                     style={{ width: "100%" }}
-                    min={0}
+                    min={0.01}
                     max={Math.max(0, (selectedLote?.precio_lista ?? 0) - 1)}
                     step={100}
                     prefix="$"

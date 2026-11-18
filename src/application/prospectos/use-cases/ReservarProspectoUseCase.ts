@@ -21,8 +21,8 @@ export interface ReservarProspectoInput {
   /** Asesor de la sesión; null cuando la cuenta no tiene asesor vinculado. */
   idAsesor: number | null;
   cliente: DatosClienteReserva;
-  /** Entrada (seña) cobrada al reservar; omitirla o monto 0 = sin cobro. */
-  entrada?: { monto: number } | null;
+  /** Entrada (seña) cobrada al reservar; es obligatoria. */
+  entrada: { monto: number };
 }
 
 export interface ReservarProspectoResult {
@@ -72,6 +72,10 @@ export class ReservarProspectoUseCase {
 
   async execute(input: ReservarProspectoInput): Promise<ReservarProspectoResult> {
     this.validarDatosCliente(input.cliente);
+    const montoEntrada = input.entrada?.monto;
+    if (!Number.isFinite(montoEntrada) || montoEntrada <= 0) {
+      throw new Error("Ingrese un monto de entrada mayor que 0");
+    }
 
     const prospecto = await this.prospectoRepo.getById(input.idProspecto);
     if (!prospecto) throw new Error("El prospecto ya no existe");
@@ -94,19 +98,14 @@ export class ReservarProspectoUseCase {
     let oportunidad: Oportunidad | null = null;
     let idEntrada: number | null = null;
     try {
-      // Entrada (seña) opcional: se cobra después de reservar el lote. Si el
-      // monto no está informado o es 0, la reserva avanza sin cobro.
-      const montoEntrada = input.entrada?.monto ?? 0;
-      if (montoEntrada > 0) {
-        const entrada = await this.registrarEntrada.execute({
-          idLote: input.idLote,
-          idProspecto: prospecto.id_prospecto,
-          idEmpresa: prospecto.id_empresa,
-          idUsuario: input.usuarioId,
-          monto: montoEntrada,
-        });
-        idEntrada = entrada.id_entrada;
-      }
+      const entrada = await this.registrarEntrada.execute({
+        idLote: input.idLote,
+        idProspecto: prospecto.id_prospecto,
+        idEmpresa: prospecto.id_empresa,
+        idUsuario: input.usuarioId,
+        monto: montoEntrada,
+      });
+      idEntrada = entrada.id_entrada;
 
       // Los datos del cliente quedan como snapshot en la propia oportunidad de
       // la reserva. No se crea `cliente`: eso recién pasa al vender.
