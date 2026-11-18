@@ -44,6 +44,7 @@ import { GetContratosUseCase } from "@/application/contratos/use-cases/GetContra
 import { GetContratoUseCase } from "@/application/contratos/use-cases/GetContratoUseCase";
 import { GetCobranzasUseCase } from "@/application/cobranzas/use-cases/GetCobranzasUseCase";
 import { GetCobranzasByContratoUseCase } from "@/application/cobranzas/use-cases/GetCobranzasByContratoUseCase";
+import { EditarCuotaUseCase } from "@/application/cobranzas/use-cases/EditarCuotaUseCase";
 import { GetPagosUseCase } from "@/application/pagos/use-cases/GetPagosUseCase";
 import { RegisterPagoUseCase } from "@/application/pagos/use-cases/RegisterPagoUseCase";
 import { EmitirReciboUseCase } from "@/application/recibos/use-cases/EmitirReciboUseCase";
@@ -190,6 +191,8 @@ export interface UseCases {
   getContrato: GetContratoUseCase;
   getCobranzas: GetCobranzasUseCase;
   getCobranzasByContrato: GetCobranzasByContratoUseCase;
+  /** Corrige monto/vencimiento de una cuota y recalcula su estado. */
+  editarCuota: EditarCuotaUseCase;
   getPagos: GetPagosUseCase;
   registerPago: RegisterPagoUseCase;
   emitirRecibo: EmitirReciboUseCase;
@@ -366,6 +369,7 @@ export function createUseCases(repos: Repositories): UseCases {
     getContrato: new GetContratoUseCase(repos.contractRepo),
     getCobranzas: new GetCobranzasUseCase(repos.cobranzaRepo),
     getCobranzasByContrato: new GetCobranzasByContratoUseCase(repos.cobranzaRepo),
+    editarCuota: new EditarCuotaUseCase(repos.cobranzaRepo),
     getPagos: new GetPagosUseCase(repos.pagoRepo),
     registerPago: new RegisterPagoUseCase(repos.confirmarPagoConRecibo),
     emitirRecibo: new EmitirReciboUseCase(repos.reciboRepo),

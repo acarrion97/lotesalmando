@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Modal, Button, Table, Tag, Tooltip, Typography, Spin, Empty, Space } from "antd";
-import { EyeOutlined, PayCircleOutlined } from "@ant-design/icons";
+import { EyeOutlined, PayCircleOutlined, EditOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useVentas, useContratos, useCobranzas, useOnlineStatus, useComprobantes, useInfoContratos } from "@/presentation/hooks";
-import { RegistrarPagoModal, type CobranzaAPagar } from "@/presentation/components/pagos";
+import { useVentas, useContratos, useCobranzas, useOnlineStatus, useComprobantes, useInfoContratos, usePagos, usePuede } from "@/presentation/hooks";
+import { RegistrarPagoModal, EditarCuotaModal, type CobranzaAPagar, type CuotaAEditar } from "@/presentation/components/pagos";
 import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
 import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
 import type { Comprobante } from "@/domain/comprobante/entities";
@@ -26,19 +26,24 @@ const estadoCuota: Record<string, { color: string; label: string }> = {
   vencida: { color: "error", label: "Vencida" },
 };
 
+// Cada columna lleva ancho fijo: con `tableLayout` automático la tabla reparte
+// el ancho del modal y los rótulos ("Vencimiento", "Estado") se parten letra
+// por letra. Sumado a `scroll.x` la tabla se desplaza en pantallas angostas.
 const columnasBase: TableColumnType<DeudaFila>[] = [
   { title: "Cuota", dataIndex: "numero_cuota", key: "numero_cuota", width: 70 },
-  { title: "Contrato", dataIndex: "numero_contrato", key: "numero_contrato", width: 130 },
+  { title: "Contrato", dataIndex: "numero_contrato", key: "numero_contrato", width: 110 },
   {
     title: "Vencimiento",
     dataIndex: "fecha_vencimiento",
     key: "fecha_vencimiento",
+    width: 120,
     render: (fecha?: string | null) => (fecha ? formatDateOnly(fecha.slice(0, 10)) : "-"),
   },
   {
     title: "Monto",
     dataIndex: "monto_cuota",
     key: "monto_cuota",
+    width: 120,
     align: "right",
     render: (monto: number) => formatCurrency(monto),
   },
@@ -46,6 +51,7 @@ const columnasBase: TableColumnType<DeudaFila>[] = [
     title: "Estado",
     dataIndex: "estado",
     key: "estado",
+    width: 100,
     render: (estado: string) => {
       const cfg = estadoCuota[estado] ?? { color: "default", label: estado || "-" };
       return <Tag color={cfg.color}>{cfg.label}</Tag>;
@@ -74,9 +80,12 @@ export function ClienteDeudasModal({
   const { data: contratos } = useContratos();
   const { data: cobranzas } = useCobranzas();
   const { data: comprobantes } = useComprobantes();
+  const { data: pagos } = usePagos();
   const { infoDeContrato, isLoading: loadingRelaciones } = useInfoContratos();
   const isOnline = useOnlineStatus();
+  const puedeEditar = usePuede("editar_pagos");
   const [cobranzaAPagar, setCobranzaAPagar] = useState<CobranzaAPagar | null>(null);
+  const [cuotaAEditar, setCuotaAEditar] = useState<CuotaAEditar | null>(null);
   const [comprobanteSel, setComprobanteSel] = useState<{
     comprobante: Comprobante;
     contexto: string;
@@ -90,6 +99,15 @@ export function ClienteDeudasModal({
     }
     return mapa;
   }, [comprobantes]);
+
+  /** Total pagado por cuota, para mostrarlo en el modal de edición. */
+  const pagadoPorCobranza = useMemo(() => {
+    const mapa = new Map<number, number>();
+    for (const p of pagos ?? []) {
+      mapa.set(p.id_cobranza, (mapa.get(p.id_cobranza) ?? 0) + Math.round(p.monto_pagado * 100));
+    }
+    return new Map([...mapa.entries()].map(([id, centavos]) => [id, centavos / 100]));
+  }, [pagos]);
 
   const { filas, saldo } = useMemo(() => {
     if (!cliente) return { filas: [] as DeudaFila[], saldo: 0 };
@@ -151,32 +169,64 @@ export function ClienteDeudasModal({
       {
         title: "Acción",
         key: "accion",
-        width: 100,
-        render: (_: unknown, fila: DeudaFila) =>
-          fila.estado === "pagada" ? null : (
-            <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
-              <Button
-                type="primary"
-                size="small"
-                icon={<PayCircleOutlined />}
-                disabled={!isOnline}
-                onClick={() =>
-                  setCobranzaAPagar({
-                    id_cobranza: fila.id_cobranza,
-                    numero_cuota: fila.numero_cuota,
-                    monto_cuota: fila.monto_cuota,
-                    estado: fila.estado,
-                    fecha_vencimiento: fila.fecha_vencimiento,
-                    cliente: cliente?.nombres,
-                    cedula: cliente?.cedula_ruc,
-                    numero_contrato: fila.numero_contrato,
-                  })
-                }
-              >
-                Pagar
-              </Button>
-            </Tooltip>
-          ),
+        width: 150,
+        render: (_: unknown, fila: DeudaFila) => {
+          if (fila.estado === "pagada") return null;
+          return (
+            <Space size={4}>
+              <Tooltip title={!isOnline ? "Sin conexión: no se puede registrar un pago" : undefined}>
+                <Button
+                  type="primary"
+                  size="small"
+                  icon={<PayCircleOutlined />}
+                  disabled={!isOnline}
+                  onClick={() =>
+                    setCobranzaAPagar({
+                      id_cobranza: fila.id_cobranza,
+                      numero_cuota: fila.numero_cuota,
+                      monto_cuota: fila.monto_cuota,
+                      estado: fila.estado,
+                      fecha_vencimiento: fila.fecha_vencimiento,
+                      cliente: cliente?.nombres,
+                      cedula: cliente?.cedula_ruc,
+                      numero_contrato: fila.numero_contrato,
+                    })
+                  }
+                >
+                  Pagar
+                </Button>
+              </Tooltip>
+              {puedeEditar && (
+                <Tooltip
+                  title={
+                    isOnline
+                      ? "Editar monto o vencimiento"
+                      : "Sin conexión: no se puede editar"
+                  }
+                >
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    disabled={!isOnline}
+                    onClick={() =>
+                      setCuotaAEditar({
+                        id_cobranza: fila.id_cobranza,
+                        numero_cuota: fila.numero_cuota,
+                        monto_cuota: fila.monto_cuota,
+                        fecha_vencimiento: fila.fecha_vencimiento,
+                        estado: fila.estado,
+                        cliente: cliente?.nombres,
+                        cedula: cliente?.cedula_ruc,
+                        numero_contrato: fila.numero_contrato,
+                        pagado: pagadoPorCobranza.get(fila.id_cobranza) ?? 0,
+                      })
+                    }
+                  />
+                </Tooltip>
+              )}
+            </Space>
+          );
+        },
       },
       {
         title: "Comprobante",
@@ -207,7 +257,7 @@ export function ClienteDeudasModal({
         },
       },
     ],
-    [isOnline, cliente, comprobantePorCobranza],
+    [isOnline, cliente, comprobantePorCobranza, puedeEditar, pagadoPorCobranza],
   );
 
   return (
@@ -221,7 +271,7 @@ export function ClienteDeudasModal({
             Cerrar
           </Button>,
         ]}
-        width={680}
+        width={900}
       >
         {cliente && (
           <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
@@ -258,11 +308,18 @@ export function ClienteDeudasModal({
               columns={columnas}
               dataSource={filas}
               pagination={false}
-              scroll={{ y: 280 }}
+              tableLayout="fixed"
+              scroll={{ x: 820, y: 280 }}
             />
           </>
         )}
       </Modal>
+
+      <EditarCuotaModal
+        open={cuotaAEditar !== null}
+        cuota={cuotaAEditar}
+        onClose={() => setCuotaAEditar(null)}
+      />
 
       <RegistrarPagoModal
         title="Registrar pago de cuota"

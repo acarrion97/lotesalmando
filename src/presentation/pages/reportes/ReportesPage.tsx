@@ -278,6 +278,15 @@ export function ReportesPage() {
   const mensual = useMemo(() => ventasPorMes(ventasFiltradas), [ventasFiltradas]);
 
   // ---- Cartera: cuotas sin cobrar (el filtro de período aplica al vencimiento) ----
+  /** Total cobrado por cuota: la cartera se mide contra pagos reales, no solo estado. */
+  const pagadoPorCobranza = useMemo(() => {
+    const mapa = new Map<number, number>();
+    for (const pago of pagos) {
+      mapa.set(pago.id_cobranza, (mapa.get(pago.id_cobranza) ?? 0) + aCentavos(pago.monto_pagado));
+    }
+    return new Map([...mapa.entries()].map(([id, centavos]) => [id, deCentavos(centavos)]));
+  }, [pagos]);
+
   const idVentaDeCobranza = (idCobranza: number): number | undefined =>
     infoDeCobranza(idCobranza)?.idVenta;
   const cuotas = useMemo(
@@ -295,9 +304,10 @@ export function ReportesPage() {
           return true;
         }),
         hoy,
+        pagadoPorCobranza,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cobranzas, filtroFechas, idProyecto, idAsesor, mapas, hoy, infoDeCobranza],
+    [cobranzas, filtroFechas, idProyecto, idAsesor, mapas, hoy, infoDeCobranza, pagadoPorCobranza],
   );
   const antiguedad = useMemo(() => antiguedadDeSaldos(cuotas), [cuotas]);
   const cuotasVencidas = useMemo(
@@ -538,6 +548,8 @@ export function ReportesPage() {
       c.numero_cuota,
       c.fecha_vencimiento,
       c.monto_cuota,
+      c.pagado,
+      c.saldo,
       c.diasMora,
     );
   });
@@ -670,8 +682,20 @@ export function ReportesPage() {
       render: (v: string) => formatDateOnly(v),
     },
     {
-      title: "Monto",
+      title: "Monto cuota",
       dataIndex: "monto_cuota",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    {
+      title: "Pagado",
+      dataIndex: "pagado",
+      align: "right",
+      render: (v: number) => formatCurrency(v),
+    },
+    {
+      title: "Saldo",
+      dataIndex: "saldo",
       align: "right",
       render: (v: number) => formatCurrency(v),
     },
@@ -929,13 +953,15 @@ export function ReportesPage() {
       },
       {
         nombre: "Cuotas en mora",
-        columnas: ["Cliente", "Lote", "Cuota", "Vencimiento", "Monto", "Días de mora"],
+        columnas: ["Cliente", "Lote", "Cuota", "Vencimiento", "Monto cuota", "Pagado", "Saldo", "Días de mora"],
         filas: cuotasVencidas.map((c) => [
           infoDeCobranza(c.id_cobranza)?.cliente ?? "",
           infoDeCobranza(c.id_cobranza)?.lote ?? "",
           c.numero_cuota,
           c.fecha_vencimiento,
           c.monto_cuota,
+          c.pagado,
+          c.saldo,
           c.diasMora,
         ]),
       },
@@ -1024,8 +1050,8 @@ export function ReportesPage() {
       },
     ]);
 
-  const montoCartera = cuotas.reduce((s, c) => s + Math.round(c.monto_cuota * 100), 0) / 100;
-  const montoMora = cuotasVencidas.reduce((s, c) => s + Math.round(c.monto_cuota * 100), 0) / 100;
+  const montoCartera = cuotas.reduce((s, c) => s + Math.round(c.saldo * 100), 0) / 100;
+  const montoMora = cuotasVencidas.reduce((s, c) => s + Math.round(c.saldo * 100), 0) / 100;
 
   const kpi = (title: string, value: string | number, color?: string) => (
     <Col xs={12} md={6}>

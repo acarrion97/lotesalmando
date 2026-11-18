@@ -87,6 +87,21 @@ export class SupabaseCobranzaRepository implements CobranzaRepository {
     return updated as Cobranza;
   }
 
+  async updateDatos(
+    id: number,
+    datos: Pick<Cobranza, "monto_cuota" | "fecha_vencimiento">,
+  ): Promise<Cobranza> {
+    // La RPC valida la empresa, actualiza la cuota y recalcula su estado con
+    // los pagos reales (migración 057).
+    const { data: updated, error } = await supabase.rpc("editar_cuota", {
+      p_id_cobranza: id,
+      p_monto_cuota: datos.monto_cuota,
+      p_fecha_vencimiento: datos.fecha_vencimiento,
+    });
+    if (error) throw error;
+    return updated as unknown as Cobranza;
+  }
+
   async getVencidas(): Promise<Cobranza[]> {
     const { data, error } = await supabase.from("cobranzas").select("*").eq("estado", "vencida");
     if (error) throw error;

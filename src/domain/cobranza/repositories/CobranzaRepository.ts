@@ -7,5 +7,14 @@ export interface CobranzaRepository {
   getById(id: number): Promise<Cobranza | null>;
   create(data: Omit<Cobranza, "id_cobranza">): Promise<Cobranza>;
   updateEstado(id: number, estado: CobranzaEstado): Promise<Cobranza>;
+  /**
+   * Corrige el monto y/o el vencimiento de una cuota ya creada. En Supabase
+   * pasa por la RPC `editar_cuota` (migración 057), que además recalcula el
+   * estado con los pagos reales y actualiza el estado de la venta.
+   */
+  updateDatos(
+    id: number,
+    datos: Pick<Cobranza, "monto_cuota" | "fecha_vencimiento">,
+  ): Promise<Cobranza>;
   getVencidas(): Promise<Cobranza[]>;
 }

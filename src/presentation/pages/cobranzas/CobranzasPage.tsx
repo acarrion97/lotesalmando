@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { Card, Button, Tag, Descriptions, Modal, Row, Col, Statistic, Tooltip, message } from "antd";
-import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined, SettingOutlined } from "@ant-design/icons";
+import { EyeOutlined, WarningOutlined, ReloadOutlined, CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined, FileTextOutlined, SettingOutlined, EditOutlined } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
-import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio, useProyectos } from "@/presentation/hooks";
+import { useCobranzas, useOnlineStatus, useContratos, useLookup, useInfoContratos, useComprobantes, usePagos, useRecibosPorPagos, useDescargarRecibo, useEmitirReciboPagoPrevio, useProyectos, usePuede } from "@/presentation/hooks";
 import { getContainer } from "@/infrastructure/container";
 import { useQueryClient } from "@tanstack/react-query";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
@@ -10,6 +10,7 @@ import { DataTable } from "@/presentation/components/common/DataTable";
 import { PageToolbar } from "@/presentation/components/common/PageToolbar";
 import { FiltroProyecto } from "@/presentation/components/common/FiltroProyecto";
 import { ConfiguracionPagosModal } from "@/presentation/components/pagos";
+import { EditarCuotaModal, type CuotaAEditar } from "@/presentation/components/pagos";
 import { ComprobanteTag } from "@/presentation/components/comprobantes/ComprobanteTag";
 import { ModalRevisionComprobante } from "@/presentation/components/comprobantes/ModalRevisionComprobante";
 import type { Comprobante } from "@/domain/comprobante/entities";
@@ -64,6 +65,8 @@ export function CobranzasPage() {
   const isOnline = useOnlineStatus();
   const [searchText, setSearchText] = useState("");
   const [viewModal, setViewModal] = useState<{ visible: boolean; record: CobranzaRow | null }>({ visible: false, record: null });
+  const [cuotaAEditar, setCuotaAEditar] = useState<CuotaAEditar | null>(null);
+  const puedeEditar = usePuede("editar_pagos");
   // Datos fiscales de los recibos por proyecto (Configuración de pagos).
   const [configPagosAbierta, setConfigPagosAbierta] = useState(false);
   const [comprobanteSel, setComprobanteSel] = useState<{
@@ -82,6 +85,15 @@ export function CobranzasPage() {
     }
     return mapa;
   }, [comprobantes]);
+
+  /** Total cobrado por cuota, para mostrarlo en el modal de edición. */
+  const pagadoPorCobranza = useMemo(() => {
+    const mapa = new Map<number, number>();
+    for (const pago of pagos ?? []) {
+      mapa.set(pago.id_cobranza, (mapa.get(pago.id_cobranza) ?? 0) + Math.round(pago.monto_pagado * 100));
+    }
+    return new Map([...mapa.entries()].map(([id, centavos]) => [id, centavos / 100]));
+  }, [pagos]);
 
   const handleDetectarVencidas = async () => {
     try {
@@ -136,6 +148,21 @@ export function CobranzasPage() {
         c.estado.toLowerCase().includes(searchText.toLowerCase()))
     );
   }, [cobranzas, cobranzasDelProyecto, searchText, infoDeContrato, filtroFechas]);
+
+  const abrirEdicionCuota = (record: CobranzaRow) => {
+    const info = infoDeContrato(record.id_contrato);
+    setCuotaAEditar({
+      id_cobranza: record.id_cobranza,
+      numero_cuota: record.numero_cuota,
+      monto_cuota: record.monto_cuota,
+      fecha_vencimiento: record.fecha_vencimiento ?? null,
+      estado: record.estado,
+      cliente: info?.cliente,
+      lote: info?.lote,
+      numero_contrato: contratoMap[record.id_contrato] ?? `Contrato #${record.id_contrato}`,
+      pagado: pagadoPorCobranza.get(record.id_cobranza) ?? 0,
+    });
+  };
 
   const columns: TableColumnType<CobranzaRow>[] = [
     {
@@ -262,11 +289,24 @@ export function CobranzasPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 80,
+      width: 110,
       render: (_: unknown, record: CobranzaRow) => (
-        <Tooltip title="Ver detalle">
-          <Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => setViewModal({ visible: true, record })} />
-        </Tooltip>
+        <>
+          <Tooltip title="Ver detalle">
+            <Button type="text" icon={<EyeOutlined />} style={{ color: "#1677ff" }} onClick={() => setViewModal({ visible: true, record })} />
+          </Tooltip>
+          {puedeEditar && (
+            <Tooltip title={isOnline ? "Editar monto o vencimiento" : "Sin conexión: no se puede editar"}>
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                disabled={!isOnline}
+                style={{ color: "#faad14" }}
+                onClick={() => abrirEdicionCuota(record)}
+              />
+            </Tooltip>
+          )}
+        </>
       ),
     },
   ];
@@ -353,7 +393,22 @@ export function CobranzasPage() {
         loading={isLoading || (proyectoFilter !== null && (loadingRelaciones || loadingProyectos))}
       />
 
-      <Modal title="Detalle de Cobranza" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[<Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>]} width={500}>
+      <Modal title="Detalle de Cobranza" open={viewModal.visible} onCancel={() => setViewModal({ visible: false, record: null })} footer={[
+        puedeEditar && viewModal.record ? (
+          <Button
+            key="edit"
+            icon={<EditOutlined />}
+            disabled={!isOnline}
+            onClick={() => {
+              abrirEdicionCuota(viewModal.record!);
+              setViewModal({ visible: false, record: null });
+            }}
+          >
+            Editar cuota
+          </Button>
+        ) : null,
+        <Button key="close" onClick={() => setViewModal({ visible: false, record: null })}>Cerrar</Button>,
+      ]} width={500}>
         {viewModal.record && (
           <Descriptions bordered column={2} size="small" style={{ marginTop: 16 }}>
             <Descriptions.Item label="# Cobranza">{viewModal.record.id_cobranza}</Descriptions.Item>
@@ -373,6 +428,12 @@ export function CobranzasPage() {
         open={comprobanteSel !== null}
         onClose={() => setComprobanteSel(null)}
         contexto={comprobanteSel?.contexto}
+      />
+
+      <EditarCuotaModal
+        open={cuotaAEditar !== null}
+        cuota={cuotaAEditar}
+        onClose={() => setCuotaAEditar(null)}
       />
 
       <ConfiguracionPagosModal

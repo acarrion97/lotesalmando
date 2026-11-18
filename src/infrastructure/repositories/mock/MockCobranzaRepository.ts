@@ -51,6 +51,28 @@ export class MockCobranzaRepository implements CobranzaRepository {
     return this.data[index];
   }
 
+  async updateDatos(
+    id: number,
+    datos: Pick<Cobranza, "monto_cuota" | "fecha_vencimiento">,
+  ): Promise<Cobranza> {
+    const index = this.data.findIndex((c) => c.id_cobranza === id);
+    if (index === -1) throw new Error(`Cobranza ${id} not found`);
+
+    const actual = this.data[index];
+    // En el modo demo no hay filas de `pagos` por cuota: se replica el mismo
+    // criterio conservador de la RPC (una cuota pagada sigue pagada).
+    const estado =
+      actual.estado === "pagada"
+        ? "pagada"
+        : datos.fecha_vencimiento.slice(0, 10) < new Date().toISOString().slice(0, 10)
+          ? "vencida"
+          : "pendiente";
+
+    this.data[index] = { ...actual, ...datos, estado };
+    await this.recalcularEstadoVentaDe(actual.id_contrato);
+    return this.data[index];
+  }
+
   async getVencidas(): Promise<Cobranza[]> {
     return this.data.filter((c) => c.estado === "vencida");
   }

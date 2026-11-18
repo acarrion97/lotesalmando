@@ -128,19 +128,46 @@ export function tramoDeMora(diasMora: number): TramoMora {
 }
 
 export interface CuotaEnCartera extends Cobranza {
+  /** Total ya cobrado sobre la cuota según las filas de `pagos`. */
+  pagado: number;
+  /** Saldo pendiente: monto de la cuota menos lo pagado (nunca negativo). */
+  saldo: number;
   /** Días de atraso respecto de `hoy`; <= 0 si todavía no vence. */
   diasMora: number;
   tramo: TramoMora;
 }
 
-/** Cuotas sin cobrar (pendientes o vencidas) con sus días de mora a la fecha `hoy`. */
-export function cuotasEnCartera(cobranzas: Cobranza[], hoy: string): CuotaEnCartera[] {
-  return cobranzas
-    .filter((c) => c.estado !== "pagada")
-    .map((c) => {
-      const diasMora = c.fecha_vencimiento ? diasEntre(c.fecha_vencimiento, hoy) : 0;
-      return { ...c, diasMora, tramo: tramoDeMora(diasMora) };
-    });
+/**
+ * Cuotas con saldo pendiente y sus días de mora a la fecha `hoy`.
+ *
+ * Además del estado guardado se contrasta lo realmente cobrado: una cuota con
+ * pagos que cubren su monto no entra en cartera aunque su `estado` haya quedado
+ * desactualizado (típico de importaciones). Es el mismo criterio de
+ * `recalcular_estado_cuota` en la base de datos.
+ */
+export function cuotasEnCartera(
+  cobranzas: Cobranza[],
+  hoy: string,
+  pagadoPorCobranza: ReadonlyMap<number, number> = new Map(),
+): CuotaEnCartera[] {
+  return cobranzas.flatMap((c) => {
+    const centavosPagados = aCentavos(pagadoPorCobranza.get(c.id_cobranza) ?? 0);
+    const saldoCentavos = Math.max(aCentavos(c.monto_cuota) - centavosPagados, 0);
+
+    // Ya está saldada: no forma parte de la cartera por cobrar.
+    if (c.estado === "pagada" || saldoCentavos === 0) return [];
+
+    const diasMora = c.fecha_vencimiento ? diasEntre(c.fecha_vencimiento, hoy) : 0;
+    return [
+      {
+        ...c,
+        pagado: deCentavos(centavosPagados),
+        saldo: deCentavos(saldoCentavos),
+        diasMora,
+        tramo: tramoDeMora(diasMora),
+      },
+    ];
+  });
 }
 
 export interface FilaAntiguedad {
@@ -151,12 +178,12 @@ export interface FilaAntiguedad {
   porcentaje: number;
 }
 
-/** Antigüedad de saldos: monto por cobrar repartido por tramo de mora. */
+/** Antigüedad de saldos: saldo por cobrar repartido por tramo de mora. */
 export function antiguedadDeSaldos(cuotas: CuotaEnCartera[]): FilaAntiguedad[] {
-  const total = cuotas.reduce((s, c) => s + aCentavos(c.monto_cuota), 0);
+  const total = cuotas.reduce((s, c) => s + aCentavos(c.saldo), 0);
   return TRAMOS_MORA.map(({ key, label }) => {
     const lista = cuotas.filter((c) => c.tramo === key);
-    const centavos = lista.reduce((s, c) => s + aCentavos(c.monto_cuota), 0);
+    const centavos = lista.reduce((s, c) => s + aCentavos(c.saldo), 0);
     return {
       tramo: key,
       label,

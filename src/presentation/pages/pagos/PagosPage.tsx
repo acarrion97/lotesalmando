@@ -26,7 +26,9 @@ import {
   RegistrarPagoModal,
   EditarPagoModal,
   EliminarPagoModal,
+  EditarCuotaModal,
   type CobranzaAPagar,
+  type CuotaAEditar,
 } from "@/presentation/components/pagos";
 import { RequiresConnection } from "@/presentation/components/common/RequiresConnection";
 import { DataTable } from "@/presentation/components/common/DataTable";
@@ -85,6 +87,7 @@ export function PagosPage() {
     visible: false,
     record: null,
   });
+  const [cuotaAEditar, setCuotaAEditar] = useState<CuotaAEditar | null>(null);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const puedeEditar = usePuede("editar_pagos");
   const puedeEliminar = usePuede("eliminar_pagos");
@@ -103,6 +106,15 @@ export function PagosPage() {
       conteo.set(p.id_cobranza, (conteo.get(p.id_cobranza) ?? 0) + 1);
     }
     return conteo;
+  }, [pagos]);
+
+  /** Total cobrado por cuota, para el modal de edición de la cuota. */
+  const pagadoPorCobranza = useMemo(() => {
+    const mapa = new Map<number, number>();
+    for (const p of pagos ?? []) {
+      mapa.set(p.id_cobranza, (mapa.get(p.id_cobranza) ?? 0) + Math.round(p.monto_pagado * 100));
+    }
+    return new Map([...mapa.entries()].map(([id, centavos]) => [id, centavos / 100]));
   }, [pagos]);
 
   const pagosEnRango = useMemo(
@@ -162,6 +174,24 @@ export function PagosPage() {
         p.fecha_pago.includes(searchText),
     );
   }, [pagosEnRango, searchText, infoDeCobranza]);
+
+  const abrirEdicionCuota = (idCobranza: number) => {
+    const cuota = (cobranzas ?? []).find((c) => c.id_cobranza === idCobranza);
+    if (!cuota) return;
+    const info = infoDeCobranza(idCobranza);
+    setCuotaAEditar({
+      id_cobranza: cuota.id_cobranza,
+      numero_cuota: cuota.numero_cuota,
+      monto_cuota: cuota.monto_cuota,
+      fecha_vencimiento: cuota.fecha_vencimiento ?? null,
+      estado: cuota.estado,
+      cliente: info?.cliente,
+      cedula: info?.cedula,
+      lote: info?.lote,
+      numero_contrato: contratoMap[cuota.id_contrato] ?? `Contrato #${cuota.id_contrato}`,
+      pagado: pagadoPorCobranza.get(cuota.id_cobranza) ?? 0,
+    });
+  };
 
   const columns: TableColumnType<PagoRow>[] = [
     {
@@ -224,7 +254,7 @@ export function PagosPage() {
     {
       title: "Acciones",
       key: "acciones",
-      width: 190,
+      width: 230,
       render: (_: unknown, record: PagoRow) => (
         <Space size={4}>
           <Button
@@ -233,6 +263,24 @@ export function PagosPage() {
             style={{ color: "#1677ff" }}
             onClick={() => setViewModal({ visible: true, record })}
           />
+          {/* Corregir el monto o el vencimiento de la cuota asociada. */}
+          {puedeEditar && (
+            <Tooltip
+              title={
+                isOnline
+                  ? "Editar cuota (monto y vencimiento)"
+                  : "Sin conexión: no se puede editar"
+              }
+            >
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                disabled={!isOnline}
+                style={{ color: "#722ed1" }}
+                onClick={() => abrirEdicionCuota(record.id_cobranza)}
+              />
+            </Tooltip>
+          )}
           {/* Corregir equivocación de carga: monto, fecha y forma de pago. */}
           {puedeEditar && (
             <Tooltip title={isOnline ? "Editar pago" : "Sin conexión: no se puede editar"}>
@@ -374,6 +422,19 @@ export function PagosPage() {
         open={viewModal.visible}
         onCancel={() => setViewModal({ visible: false, record: null })}
         footer={[
+          puedeEditar && viewModal.record ? (
+            <Button
+              key="editar-cuota"
+              icon={<EditOutlined />}
+              disabled={!isOnline}
+              onClick={() => {
+                abrirEdicionCuota(viewModal.record!.id_cobranza);
+                setViewModal({ visible: false, record: null });
+              }}
+            >
+              Editar cuota
+            </Button>
+          ) : null,
           viewModal.record && !reciboPorPago.has(viewModal.record.id_pago) ? (
             <Button
               key="recibo"
@@ -451,6 +512,13 @@ export function PagosPage() {
         open={createModalOpen}
         opciones={cobranzasAPagar}
         onClose={() => setCreateModalOpen(false)}
+      />
+
+      {/* Corrección del monto/vencimiento de la cuota del pago seleccionado */}
+      <EditarCuotaModal
+        open={cuotaAEditar !== null}
+        cuota={cuotaAEditar}
+        onClose={() => setCuotaAEditar(null)}
       />
 
       {/* Corrección de una equivocación: monto, fecha y forma de pago */}
