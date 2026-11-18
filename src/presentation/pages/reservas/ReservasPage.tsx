@@ -32,6 +32,7 @@ import {
   StopOutlined,
   MoreOutlined,
   DollarOutlined,
+  UserAddOutlined,
 } from "@ant-design/icons";
 import type { TableColumnType } from "antd";
 import {
@@ -59,6 +60,7 @@ import { loteSchema } from "@/presentation/validations";
 import { compararNumeroLote } from "@/utils";
 import { ZodError } from "zod";
 import { useAuth, useEmpresa } from "@/presentation/providers";
+import { AsignarProspectoModal } from "./AsignarProspectoModal";
 
 
 const estadoConfig: Record<LoteEstado, { color: string; bg: string; border: string; icon: React.ReactNode }> = {
@@ -195,7 +197,7 @@ interface ReservaInfo {
   oportunidad: Oportunidad;
 }
 
-function LoteGridCard({ lote, manzanaNombre, reservaInfo, onAction, onSale }: { lote: Lote; manzanaNombre?: string; reservaInfo?: ReservaInfo; onAction: (type: "view" | "edit" | "delete", record: Lote) => void; onSale: (record: Lote) => void }) {
+function LoteGridCard({ lote, manzanaNombre, reservaInfo, onAction, onSale, onAssign }: { lote: Lote; manzanaNombre?: string; reservaInfo?: ReservaInfo; onAction: (type: "view" | "edit" | "delete", record: Lote) => void; onSale: (record: Lote) => void; onAssign: (record: Lote) => void }) {
   const config = estadoConfig[lote.estado] ?? estadoConfig.disponible;
 
   return (
@@ -268,19 +270,38 @@ function LoteGridCard({ lote, manzanaNombre, reservaInfo, onAction, onSale }: { 
           </div>
           <Dropdown
             menu={{
-              items: [
-                { key: "ver", icon: <EyeOutlined />, label: "Ver detalle", onClick: () => onAction("view", lote) },
-                { key: "vender", icon: <DollarOutlined />, label: "Realizar venta", disabled: !reservaInfo?.datosCliente, onClick: () => onSale(lote) },
-                { key: "editar", icon: <EditOutlined />, label: "Editar", onClick: () => onAction("edit", lote) },
-                { type: "divider" },
-                { key: "eliminar", icon: <DeleteOutlined />, label: "Eliminar", danger: true, onClick: () => onAction("delete", lote) },
-              ],
+              items: reservaInfo
+                ? [
+                    { key: "vender", icon: <DollarOutlined />, label: "Realizar venta", disabled: !reservaInfo.datosCliente, onClick: () => onSale(lote) },
+                    { key: "ver", icon: <EyeOutlined />, label: "Ver detalle", onClick: () => onAction("view", lote) },
+                    { key: "editar", icon: <EditOutlined />, label: "Editar", onClick: () => onAction("edit", lote) },
+                    { type: "divider" },
+                    { key: "eliminar", icon: <DeleteOutlined />, label: "Eliminar", danger: true, onClick: () => onAction("delete", lote) },
+                  ]
+                : [
+                    { key: "asignar", icon: <UserAddOutlined />, label: "Asignar prospecto", onClick: () => onAssign(lote) },
+                    { key: "ver", icon: <EyeOutlined />, label: "Ver detalle", onClick: () => onAction("view", lote) },
+                    { key: "editar", icon: <EditOutlined />, label: "Editar", onClick: () => onAction("edit", lote) },
+                    { type: "divider" },
+                    { key: "eliminar", icon: <DeleteOutlined />, label: "Eliminar", danger: true, onClick: () => onAction("delete", lote) },
+                  ],
             }}
             trigger={["click"]}
           >
             <Button type="text" icon={<MoreOutlined />} style={{ color: "#8c8c8c" }} />
           </Dropdown>
         </div>
+        {!reservaInfo && (
+          <Button
+            block
+            type="primary"
+            icon={<UserAddOutlined />}
+            style={{ marginTop: 12 }}
+            onClick={() => onAssign(lote)}
+          >
+            Asignar prospecto
+          </Button>
+        )}
       </div>
     </Card>
   );
@@ -306,6 +327,7 @@ export function ReservasPage() {
   const [modal, setModal] = useState<ModalState>({ type: null, visible: false, record: null });
   const [editForm] = Form.useForm();
   const [loteVenta, setLoteVenta] = useState<Lote | null>(null);
+  const [loteAsignar, setLoteAsignar] = useState<Lote | null>(null);
   const [cotizacionesPendientesVenta, setCotizacionesPendientesVenta] = useState<Record<number, Cotizacion>>({});
   const [ventaSubmitting, setVentaSubmitting] = useState(false);
   const [ventaForm] = Form.useForm();
@@ -404,6 +426,15 @@ export function ReservasPage() {
         medidas: record.medidas ?? null,
       });
     }
+  };
+
+  /** Abre el modal para ligar un prospecto en etapa Reserva a un lote reservado. */
+  const abrirAsignar = (lote: Lote) => {
+    if (reservasPorLote.has(lote.id_lote)) {
+      messageApi.info("Este lote ya tiene un prospecto en etapa Reserva");
+      return;
+    }
+    setLoteAsignar(lote);
   };
 
   const abrirVenta = (lote: Lote) => {
@@ -685,60 +716,68 @@ export function ReservasPage() {
       title: "Acciones",
       key: "acciones",
       width: 290,
-      render: (_: unknown, record: Lote) => (
-        <Space size={4}>
-          <Button
-            type="primary"
-            size="small"
-            icon={<DollarOutlined />}
-            disabled={!reservasPorLote.get(record.id_lote)?.datosCliente}
-            title={
-              !reservasPorLote.get(record.id_lote)
-                ? "Requiere un prospecto en etapa Reserva"
-                : !reservasPorLote.get(record.id_lote)?.datosCliente
-                  ? "Faltan los datos del cliente de la reserva"
-                  : undefined
-            }
-            onClick={() => abrirVenta(record)}
-          >
-            Realizar venta
-          </Button>
-          <Tooltip title="Ver detalle">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              style={{ color: "#1677ff" }}
-              onClick={() => openModal("view", record)}
-            />
-          </Tooltip>
-          <Tooltip title="Editar">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              style={{ color: "#faad14" }}
-              onClick={() => openModal("edit", record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="Eliminar lote"
-            description="¿Estás seguro que deseas eliminar este lote?"
-            onConfirm={() => {
-              handleDelete();
-            }}
-            okText="Eliminar"
-            cancelText="Cancelar"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="Eliminar">
+      render: (_: unknown, record: Lote) => {
+        const reservaInfo = reservasPorLote.get(record.id_lote);
+        return (
+          <Space size={4}>
+            {reservaInfo ? (
+              <Button
+                type="primary"
+                size="small"
+                icon={<DollarOutlined />}
+                disabled={!reservaInfo.datosCliente}
+                title={!reservaInfo.datosCliente ? "Faltan los datos del cliente de la reserva" : undefined}
+                onClick={() => abrirVenta(record)}
+              >
+                Realizar venta
+              </Button>
+            ) : (
+              <Button
+                type="primary"
+                size="small"
+                icon={<UserAddOutlined />}
+                onClick={() => abrirAsignar(record)}
+              >
+                Asignar prospecto
+              </Button>
+            )}
+            <Tooltip title="Ver detalle">
               <Button
                 type="text"
-                icon={<DeleteOutlined />}
-                style={{ color: "#ff4d4f" }}
+                icon={<EyeOutlined />}
+                style={{ color: "#1677ff" }}
+                onClick={() => openModal("view", record)}
               />
             </Tooltip>
-          </Popconfirm>
-        </Space>
-      ),
+            <Tooltip title="Editar">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                style={{ color: "#faad14" }}
+                onClick={() => openModal("edit", record)}
+              />
+            </Tooltip>
+            <Popconfirm
+              title="Eliminar lote"
+              description="¿Estás seguro que deseas eliminar este lote?"
+              onConfirm={() => {
+                handleDelete();
+              }}
+              okText="Eliminar"
+              cancelText="Cancelar"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Eliminar">
+                <Button
+                  type="text"
+                  icon={<DeleteOutlined />}
+                  style={{ color: "#ff4d4f" }}
+                />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -867,6 +906,7 @@ export function ReservasPage() {
                       reservaInfo={reservasPorLote.get(lote.id_lote)}
                       onAction={openModal}
                       onSale={abrirVenta}
+                      onAssign={abrirAsignar}
                     />
                   </Col>
                 ))}
@@ -1098,6 +1138,15 @@ export function ReservasPage() {
           </>
         )}
       </Modal>
+
+      {/* Asignar prospecto a un lote reservado sin prospecto en etapa Reserva */}
+      <AsignarProspectoModal
+        open={loteAsignar !== null}
+        lote={loteAsignar}
+        manzanaNombre={loteAsignar ? manzanaMap[loteAsignar.id_manzana] : undefined}
+        onClose={() => setLoteAsignar(null)}
+        onAssigned={() => setLoteAsignar(null)}
+      />
 
       {/* Delete handled by Popconfirm in the table */}
     </div>

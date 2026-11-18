@@ -25,6 +25,7 @@ import { DeleteLoteUseCase } from "@/application/lotes/use-cases/DeleteLoteUseCa
 import { ReservarLoteUseCase } from "@/application/lotes/use-cases/ReservarLoteUseCase";
 import { CancelarReservaUseCase } from "@/application/lotes/use-cases/CancelarReservaUseCase";
 import { ReservarProspectoUseCase } from "@/application/prospectos/use-cases/ReservarProspectoUseCase";
+import { AsignarProspectoReservaUseCase } from "@/application/prospectos/use-cases/AsignarProspectoReservaUseCase";
 import { RegistrarEntradaReservaUseCase } from "@/application/entradas/use-cases/RegistrarEntradaReservaUseCase";
 import { GetEntradasReservaUseCase } from "@/application/entradas/use-cases/GetEntradasReservaUseCase";
 import { GetClientesUseCase } from "@/application/clientes/use-cases/GetClientesUseCase";
@@ -229,6 +230,8 @@ export interface UseCases {
   getProspectos: GetProspectosUseCase;
   createProspecto: CreateProspectoUseCase;
   updateProspecto: UpdateProspectoUseCase;
+  /** Asigna un prospecto (existente o nuevo) a un lote que ya está reservado. */
+  asignarProspectoReserva: AsignarProspectoReservaUseCase;
   deleteProspecto: DeleteProspectoUseCase;
   /** Registro de interés de un visitante del mapa público (RPC en Supabase). */
   registrarInteresPublico: RegistrarInteresPublicoUseCase;
@@ -422,6 +425,12 @@ export function createUseCases(repos: Repositories): UseCases {
     getProspectos: new GetProspectosUseCase(repos.prospectoRepo),
     createProspecto: new CreateProspectoUseCase(repos.prospectoRepo),
     updateProspecto: new UpdateProspectoUseCase(repos.prospectoRepo),
+    asignarProspectoReserva: new AsignarProspectoReservaUseCase({
+      prospectoRepo: repos.prospectoRepo,
+      lotRepo: repos.lotRepository,
+      oportunidadRepo: repos.oportunidadRepo,
+      registrarEntrada,
+    }),
     deleteProspecto: new DeleteProspectoUseCase(repos.prospectoRepo),
     registrarInteresPublico: new RegistrarInteresPublicoUseCase(repos.registrarInteresPublico),
     getOportunidades: new GetOportunidadesUseCase(repos.oportunidadRepo),
